@@ -11,8 +11,8 @@ namespace UI.Web.Tests
 
     [AllureNUnit]
     [AllureSuite("CheckoutFlow")]
-    [AllureTag("checkout-flow")]
-    [Parallelizable(ParallelScope.Children)]
+    [AllureTag("checkout-flow", "ui")]
+    [Parallelizable(ParallelScope.Self)]
     public class CheckoutFlowTests : BaseTest
     {
         [Test]

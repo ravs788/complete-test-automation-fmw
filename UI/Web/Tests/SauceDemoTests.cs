@@ -10,8 +10,8 @@
 
     [AllureNUnit]
     [AllureSuite("Saucedemo")]
-    [AllureTag("saucedemo")]
-    [Parallelizable(ParallelScope.Children)]
+    [AllureTag("saucedemo", "ui")]
+    [Parallelizable(ParallelScope.Self)]
     public class SauceDemoTests : BaseTest
     {
         [Test]

@@ -4,6 +4,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Chrome;
 using Core.Utilities;
+using Allure.Net.Commons;
 
 namespace UI.Web
 {
@@ -17,7 +18,15 @@ namespace UI.Web
         public virtual void SetUp()
         {
             var config = ConfigManager.Instance.Settings;
-            var browser = (config.Browser ?? "firefox").ToLowerInvariant();
+            var browserEnv = Environment.GetEnvironmentVariable("BROWSER");
+            var browser = !string.IsNullOrWhiteSpace(browserEnv)
+                ? browserEnv.ToLowerInvariant()
+                : (config.Browser ?? "firefox").ToLowerInvariant();
+            AllureLifecycle.Instance.UpdateTestCase(tc =>
+            {
+                tc.labels.Add(Label.Tag(browser));
+                tc.name = $"[{browser}] {tc.name}";
+            });
             switch (browser)
             {
                 case "chrome":

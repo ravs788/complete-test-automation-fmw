@@ -11,8 +11,8 @@ namespace UI.Web.Tests
 
     [AllureNUnit]
     [AllureSuite("AddToCart")]
-    [AllureTag("add-to-cart")]
-    // [Parallelizable(ParallelScope.Children)]
+    [AllureTag("add-to-cart", "ui")]
+    [Parallelizable(ParallelScope.Self)]
     public class AddToCartTests : BaseTest
     {
         [Test]
