@@ -1,0 +1,12 @@
+<Project>
+    <PropertyGroup>
+        <!-- Set Allure output dir for all test projects -->
+        <AllureDirectory>$(MSBuildThisFileDirectory)allure-results</AllureDirectory>
+        <Allure_Config_Directory>$(AllureDirectory)</Allure_Config_Directory>
+        <AllureResultsDirectory>$(AllureDirectory)</AllureResultsDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+        <EnvironmentVariable Include="ALLURE_CONFIG_DIRECTORY" Value="$(AllureDirectory)" />
+        <EnvironmentVariable Include="ALLURE_RESULTS_DIRECTORY" Value="$(AllureDirectory)" />
+    </ItemGroup>
+</Project>
