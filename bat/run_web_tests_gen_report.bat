@@ -1,41 +1,90 @@
 @echo off
+REM ============================================================================
+REM Script: run_web_tests_gen_report.bat
+REM Purpose:
+REM   1. Kill stray WebDriver processes
+REM   2. Clean and build the UI/Web test project
+REM   3. Execute the Web UI tests (Allure JSON files produced in bin folder)
+REM   4. Inject a timestamp into environment.properties so it appears in Allure
+REM   5. Copy the results from
+REM        UI\Web\bin\Debug\net9.0\allure-results\
+REM      to a top-level folder called
+REM        allure-results
+REM ============================================================================
 
-setlocal
+setlocal EnableDelayedExpansion
 
-REM Kill orphaned driver processes first
+REM --------------------------------------------------------------------------
+REM 0. Kill any orphaned browser driver processes
+REM --------------------------------------------------------------------------
 call bat\kill_all_webdrivers.bat
 
-REM Clean UI.Web test project
+REM --------------------------------------------------------------------------
+REM 1. Clean UI.Web project
+REM --------------------------------------------------------------------------
+echo Cleaning UI.Web test project...
 dotnet clean UI/Web/UI.Web.Tests.csproj
 set CLEAN_EXIT=%ERRORLEVEL%
 
-REM Build UI.Web test project
+REM --------------------------------------------------------------------------
+REM Additional clean-up: remove previous Allure result folders
+REM --------------------------------------------------------------------------
+if exist UI\Web\bin\Debug\net9.0\allure-results (
+    echo Removing previous UI Web allure-results folder...
+    rmdir /S /Q UI\Web\bin\Debug\net9.0\allure-results
+)
+if exist allure-results (
+    echo Removing previous root allure-results folder...
+    rmdir /S /Q allure-results
+)
+
+REM --------------------------------------------------------------------------
+REM 2. Build UI.Web test project
+REM --------------------------------------------------------------------------
+echo Building UI.Web test project...
 dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
 set BUILD_EXIT=%ERRORLEVEL%
 
-REM Run tests and generate allure results
-dotnet test UI/Web/UI.Web.Tests.csproj --no-build --logger "trx;LogFileName=TestResults.trx" --results-directory UI/Web/allure-results
+REM --------------------------------------------------------------------------
+REM 3. Run UI.Web tests (generates Allure result *.json files)
+REM --------------------------------------------------------------------------
+echo Running UI.Web tests...
+dotnet test UI/Web/UI.Web.Tests.csproj ^
+  --no-build ^
+  --logger "trx;LogFileName=WebTests.trx" ^
+  --test-adapter-path:. ^
+  /p:AllureResultsDirectory=UI\Web\bin\Debug\net9.0\allure-results
 set TEST_EXIT=%ERRORLEVEL%
 
-REM Generate static Allure report
-if exist UI/Web/allure-results (
-    allure generate UI/Web/allure-results --clean -o UI/Web/allure-report
-    set ALLURE_EXIT=%ERRORLEVEL%
-) else (
-    echo Allure results directory does not exist, skipping report generation.
-    set ALLURE_EXIT=1
-)
+REM --------------------------------------------------------------------------
+REM 4. Add timestamp to Allure results
+REM --------------------------------------------------------------------------
+echo Adding timestamp to Allure results...
+for /f "tokens=1" %%a in ("%date:/=-%") do set TODAY=%%a
+for /f "tokens=1" %%a in ("%time: =0%") do set NOW=%%a
+set TS=!TODAY!_!NOW!
+set TS=!TS::=-!
+echo run.timestamp=!TS!> UI\Web\bin\Debug\net9.0\allure-results\environment.properties
+set TIMESTAMP=!TS!
 
-REM (Optional) Serve the Allure report; comment the line below out if you do not want to launch a web server
-allure serve UI/Web/allure-results
+REM --------------------------------------------------------------------------
+REM 5. Copy Allure results to top-level allure-results directory
+REM --------------------------------------------------------------------------
+echo Preparing target allure-results directory...
+mkdir allure-results
+xcopy /E /I /Y UI\Web\bin\Debug\net9.0\allure-results\* allure-results\
+set COPY_EXIT=%ERRORLEVEL%
 
-REM Print summary of each step
-echo Clean result:  %CLEAN_EXIT%
-echo Build result:  %BUILD_EXIT%
-echo Test result:   %TEST_EXIT%
-echo Allure generate result: %ALLURE_EXIT%
-echo Report preview server (if started) is running. Press Ctrl+C to stop.
-
+REM --------------------------------------------------------------------------
+REM Summary
+REM --------------------------------------------------------------------------
+echo(
+echo ===================== SUMMARY =====================
+echo Clean  step exit code : %CLEAN_EXIT%
+echo Build  step exit code : %BUILD_EXIT%
+echo Test   step exit code : %TEST_EXIT%
+echo Copy   step exit code : %COPY_EXIT%
+echo Run Timestamp        : %TIMESTAMP%
+echo ===================================================
+echo(
 endlocal
-
-echo Batch script complete.

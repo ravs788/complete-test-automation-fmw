@@ -8,6 +8,11 @@ namespace UI.Web.Tests
     using Allure.NUnit.Attributes;
     using Allure.NUnit;
     using Allure.Net.Commons;
+    using OpenQA.Selenium;
+    using OpenQA.Selenium.Chrome;
+    using OpenQA.Selenium.Firefox;
+    using OpenQA.Selenium.Edge;
+    using Core.Utilities;
 
     [AllureNUnit]
     [AllureSuite("CheckoutFlow")]
@@ -15,8 +20,12 @@ namespace UI.Web.Tests
     [Parallelizable(ParallelScope.Self)]
     public class CheckoutFlowTests : BaseTest
     {
+
         [Test]
-        public void EndToEnd_Checkout_Success()
+        [TestCase("chrome")]
+        [TestCase("firefox")]
+        [TestCase("edge")]
+        public void EndToEnd_Checkout_Success(string browser)
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<CheckoutFlowTestData>("CheckoutFlowTests/EndToEnd_Checkout_Success.json");
@@ -26,7 +35,7 @@ namespace UI.Web.Tests
             loginPage.Login(testData.User.Username, testData.User.Password);
             var inventoryPage = new InventoryPage(Driver!);
 
-            AllureApi.Step("Assert inventory page loaded after login", () =>
+            AllureApi.Step($"Assert inventory page loaded after login on {browser}", () =>
             {
                 Assert.That(inventoryPage.IsAtInventoryPage(), "Did not land on inventory page after login.");
             });
@@ -37,7 +46,7 @@ namespace UI.Web.Tests
             inventoryPage.OpenCart();
             var cartPage = new CartPage(Driver!);
 
-            AllureApi.Step("Assert cart page loaded and contains correct products", () =>
+            AllureApi.Step($"Assert cart page loaded and contains correct products on {browser}", () =>
             {
                 Assert.That(cartPage.IsLoaded(), "Cart page did not load.");
                 Assert.That(
@@ -55,7 +64,7 @@ namespace UI.Web.Tests
                 testData.CheckoutInfo.PostalCode
             );
 
-            AllureApi.Step("Assert checkout info page loaded", () =>
+            AllureApi.Step($"Assert checkout info page loaded on {browser}", () =>
             {
                 Assert.That(checkoutPage.IsAtCheckoutInfo(), "Checkout info page did not load.");
             });
@@ -64,7 +73,7 @@ namespace UI.Web.Tests
             overviewPage.ClickFinish();
 
             var completePage = new CheckoutCompletePage(Driver!);
-            AllureApi.Step("Assert order completion message displayed", () =>
+            AllureApi.Step($"Assert order completion message displayed on {browser}", () =>
             {
                 Assert.That(
                     completePage.GetCompleteHeaderText().ToLower(),
@@ -73,6 +82,5 @@ namespace UI.Web.Tests
                 );
             });
         }
-
     }
 }

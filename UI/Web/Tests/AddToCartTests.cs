@@ -8,6 +8,11 @@ namespace UI.Web.Tests
     using Allure.NUnit;
     using Allure.Net.Commons;
     using UI.Web.Utilities;
+    using OpenQA.Selenium;
+    using OpenQA.Selenium.Chrome;
+    using OpenQA.Selenium.Firefox;
+    using OpenQA.Selenium.Edge;
+    // using Core.Utilities; -- Already above. Don't re-add.
 
     [AllureNUnit]
     [AllureSuite("AddToCart")]
@@ -15,8 +20,12 @@ namespace UI.Web.Tests
     [Parallelizable(ParallelScope.Self)]
     public class AddToCartTests : BaseTest
     {
+
         [Test]
-        public void CanAddBackpackToCart()
+        [TestCase("chrome")]
+        [TestCase("firefox")]
+        [TestCase("edge")]
+        public void CanAddBackpackToCart(string browser)
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<AddToCartTestData>("AddToCartTests/CanAddBackpackToCart.json");
@@ -26,7 +35,7 @@ namespace UI.Web.Tests
             loginPage.Login(testData.User.Username, testData.User.Password);
 
             var inventoryPage = new InventoryPage(Driver!);
-            AllureApi.Step("Assert inventory page loaded after login", () =>
+            AllureApi.Step($"Assert inventory page loaded after login on {browser}", () =>
             {
                 Assert.That(
                     inventoryPage.IsAtInventoryPage(),
@@ -38,14 +47,14 @@ namespace UI.Web.Tests
             inventoryPage.OpenCart();
             var cartPage = new CartPage(Driver!);
 
-            AllureApi.Step("Assert cart page loaded", () =>
+            AllureApi.Step($"Assert cart page loaded on {browser}", () =>
             {
                 Assert.That(
                     cartPage.IsLoaded(),
                     Is.EqualTo(true)
                 );
             });
-            AllureApi.Step("Assert product is in the cart", () =>
+            AllureApi.Step($"Assert product is in the cart on {browser}", () =>
             {
                 bool contains = cartPage.GetProductNames().Contains(testData.Product.Name);
                 Assert.That(

@@ -15,7 +15,15 @@ namespace UI.Web.Pages
 
         public bool IsLoaded()
         {
-            return Driver.FindElement(cartTitle).Text == "Your Cart";
+            try
+            {
+                WaitForElementVisible(cartTitle, 10);
+                return Driver.FindElement(cartTitle).Text == "Your Cart";
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public List<string> GetProductNames()

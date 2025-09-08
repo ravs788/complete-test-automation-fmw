@@ -33,6 +33,17 @@ namespace UI.Web.Pages
             EnterUsername(username);
             EnterPassword(password);
             ClickLogin();
+            HandleAlertIfPresent();
+        }
+
+        private void HandleAlertIfPresent()
+        {
+            try
+            {
+                var alert = Driver.SwitchTo().Alert();
+                alert.Accept();
+            }
+            catch (NoAlertPresentException) { }
         }
     }
 }

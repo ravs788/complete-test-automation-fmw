@@ -45,7 +45,7 @@ namespace UI.Web.Pages
                     return;
                 }
             }
-            throw new System.Exception($"Product with name '{productNameText}' not found in inventory.");
+            throw new Exception($"Product with name '{productNameText}' not found in inventory.");
         }
 
         public void OpenCart()

@@ -16,16 +16,37 @@ namespace API.Tests
     public class BookingApiGetTests
     {
         private ApiClient _client;
+        private DateTime _testStartTime;
 
         [SetUp]
         public void SetUp()
         {
+            _testStartTime = DateTime.Now;
             _client = new ApiClient();
         }
 
         [TearDown]
         public void TearDown()
         {
+            DateTime endTime = DateTime.Now;
+            AllureLifecycle.Instance.UpdateTestCase(tc =>
+            {
+                tc.parameters.Add(new Parameter
+                {
+                    name = "Start Time",
+                    value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                });
+                tc.parameters.Add(new Parameter
+                {
+                    name = "End Time",
+                    value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                });
+                tc.parameters.Add(new Parameter
+                {
+                    name = "Duration (s)",
+                    value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
+                });
+            });
             _client.Dispose();
         }
 
