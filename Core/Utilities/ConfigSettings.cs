@@ -6,5 +6,7 @@ namespace Core.Utilities
         public string Browser { get; set; } = "firefox";
         public bool Headless { get; set; } = false;
         public string BaseUrl { get; set; } = "https://www.saucedemo.com/";
+        public string DefaultUsername { get; set; } = "";
+        public string DefaultPassword { get; set; } = "";
     }
 }
