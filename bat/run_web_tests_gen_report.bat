@@ -15,6 +15,16 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 REM --------------------------------------------------------------------------
+REM [Dotnet Resolution] Prefer local bundled dotnet, fallback to global
+REM --------------------------------------------------------------------------
+set "LOCAL_DOTNET=tools\dotnet\dotnet.exe"
+if exist "%LOCAL_DOTNET%" (
+    set "DOTNET_CMD=%LOCAL_DOTNET%"
+) else (
+    set "DOTNET_CMD=dotnet"
+)
+
+REM --------------------------------------------------------------------------
 REM 0. Kill any orphaned browser driver processes
 REM --------------------------------------------------------------------------
 call bat\kill_all_webdrivers.bat
@@ -23,7 +33,7 @@ REM --------------------------------------------------------------------------
 REM 1. Clean UI.Web project
 REM --------------------------------------------------------------------------
 echo Cleaning UI.Web test project...
-dotnet clean UI/Web/UI.Web.Tests.csproj
+%DOTNET_CMD% clean UI/Web/UI.Web.Tests.csproj
 set CLEAN_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -42,14 +52,14 @@ REM --------------------------------------------------------------------------
 REM 2. Build UI.Web test project
 REM --------------------------------------------------------------------------
 echo Building UI.Web test project...
-dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
+%DOTNET_CMD% build UI/Web/UI.Web.Tests.csproj --no-restore
 set BUILD_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
 REM 3. Run UI.Web tests (generates Allure result *.json files)
 REM --------------------------------------------------------------------------
 echo Running UI.Web tests...
-dotnet test UI/Web/UI.Web.Tests.csproj ^
+%DOTNET_CMD% test UI/Web/UI.Web.Tests.csproj ^
   --no-build ^
   --logger "trx;LogFileName=WebTests.trx" ^
   --test-adapter-path:. ^

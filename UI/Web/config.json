@@ -1,0 +1,6 @@
+{
+  "RunTestsInParallel": false,
+  "Browser": "chrome",
+  "Headless": true,
+  "BaseUrl": "https://www.saucedemo.com/"
+}

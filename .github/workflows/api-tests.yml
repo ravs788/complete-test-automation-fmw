@@ -1,0 +1,56 @@
+name: API Tests
+
+on:
+  push:
+    paths:
+      - 'API/**'
+      - 'Core/**'
+      - '.github/workflows/**'
+      - 'bat/**'
+      - 'tools/**'
+      - 'API.Tests.csproj'
+      - 'pipeline/actions/api-tests.yml'
+  pull_request:
+    paths:
+      - 'API/**'
+      - 'Core/**'
+      - '.github/workflows/**'
+      - 'bat/**'
+      - 'tools/**'
+      - 'API.Tests.csproj'
+      - 'pipeline/actions/api-tests.yml'
+
+jobs:
+  api-tests:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 9.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore API/API.Tests.csproj
+
+      - name: Build API Tests
+        run: dotnet build API/API.Tests.csproj --no-restore --configuration Release
+
+      - name: Run API Tests (Allure Output)
+        run: |
+          dotnet test API/API.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=APITests.trx"
+      
+      - name: Upload Allure Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-api
+          path: API/bin/Debug/net9.0/allure-results
+
+      - name: Upload NUnit TRX Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunit-trx-api
+          path: API/TestResults/

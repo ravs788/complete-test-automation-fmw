@@ -1,0 +1,11 @@
+{
+  "firstname": "GetById",
+  "lastname": "Test",
+  "totalprice": 222,
+  "depositpaid": true,
+  "bookingdates": {
+    "checkin": "2025-11-01",
+    "checkout": "2025-11-05"
+  },
+  "additionalneeds": "Lunch"
+}

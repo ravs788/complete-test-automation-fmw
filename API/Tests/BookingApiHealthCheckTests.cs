@@ -9,7 +9,7 @@ namespace API.Tests
 {
     [AllureNUnit]
     [AllureSuite("Booking Health Check API")]
-    [AllureTag("api", "health")]
+    [AllureTag("api", "health", "smoke", "regression")]
     public class BookingApiHealthCheckTests
     {
         private ApiClient _client;

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "UI Tests",
+    "description": "All tests with the 'ui' tag",
+    "matchedLabels": ["ui"]
+  },
+  {
+    "name": "API Tests",
+    "description": "All tests with the 'api' tag",
+    "matchedLabels": ["api"]
+  }
+]

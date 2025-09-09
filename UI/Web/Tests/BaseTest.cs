@@ -21,7 +21,6 @@ namespace UI.Web
         public virtual void SetUp()
         {
             _testStartTime = DateTime.Now;
-            TestContext.WriteLine($"=== Test Start Time: {_testStartTime:yyyy-MM-dd HH:mm:ss.fff} ===");
 
             var config = ConfigManager.Instance.Settings;
             string browser = "firefox"; // default

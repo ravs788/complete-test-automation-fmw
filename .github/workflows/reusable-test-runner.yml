@@ -1,0 +1,78 @@
+name: Reusable Test Runner
+
+on:
+  workflow_call:
+    inputs:
+      test_layer:
+        description: 'Test layer to run (api or ui)'
+        required: true
+        type: string
+      tag:
+        description: 'Test tag/category to run (e.g. smoke, regression)'
+        required: true
+        type: string
+
+jobs:
+  run-tagged-tests:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 9.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore API Test Dependencies
+        if: ${{ inputs.test_layer == 'api' }}
+        run: dotnet restore API/API.Tests.csproj
+
+      - name: Restore UI Test Dependencies
+        if: ${{ inputs.test_layer == 'ui' }}
+        run: dotnet restore UI/Web/UI.Web.Tests.csproj
+
+      - name: Build API Tests
+        if: ${{ inputs.test_layer == 'api' }}
+        run: dotnet build API/API.Tests.csproj --no-restore --configuration Release
+
+      - name: Build UI Tests
+        if: ${{ inputs.test_layer == 'ui' }}
+        run: dotnet build UI/Web/UI.Web.Tests.csproj --no-restore --configuration Release
+
+      - name: Run Tagged API Tests
+        if: ${{ inputs.test_layer == 'api' }}
+        run: dotnet test API/API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
+
+      - name: Run Tagged UI Tests
+        if: ${{ inputs.test_layer == 'ui' }}
+        run: dotnet test UI/Web/UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
+
+      - name: Upload Allure Results API
+        if: ${{ inputs.test_layer == 'api' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-api-${{ inputs.tag }}
+          path: API/bin/Debug/net9.0/allure-results
+
+      - name: Upload Allure Results UI
+        if: ${{ inputs.test_layer == 'ui' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ui-${{ inputs.tag }}
+          path: UI/Web/bin/Debug/net9.0/allure-results
+
+      - name: Upload NUnit TRX Results API
+        if: ${{ inputs.test_layer == 'api' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunit-trx-api-${{ inputs.tag }}
+          path: API/TestResults/
+
+      - name: Upload NUnit TRX Results UI
+        if: ${{ inputs.test_layer == 'ui' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunit-trx-ui-${{ inputs.tag }}
+          path: UI/Web/TestResults/

@@ -13,7 +13,7 @@ namespace API.Tests
 {
     [AllureNUnit]
     [AllureSuite("Booking Delete API")]
-    [AllureTag("api", "delete")]
+    [AllureTag("api", "delete", "regression")]
     public class BookingApiDeleteTests
     {
         private ApiClient _client;

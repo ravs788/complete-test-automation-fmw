@@ -16,6 +16,16 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 REM --------------------------------------------------------------------------
+REM [Dotnet Resolution] Prefer local bundled dotnet, fallback to global
+REM --------------------------------------------------------------------------
+set "LOCAL_DOTNET=tools\dotnet\dotnet.exe"
+if exist "%LOCAL_DOTNET%" (
+    set "DOTNET_CMD=%LOCAL_DOTNET%"
+) else (
+    set "DOTNET_CMD=dotnet"
+)
+
+REM --------------------------------------------------------------------------
 REM 0. Kill orphaned WebDriver processes
 REM --------------------------------------------------------------------------
 call bat\kill_all_webdrivers.bat
@@ -24,9 +34,9 @@ REM --------------------------------------------------------------------------
 REM 1. Clean projects and previous Allure folders
 REM --------------------------------------------------------------------------
 echo Cleaning test projects...
-dotnet clean API/API.Tests.csproj
+%DOTNET_CMD% clean API/API.Tests.csproj
 set CLEAN_API_EXIT=%ERRORLEVEL%
-dotnet clean UI/Web/UI.Web.Tests.csproj
+%DOTNET_CMD% clean UI/Web/UI.Web.Tests.csproj
 set CLEAN_WEB_EXIT=%ERRORLEVEL%
 
 echo Removing previous Allure result folders...
@@ -44,23 +54,23 @@ REM --------------------------------------------------------------------------
 REM 2. Build projects
 REM --------------------------------------------------------------------------
 echo Building projects...
-dotnet build API/API.Tests.csproj --no-restore
+%DOTNET_CMD% build API/API.Tests.csproj --no-restore
 set BUILD_API_EXIT=%ERRORLEVEL%
-dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
+%DOTNET_CMD% build UI/Web/UI.Web.Tests.csproj --no-restore
 set BUILD_WEB_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
 REM 3. Run tests
 REM --------------------------------------------------------------------------
 echo Running API tests...
-dotnet test API/API.Tests.csproj ^
+%DOTNET_CMD% test API/API.Tests.csproj ^
   --no-build ^
   --logger "trx;LogFileName=APITests.trx" ^
   /p:AllureResultsDirectory=API\bin\Debug\net9.0\allure-results
 set TEST_API_EXIT=%ERRORLEVEL%
 
 echo Running UI.Web tests...
-dotnet test UI/Web/UI.Web.Tests.csproj ^
+%DOTNET_CMD% test UI/Web/UI.Web.Tests.csproj ^
   --no-build ^
   --logger "trx;LogFileName=WebTests.trx" ^
   --test-adapter-path:. ^

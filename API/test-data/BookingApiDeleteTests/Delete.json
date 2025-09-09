@@ -1,0 +1,11 @@
+{
+  "firstname": "DeleteMe",
+  "lastname": "Smith",
+  "totalprice": 888,
+  "depositpaid": true,
+  "bookingdates": {
+    "checkin": "2025-12-16",
+    "checkout": "2025-12-20"
+  },
+  "additionalneeds": "Dinner"
+}

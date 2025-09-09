@@ -15,7 +15,7 @@
 
     [AllureNUnit]
     [AllureSuite("Saucedemo")]
-    [AllureTag("saucedemo", "ui")]
+    [AllureTag("saucedemo", "ui", "smoke", "regression")]
     [Parallelizable(ParallelScope.Self)]
     public class SauceDemoTests : BaseTest
     {

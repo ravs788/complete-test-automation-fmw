@@ -1,0 +1,17 @@
+name: PR Smoke Suite
+
+on:
+  pull_request:
+
+jobs:
+  smoke-api:
+    uses: ./.github/workflows/reusable-test-runner.yml
+    with:
+      test_layer: 'api'
+      tag: 'smoke'
+
+  smoke-ui:
+    uses: ./.github/workflows/reusable-test-runner.yml
+    with:
+      test_layer: 'ui'
+      tag: 'smoke'
