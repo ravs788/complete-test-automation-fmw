@@ -30,14 +30,24 @@ if exist allure-results rmdir /S /Q allure-results
 if exist allure-report rmdir /S /Q allure-report
 
 REM --------------------------------------------------------------------------
+REM [Dotnet Resolution] Prefer local bundled dotnet, fallback to global
+REM --------------------------------------------------------------------------
+set "LOCAL_DOTNET=tools\dotnet\dotnet.exe"
+if exist "%LOCAL_DOTNET%" (
+    set "DOTNET_CMD=%LOCAL_DOTNET%"
+) else (
+    set "DOTNET_CMD=dotnet"
+)
+
+REM --------------------------------------------------------------------------
 REM 3. Clean & build the UI/Web test project once
 REM --------------------------------------------------------------------------
 echo Cleaning UI.Web test project...
-dotnet clean UI/Web/UI.Web.Tests.csproj
+%DOTNET_CMD% clean UI/Web/UI.Web.Tests.csproj
 set CLEAN_EXIT=%ERRORLEVEL%
 
 echo Building UI.Web test project...
-dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
+%DOTNET_CMD% build UI/Web/UI.Web.Tests.csproj --no-restore
 set BUILD_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -51,7 +61,7 @@ for %%b in (%BROWSERS%) do (
     set RESULT_DIR=UI\Web\bin\Debug\net9.0\allure-results-%%b    
 
     REM Run tests for current browser
-    dotnet test UI/Web/UI.Web.Tests.csproj ^
+    %DOTNET_CMD% test UI/Web/UI.Web.Tests.csproj ^
       --no-build ^
       --logger "trx;LogFileName=WebTests_%%b.trx" ^
       --test-adapter-path:. ^

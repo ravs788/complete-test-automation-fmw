@@ -1,0 +1,58 @@
+name: UI Web Tests
+
+on:
+  push:
+    paths:
+      - 'UI/**'
+      - 'Core/**'
+      - '.github/workflows/**'
+      - 'bat/**'
+      - 'tools/**'
+      - 'UI.Web.Tests.csproj'
+      - 'pipeline/actions/ui-tests.yml'
+  pull_request:
+    paths:
+      - 'UI/**'
+      - 'Core/**'
+      - '.github/workflows/**'
+      - 'bat/**'
+      - 'tools/**'
+      - 'UI.Web.Tests.csproj'
+      - 'pipeline/actions/ui-tests.yml'
+
+jobs:
+  ui-web-tests:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 9.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore UI/Web/UI.Web.Tests.csproj
+
+      - name: Build UI.Web Tests
+        run: dotnet build UI/Web/UI.Web.Tests.csproj --no-restore --configuration Release
+
+      - name: Run UI/Web Tests (Allure Output)
+        run: |
+          dotnet test UI/Web/UI.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=WebTests.trx"
+        env:
+          BROWSER: chrome
+
+      - name: Upload Allure Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ui
+          path: UI/Web/bin/Debug/net9.0/allure-results
+
+      - name: Upload NUnit TRX Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunit-trx-ui
+          path: UI/Web/TestResults/

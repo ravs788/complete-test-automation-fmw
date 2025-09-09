@@ -11,7 +11,7 @@ namespace API.Tests
 {
     [AllureNUnit]
     [AllureSuite("Booking Post API")]
-    [AllureTag("api", "post")]
+    [AllureTag("api", "post", "regression")]
     public class BookingApiPostTests
     {
         private ApiClient _client;

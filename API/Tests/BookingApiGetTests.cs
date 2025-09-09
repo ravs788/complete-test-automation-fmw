@@ -12,7 +12,7 @@ namespace API.Tests
 {
     [AllureNUnit]
     [AllureSuite("Booking Get API")]
-    [AllureTag("api", "get")]
+    [AllureTag("api", "get", "regression")]
     public class BookingApiGetTests
     {
         private ApiClient _client;

@@ -14,10 +14,20 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 REM --------------------------------------------------------------------------
+REM [Dotnet Resolution] Prefer local bundled dotnet, fallback to global
+REM --------------------------------------------------------------------------
+set "LOCAL_DOTNET=tools\dotnet\dotnet.exe"
+if exist "%LOCAL_DOTNET%" (
+    set "DOTNET_CMD=%LOCAL_DOTNET%"
+) else (
+    set "DOTNET_CMD=dotnet"
+)
+
+REM --------------------------------------------------------------------------
 REM 1. Clean API solution / project
 REM --------------------------------------------------------------------------
 echo Cleaning API solution / project...
-dotnet clean API/API.Tests.csproj
+%DOTNET_CMD% clean API/API.Tests.csproj
 set CLEAN_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -36,7 +46,7 @@ REM --------------------------------------------------------------------------
 REM 2. Build API test project
 REM --------------------------------------------------------------------------
 echo Building API test project...
-dotnet build API/API.Tests.csproj --no-restore
+%DOTNET_CMD% build API/API.Tests.csproj --no-restore
 set BUILD_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -47,7 +57,7 @@ REM      • --logger    → keep trx for Azure DevOps / any CI reporting
 REM      • /p:AllureResultsDirectory → tell Allure adapter where to drop results
 REM --------------------------------------------------------------------------
 echo Running API tests...
-dotnet test API/API.Tests.csproj --no-build --logger "trx;LogFileName=APITests.trx" /p:AllureResultsDirectory=API\bin\Debug\net9.0\allure-results
+%DOTNET_CMD% test API/API.Tests.csproj --no-build --logger "trx;LogFileName=APITests.trx" /p:AllureResultsDirectory=API\bin\Debug\net9.0\allure-results
 set TEST_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------

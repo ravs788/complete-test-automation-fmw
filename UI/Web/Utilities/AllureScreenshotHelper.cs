@@ -42,7 +42,8 @@ namespace UI.Web.Utilities
             catch (Exception ex)
             {
                 // Optionally log or swallow screenshot exceptions for robustness
-                Console.WriteLine($"Failed to capture or attach screenshot: {ex}");
+                // Failed to capture or attach screenshot: {ex}
+                // Logging to console was removed to avoid unwanted output.
             }
         }
     }
