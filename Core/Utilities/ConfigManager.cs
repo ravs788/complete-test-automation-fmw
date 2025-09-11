@@ -6,8 +6,16 @@ namespace Core.Utilities
 
     public class ConfigManager : IConfigManager
     {
+        public static string GetRootPath()
+        {
+            return Directory.GetCurrentDirectory();
+        }
+
+        public static string RootPath => GetRootPath();
         private static readonly ConfigManager _instance = new ConfigManager();
         public static IConfigManager Instance => _instance;
+
+        // Remove the duplicate GetRootPath and RootPath definitions
 
         private ConfigSettings? _settings;
         private readonly object _lock = new();

@@ -12,13 +12,12 @@ namespace UI.Web.Tests
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Firefox;
     using OpenQA.Selenium.Edge;
-    using Core.Utilities;
 
     [AllureNUnit]
     [AllureSuite("CheckoutFlow")]
     [AllureTag("checkout-flow", "ui", "regression")]
     [Parallelizable(ParallelScope.Self)]
-    public class CheckoutFlowTests : BaseTest
+    public class CheckoutFlowTests : BaseWebTest
     {
 
         [Test]
@@ -37,7 +36,17 @@ namespace UI.Web.Tests
 
             AllureApi.Step($"Assert inventory page loaded after login on {browser}", () =>
             {
-                Assert.That(inventoryPage.IsAtInventoryPage(), "Did not land on inventory page after login.");
+                bool actual = inventoryPage.IsAtInventoryPage();
+                try
+                {
+                    Assert.That(actual, "Did not land on inventory page after login.");
+                    Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
+                    throw;
+                }
             });
 
             foreach (var prod in testData.Products)
@@ -48,12 +57,24 @@ namespace UI.Web.Tests
 
             AllureApi.Step($"Assert cart page loaded and contains correct products on {browser}", () =>
             {
-                Assert.That(cartPage.IsLoaded(), "Cart page did not load.");
-                Assert.That(
-                    cartPage.GetProductNames(),
-                    Is.SupersetOf(testData.Products.Select(p => p.Name)),
-                    "Cart does not contain correct products"
-                );
+                bool isLoaded = cartPage.IsLoaded();
+                var names = cartPage.GetProductNames();
+                var expectedNames = testData.Products.Select(p => p.Name);
+                try
+                {
+                    Assert.That(isLoaded, "Cart page did not load.");
+                    Assert.That(
+                        names,
+                        Is.SupersetOf(expectedNames),
+                        "Cart does not contain correct products"
+                    );
+                    Logger.Info($"[{browser}] PASSED: Assert cart page loaded (IsLoaded: {isLoaded}) and contains correct products (expected: [{string.Join(",", expectedNames)}], actual: [{string.Join(",", names)}])");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Cart page load/products assertion - {ex.Message} (IsLoaded: {isLoaded}, expected: [{string.Join(",", expectedNames)}], actual: [{string.Join(",", names)}])");
+                    throw;
+                }
             });
 
             cartPage.ClickCheckout();
@@ -66,7 +87,17 @@ namespace UI.Web.Tests
 
             AllureApi.Step($"Assert checkout info page loaded on {browser}", () =>
             {
-                Assert.That(checkoutPage.IsAtCheckoutInfo(), "Checkout info page did not load.");
+                bool actual = checkoutPage.IsAtCheckoutInfo();
+                try
+                {
+                    Assert.That(actual, "Checkout info page did not load.");
+                    Logger.Info($"[{browser}] PASSED: Assert checkout info page loaded (expected: true, actual: {actual})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert checkout info page loaded (expected: true, actual: {actual}) - {ex.Message}");
+                    throw;
+                }
             });
 
             var overviewPage = new CheckoutOverviewPage(Driver!);
@@ -75,11 +106,21 @@ namespace UI.Web.Tests
             var completePage = new CheckoutCompletePage(Driver!);
             AllureApi.Step($"Assert order completion message displayed on {browser}", () =>
             {
-                Assert.That(
-                    completePage.GetCompleteHeaderText().ToLower(),
-                    Does.Contain("thank you for your order"),
-                    "Order completion message not displayed."
-                );
+                var headerText = completePage.GetCompleteHeaderText();
+                try
+                {
+                    Assert.That(
+                        headerText.ToLower(),
+                        Does.Contain("thank you for your order"),
+                        "Order completion message not displayed."
+                    );
+                    Logger.Info($"[{browser}] PASSED: Order completion message displayed. (Header: '{headerText}')");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Order completion message assertion. (Header: '{headerText}') - {ex.Message}");
+                    throw;
+                }
             });
         }
     }

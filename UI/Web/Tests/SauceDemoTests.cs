@@ -11,13 +11,12 @@
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Firefox;
     using OpenQA.Selenium.Edge;
-    using Core.Utilities;
 
     [AllureNUnit]
     [AllureSuite("Saucedemo")]
     [AllureTag("saucedemo", "ui", "smoke", "regression")]
     [Parallelizable(ParallelScope.Self)]
-    public class SauceDemoTests : BaseTest
+    public class SauceDemoTests : BaseWebTest
     {
 
         [Test]
@@ -31,17 +30,39 @@
             var loginPage = new LoginPage(Driver!);
 
             // Act
+            Logger.Info($"[{browser}] Attempting login for user '{user.Username}'");
             loginPage.Login(user.Username, user.Password);
+            Logger.Info($"[{browser}] Login submitted");
             var inventoryPage = new InventoryPage(Driver!);
 
             // Assert
             AllureApi.Step($"Assert inventory page loaded after login on {browser}", () =>
             {
-                Assert.That(inventoryPage.IsAtInventoryPage(), "User did not land on inventory page after login.");
+                bool actual = inventoryPage.IsAtInventoryPage();
+                try
+                {
+                    Assert.That(actual, "User did not land on inventory page after login.");
+                    Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
+                    throw;
+                }
             });
             AllureApi.Step($"Assert inventory item count > 0 on {browser}", () =>
             {
-                Assert.That(inventoryPage.GetInventoryItemCount(), Is.GreaterThan(0), "Inventory item count should be greater than 0.");
+                int count = inventoryPage.GetInventoryItemCount();
+                try
+                {
+                    Assert.That(count, Is.GreaterThan(0), "Inventory item count should be greater than 0.");
+                    Logger.Info($"[{browser}] PASSED: Assert inventory item count > 0 (actual: {count})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert inventory item count > 0 (actual: {count}) - {ex.Message}");
+                    throw;
+                }
             });
         }
     }

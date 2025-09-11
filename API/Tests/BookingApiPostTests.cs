@@ -12,42 +12,9 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Post API")]
     [AllureTag("api", "post", "regression")]
-    public class BookingApiPostTests
+    public class BookingApiPostTests : BaseApiTest
     {
-        private ApiClient _client;
-        private DateTime _testStartTime;
 
-        [SetUp]
-        public void SetUp()
-        {
-            _testStartTime = DateTime.Now;
-            _client = new ApiClient();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            DateTime endTime = DateTime.Now;
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
-            {
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Start Time",
-                    value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "End Time",
-                    value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Duration (s)",
-                    value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
-                });
-            });
-            _client.Dispose();
-        }
 
         [Test]
         public async Task Create_New_Booking_Should_Succeed()
@@ -60,8 +27,17 @@ namespace API.Tests
             var postResponse = await _client.PostAsync<Booking, Dictionary<string, object>>("booking", newBooking);
             AllureApi.Step("Assert booking creation response", () =>
             {
-                Assert.That(postResponse, Is.Not.Null, "Booking creation failed");
-                Assert.That(postResponse.ContainsKey("bookingid"), "Response missing bookingid");
+                try
+                {
+                    Assert.That(postResponse, Is.Not.Null, "Booking creation failed");
+                    Assert.That(postResponse.ContainsKey("bookingid"), "Response missing bookingid");
+                    Logger.Info("PASSED: Assert booking creation response");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert booking creation response - {ex.Message}");
+                    throw;
+                }
             });
         }
     }

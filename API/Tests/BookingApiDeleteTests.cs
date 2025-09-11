@@ -14,42 +14,9 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Delete API")]
     [AllureTag("api", "delete", "regression")]
-    public class BookingApiDeleteTests
+    public class BookingApiDeleteTests : BaseApiTest
     {
-        private ApiClient _client;
-        private DateTime _testStartTime;
 
-        [SetUp]
-        public void SetUp()
-        {
-            _testStartTime = DateTime.Now;
-            _client = new ApiClient();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            DateTime endTime = DateTime.Now;
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
-            {
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Start Time",
-                    value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "End Time",
-                    value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Duration (s)",
-                    value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
-                });
-            });
-            _client.Dispose();
-        }
 
 
         [Test]
@@ -62,8 +29,17 @@ namespace API.Tests
             var postResp = await _client.PostAsync<Booking, Dictionary<string, object>>("booking", booking);
             AllureApi.Step("Assert booking creation for delete test", () =>
             {
-                Assert.That(postResp, Is.Not.Null, "Booking creation failed");
-                Assert.That(postResp.ContainsKey("bookingid"), "Booking creation missing id");
+                try
+                {
+                    Assert.That(postResp, Is.Not.Null, "Booking creation failed");
+                    Assert.That(postResp.ContainsKey("bookingid"), "Booking creation missing id");
+                    Logger.Info("PASSED: Assert booking creation for delete test");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert booking creation for delete test - {ex.Message}");
+                    throw;
+                }
             });
             int bookingId = int.Parse(postResp["bookingid"].ToString()!);
 
@@ -74,7 +50,16 @@ namespace API.Tests
             var deleteResponse = await _client.DeleteAsync($"booking/{bookingId}", token);
             AllureApi.Step("Assert delete booking response", () =>
             {
-                Assert.That(deleteResponse.IsSuccessful, $"Delete failed: {(int)deleteResponse.StatusCode} {deleteResponse.StatusDescription}");
+                try
+                {
+                    Assert.That(deleteResponse.IsSuccessful, $"Delete failed: {(int)deleteResponse.StatusCode} {deleteResponse.StatusDescription}");
+                    Logger.Info("PASSED: Assert delete booking response");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert delete booking response - {ex.Message}");
+                    throw;
+                }
             });
 
             // 4. Try to GET the deleted booking (should 404)
@@ -85,12 +70,29 @@ namespace API.Tests
                     var afterDelete = _client.GetAsync<Booking>($"booking/{bookingId}").GetAwaiter().GetResult();
                     AllureApi.Step("Fail if booking still exists after delete", () =>
                     {
-                        Assert.Fail("Booking should not exist after delete, but was found.");
+                        try
+                        {
+                            Assert.Fail("Booking should not exist after delete, but was found.");
+                        }
+                        catch (AssertionException failEx)
+                        {
+                            Logger.Error($"FAILED: Deleted booking was still found after delete - {failEx.Message}");
+                            throw;
+                        }
                     });
                 }
                 catch (RestClientException ex)
                 {
-                    Assert.That(ex.Message.Contains("404"), "Expected 404 after deleting booking.");
+                    try
+                    {
+                        Assert.That(ex.Message.Contains("404"), "Expected 404 after deleting booking.");
+                        Logger.Info("PASSED: Deleted booking is not found (404 returned as expected)");
+                    }
+                    catch (AssertionException failEx)
+                    {
+                        Logger.Error($"FAILED: Did not get 404 after deleted booking - {failEx.Message}");
+                        throw;
+                    }
                 }
             });
         }

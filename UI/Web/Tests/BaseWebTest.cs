@@ -10,12 +10,19 @@ using Allure.Net.Commons;
 
 namespace UI.Web
 {
-    public abstract class BaseTest
+    public abstract class BaseWebTest
     {
         protected IWebDriver? Driver { get; private set; }
         protected IScreenshotHelper? ScreenshotHelper { get; private set; }
+        protected ILoggingService Logger { get; private set; }
 
         private DateTime _testStartTime;
+
+        public BaseWebTest()
+        {
+            Logger = new ElasticLoggingService();
+            Logger.Configure("ui-web-logs-{0:yyyy.MM.dd}");
+        }
 
         [SetUp]
         public virtual void SetUp()
@@ -27,6 +34,8 @@ namespace UI.Web
 
             if (TestContext.CurrentContext.Test.Arguments.Length > 0 && TestContext.CurrentContext.Test.Arguments[0] is string arg)
                 browser = arg.ToLowerInvariant();
+
+            Logger.Info($"[SetUp] Starting test '{TestContext.CurrentContext.Test.Name}' on browser '{browser}' (Headless: {config.Headless})");
 
             switch (browser)
             {
@@ -59,6 +68,7 @@ namespace UI.Web
             }
             Driver!.Manage().Window.Maximize();
             Driver.Navigate().GoToUrl(config.BaseUrl);
+            Logger.Info($"[SetUp] Browser window maximized and navigated to {config.BaseUrl}");
 
             ScreenshotHelper = Driver != null
                 ? new Utilities.AllureScreenshotHelper(Driver)
@@ -90,6 +100,41 @@ namespace UI.Web
                     value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
                 });
             });
+
+            // Log test outcome and duration
+            var ctx = TestContext.CurrentContext;
+            string browser = (ctx.Test.Arguments.Length > 0 && ctx.Test.Arguments[0] is string b) ? b.ToLowerInvariant() : "firefox";
+            Logger.Info($"[TearDown] Finished test '{ctx.Test.Name}' on browser '{browser}' | Outcome: {ctx.Result.Outcome.Status} | Duration(s): {(endTime - _testStartTime).TotalSeconds:F3}");
+            if (ctx.Result.Outcome.Status == TestStatus.Failed)
+            {
+                Logger.Error($"[TearDown] Failure details: {ctx.Result.Message}");
+            }
+
+            // Publish result to Elasticsearch as a single document
+            var metadata = new LogMetadata
+            {
+                ProjectName = "ui-web",
+                TestClassName = ctx.Test.ClassName ?? string.Empty,
+                TestMethodName = ctx.Test.MethodName ?? ctx.Test.Name,
+                Status = ctx.Result.Outcome.Status.ToString(),
+                Duration = (endTime - _testStartTime).TotalSeconds.ToString("F3"),
+                Reason = ctx.Result.Message ?? string.Empty,
+                RunTime = endTime.ToString("o"),
+                RunName = ctx.Test.FullName ?? ctx.Test.Name,
+                TriggeredBy = System.Environment.UserName,
+                Browser = browser,
+                StartTime = _testStartTime,
+                EndTime = endTime
+            };
+            try
+            {
+                PublishResults.ToElastic(metadata);
+            }
+            catch (System.Exception ex)
+            {
+                TestContext.Progress.WriteLine($"[Elastic] Publish failed: {ex.Message}");
+            }
+
 
             try
             {
