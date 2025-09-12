@@ -15,9 +15,6 @@ on:
 jobs:
   run-tagged-tests:
     runs-on: windows-latest
-    env:
-      ALLURE_RESULTS_DIRECTORY: ${{ github.workspace }}\allure-results
-      ALLURE_CONFIG_DIRECTORY: ${{ github.workspace }}\allure-results
 
     steps:
       - name: Checkout Repository
@@ -28,11 +25,6 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Prepare Allure results folder
-        shell: pwsh
-        run: |
-          if (Test-Path "allure-results") { Remove-Item -Recurse -Force "allure-results" }
-          New-Item -ItemType Directory -Path "allure-results" | Out-Null
 
       - name: Restore API Test Dependencies
         if: ${{ inputs.test_layer == 'api' }}
@@ -50,53 +42,18 @@ jobs:
         if: ${{ inputs.test_layer == 'ui' }}
         run: dotnet build UI/Web/UI.Web.Tests.csproj --no-restore --configuration Release
 
-      - name: Run Tagged API Tests (with fallback)
+      - name: Run Tagged API Tests
         if: ${{ inputs.test_layer == 'api' }}
         working-directory: API
-        shell: pwsh
-        run: |
-          $results = Join-Path $env:GITHUB_WORKSPACE 'allure-results'
-          dotnet test API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
-          if (!(Test-Path $results) -or -not (Get-ChildItem -Path $results -Recurse -ErrorAction SilentlyContinue)) {
-            Write-Host "No Allure results found after filtered run; re-running without filter."
-            dotnet test API.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=APITests_all.trx"
-          }
+        run: dotnet test API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
 
-      - name: Run Tagged UI Tests (with fallback)
+      - name: Run Tagged UI Tests
         if: ${{ inputs.test_layer == 'ui' }}
         working-directory: UI/Web
-        shell: pwsh
-        run: |
-          $results = Join-Path $env:GITHUB_WORKSPACE 'allure-results'
-          dotnet test UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
-          if (!(Test-Path $results) -or -not (Get-ChildItem -Path $results -Recurse -ErrorAction SilentlyContinue)) {
-            Write-Host "No Allure results found after filtered run; re-running without filter."
-            dotnet test UI.Web.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=WebTests_all.trx"
-          }
+        run: dotnet test UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
 
-      - name: Inspect Allure results directory
-        shell: pwsh
-        run: |
-          Write-Host "Listing allure-results (if any)"
-          if (Test-Path "allure-results") {
-            Get-ChildItem -Recurse "allure-results" | Select-Object FullName, Length | Format-Table -AutoSize | Out-String | Write-Host
-          } else {
-            Write-Host "allure-results not found"
-          }
 
-      - name: Upload Allure Results (API layer)
-        if: ${{ inputs.test_layer == 'api' && hashFiles('allure-results/**') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-api-${{ inputs.tag }}
-          path: allure-results
 
-      - name: Upload Allure Results (UI layer)
-        if: ${{ inputs.test_layer == 'ui' && hashFiles('allure-results/**') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-ui-${{ inputs.tag }}
-          path: allure-results
 
       - name: Upload NUnit TRX Results API
         if: ${{ inputs.test_layer == 'api' }}
