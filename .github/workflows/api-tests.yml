@@ -1,24 +1,7 @@
 name: API Tests
 
 on:
-  push:
-    paths:
-      - 'API/**'
-      - 'Core/**'
-      - '.github/workflows/**'
-      - 'bat/**'
-      - 'tools/**'
-      - 'API.Tests.csproj'
-      - 'pipeline/actions/api-tests.yml'
-  pull_request:
-    paths:
-      - 'API/**'
-      - 'Core/**'
-      - '.github/workflows/**'
-      - 'bat/**'
-      - 'tools/**'
-      - 'API.Tests.csproj'
-      - 'pipeline/actions/api-tests.yml'
+  workflow_dispatch:
 
 jobs:
   api-tests:

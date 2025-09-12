@@ -1,17 +1,32 @@
-name: PR Smoke Suite
+name: PR Smoke
 
 on:
   pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  smoke-api:
-    uses: ./.github/workflows/reusable-test-runner.yml
-    with:
-      test_layer: 'api'
-      tag: 'smoke'
+  pr-smoke:
+    name: PR Smoke (Build + Test)
+    runs-on: windows-latest
 
-  smoke-ui:
-    uses: ./.github/workflows/reusable-test-runner.yml
-    with:
-      test_layer: 'ui'
-      tag: 'smoke'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore modern-test-framework.sln
+
+      - name: Build
+        run: dotnet build modern-test-framework.sln -c Debug --no-restore
+
+      - name: Test API
+        run: dotnet test API/API.Tests.csproj -c Debug --no-build --verbosity normal
+
+      - name: Test UI Web
+        run: dotnet test UI/Web/UI.Web.Tests.csproj -c Debug --no-build --verbosity normal

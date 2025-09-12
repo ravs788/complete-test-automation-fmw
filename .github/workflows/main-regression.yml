@@ -1,19 +1,31 @@
-name: Main Regression Suite
+name: Main Regression
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  regression-api:
-    uses: ./.github/workflows/reusable-test-runner.yml
-    with:
-      test_layer: 'api'
-      tag: 'regression'
+  main-regression:
+    name: Main Regression (Build + Test)
+    runs-on: windows-latest
 
-  regression-ui:
-    uses: ./.github/workflows/reusable-test-runner.yml
-    with:
-      test_layer: 'ui'
-      tag: 'regression'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore modern-test-framework.sln
+
+      - name: Build
+        run: dotnet build modern-test-framework.sln -c Debug --no-restore
+
+      - name: Test API
+        run: dotnet test API/API.Tests.csproj -c Debug --no-build --verbosity normal
+
+      - name: Test UI Web (headless)
+        run: dotnet test UI/Web/UI.Web.Tests.csproj -c Debug --no-build --verbosity normal
