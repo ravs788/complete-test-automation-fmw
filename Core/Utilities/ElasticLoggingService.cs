@@ -12,6 +12,8 @@ namespace Core.Utilities
     {
         private ElasticsearchClient? _client;
         private string _indexFormat = "logs-default";
+        private bool _enabled = true;
+        private bool _disabledWarned = false;
 
         /// <inheritdoc/>
         public void Configure(
@@ -39,6 +41,20 @@ namespace Core.Utilities
                 : ElasticServerChoices.ON_LOCALHOST_INSECURE;
 
             _client = ElasticClientFactory.Create(serverChoice, cfg);
+
+            // Probe connectivity and disable logging if server is unreachable
+            string? probeUrl = cfg.ElasticUrl;
+            if (serverChoice == ElasticServerChoices.ON_LOCALHOST_SECURE && !string.IsNullOrWhiteSpace(probeUrl))
+            {
+                probeUrl = probeUrl.Replace("http://", "https://");
+            }
+
+            _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Username, cfg.Password);
+            if (!_enabled && !_disabledWarned)
+            {
+                System.Console.Error.WriteLine($"[ElasticLoggingService] Elastic unreachable at '{probeUrl}'. Logging disabled.");
+                _disabledWarned = true;
+            }
         }
 
         /// <inheritdoc/>
@@ -57,6 +73,9 @@ namespace Core.Utilities
         {
             if (_client == null)
                 throw new InvalidOperationException("ElasticLoggingService is not configured. Call Configure() first.");
+
+            if (!_enabled)
+                return;
 
             var entry = new ElasticLogEntry
             {
@@ -97,6 +116,7 @@ namespace Core.Utilities
         /// <inheritdoc/>
         public void Shutdown()
         {
+            _enabled = false;
             // ElasticsearchClient and its transport do not implement IDisposable in the public API.
             // Simply release our reference so it can be GC-collected when no longer used.
             _client = null;

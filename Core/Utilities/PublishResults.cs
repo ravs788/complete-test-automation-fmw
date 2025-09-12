@@ -29,6 +29,11 @@ namespace Core.Utilities
         private static readonly ElasticsearchClient _client =
             ElasticClientFactory.Create(_serverChoice, _loggingCfg);
 
+        // Determine connectivity once at startup so we can no-op when server is down.
+        private static readonly bool _enabled =
+            ElasticConnectivity.IsReachable(_loggingCfg.ElasticUrl, _loggingCfg.Username, _loggingCfg.Password);
+        private static bool _disabledWarned = false;
+
         /// <summary>
         /// Indexes the supplied <paramref name="metadata"/> document into the
         /// index search-{ProjectName.ToLowerInvariant()} by default, unless
@@ -37,6 +42,16 @@ namespace Core.Utilities
         public static void ToElastic(LogMetadata metadata, string? overrideIndexName = null)
         {
             if (metadata is null) throw new ArgumentNullException(nameof(metadata));
+
+            if (!_enabled)
+            {
+                if (!_disabledWarned)
+                {
+                    System.Console.Error.WriteLine("[PublishResults] Elastic unreachable. Skipping result publish.");
+                    _disabledWarned = true;
+                }
+                return;
+            }
 
             var indexName = overrideIndexName ??
                             $"search-{(metadata.ProjectName ?? "testproject").ToLower(CultureInfo.InvariantCulture)}";
