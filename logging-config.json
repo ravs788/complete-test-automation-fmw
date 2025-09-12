@@ -1,5 +1,11 @@
 {
-  "ElasticUrl": "http://localhost:9200",
-  "Username": "elastic",
-  "Password": "fT-Iv6ecFNr2G0biTXlY"
+  "Provider": "elastic",
+  "Elastic": {
+    "Url": "http://localhost:9200",
+    "Username": "elastic",
+    "Password": "fT-Iv6ecFNr2G0biTXlY"
+  },
+  "Console": {
+    "Enabled": true
+  }
 }

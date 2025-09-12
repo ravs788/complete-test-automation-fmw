@@ -31,12 +31,12 @@ namespace Core.Utilities
 
         private static ElasticsearchClient CreateLocalHttpClient(LoggingConfig cfg)
         {
-            var uri = new Uri(cfg.ElasticUrl ?? "http://localhost:9200");
+            var uri = new Uri(cfg.Elastic?.Url ?? "http://localhost:9200");
             var settings = new ElasticsearchClientSettings(uri);
 
-            if (!string.IsNullOrEmpty(cfg.Username) && !string.IsNullOrEmpty(cfg.Password))
+            if (!string.IsNullOrEmpty(cfg.Elastic?.Username) && !string.IsNullOrEmpty(cfg.Elastic?.Password))
             {
-                settings = settings.Authentication(new BasicAuthentication(cfg.Username, cfg.Password));
+                settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
             }
 
             return new ElasticsearchClient(settings);
@@ -47,13 +47,13 @@ namespace Core.Utilities
 
         private static ElasticsearchClient CreateLocalHttpsClient(LoggingConfig cfg)
         {
-            var uri = new Uri(cfg.ElasticUrl?.Replace("http://", "https://") ?? "https://localhost:9200");
+            var uri = new Uri(cfg.Elastic?.Url?.Replace("http://", "https://") ?? "https://localhost:9200");
             var settings = new ElasticsearchClientSettings(uri)
-                               .CertificateFingerprint(cfg.Password) // repurpose Password for fingerprint if supplied
+                               .CertificateFingerprint(cfg.Elastic?.Password) // repurpose Password for fingerprint if supplied
                                .ServerCertificateValidationCallback((_, _, _, _) => true);
 
-            if (!string.IsNullOrEmpty(cfg.Username))
-                settings = settings.Authentication(new BasicAuthentication(cfg.Username, cfg.Password));
+            if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
+                settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
 
             return new ElasticsearchClient(settings);
         }
@@ -61,12 +61,13 @@ namespace Core.Utilities
         private static ElasticsearchClient CreateCloudClient(LoggingConfig cfg)
         {
             // For Elastic Cloud, URL should already be https://cluster-id.region.elastic-cloud.com
-            var uri = new Uri(cfg.ElasticUrl ?? throw new ArgumentNullException(nameof(cfg.ElasticUrl)));
+            var url = cfg.Elastic?.Url ?? throw new ArgumentNullException(nameof(cfg.Elastic.Url));
+            var uri = new Uri(url);
             var settings = new ElasticsearchClientSettings(uri);
 
-            if (!string.IsNullOrEmpty(cfg.Username))
+            if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
             {
-                settings = settings.Authentication(new BasicAuthentication(cfg.Username, cfg.Password));
+                settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
             }
 
             return new ElasticsearchClient(settings);

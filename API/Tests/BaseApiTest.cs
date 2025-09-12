@@ -11,9 +11,7 @@ namespace API.Tests
 
         protected BaseApiTest()
         {
-            var logConfig = LoggingConfig.Load();
-            Logger = new ElasticLoggingService();
-            Logger.Configure("test-logs-{0:yyyy.MM.dd}", logConfig.Username, logConfig.Password, logConfig.ElasticUrl);
+            Logger = LoggingServiceFactory.CreateLogger("test-logs-{0:yyyy.MM.dd}");
         }
 
         [NUnit.Framework.SetUp]
@@ -70,20 +68,15 @@ namespace API.Tests
                 StartTime = _testStartTime,
                 EndTime = endTime
             };
+
             try
             {
-                try
-                {
-                    PublishResults.ToElastic(metadata);
-                }
-                catch (System.Exception ex)
-                {
-                    NUnit.Framework.TestContext.Progress.WriteLine($"[Elastic] Publish failed: {ex.Message}");
-                }
+                var publisher = ResultsPublisherFactory.Create();
+                publisher.Publish(metadata);
             }
             catch (System.Exception ex)
             {
-                NUnit.Framework.TestContext.Progress.WriteLine($"[Elastic] Publish failed: {ex.Message}");
+                NUnit.Framework.TestContext.Progress.WriteLine($"[Results] Publish failed: {ex.Message}");
             }
 
             _client?.Dispose();

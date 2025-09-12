@@ -8,10 +8,12 @@ namespace API.Utilities
     public class ApiClient
     {
         protected readonly RestClient _client;
+        private readonly API.Utilities.ConfigSettings _settings;
 
         public ApiClient()
         {
-            _client = new RestClient(ConfigManager.Instance.Settings.BaseUrl);
+            _settings = ConfigLoader.Load<API.Utilities.ConfigSettings>();
+            _client = new RestClient(_settings.BaseUrl);
         }
 
         public async Task<T?> GetAsync<T>(string endpoint)
@@ -84,7 +86,7 @@ namespace API.Utilities
 
         private string GetDomainFromBaseUrl()
         {
-            var uri = new System.Uri(ConfigManager.Instance.Settings.BaseUrl);
+            var uri = new System.Uri(_settings.BaseUrl);
             return uri.Host;
         }
 

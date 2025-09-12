@@ -11,10 +11,10 @@ namespace API.Utilities
         {
             var auth = new AuthRequest
             {
-                username = ConfigManager.Instance.Settings.DefaultUsername,
-                password = ConfigManager.Instance.Settings.DefaultPassword
+                username = ConfigLoader.Load<API.Utilities.ConfigSettings>().DefaultUsername,
+                password = ConfigLoader.Load<API.Utilities.ConfigSettings>().DefaultPassword
             };
-            var client = new RestClient(ConfigManager.Instance.Settings.BaseUrl);
+            var client = new RestClient(ConfigLoader.Load<API.Utilities.ConfigSettings>().BaseUrl);
             var request = new RestRequest("auth", Method.Post)
                 .AddJsonBody(auth);
 

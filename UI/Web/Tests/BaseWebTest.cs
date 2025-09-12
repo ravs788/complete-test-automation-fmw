@@ -20,8 +20,7 @@ namespace UI.Web
 
         public BaseWebTest()
         {
-            Logger = new ElasticLoggingService();
-            Logger.Configure("ui-web-logs-{0:yyyy.MM.dd}");
+            Logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
         }
 
         [SetUp]
@@ -29,7 +28,7 @@ namespace UI.Web
         {
             _testStartTime = DateTime.Now;
 
-            var config = ConfigManager.Instance.Settings;
+            var config = Core.Utilities.ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
             string browser = "firefox"; // default
 
             if (TestContext.CurrentContext.Test.Arguments.Length > 0 && TestContext.CurrentContext.Test.Arguments[0] is string arg)
@@ -110,7 +109,7 @@ namespace UI.Web
                 Logger.Error($"[TearDown] Failure details: {ctx.Result.Message}");
             }
 
-            // Publish result to Elasticsearch as a single document
+            // Publish result via configured provider
             var metadata = new LogMetadata
             {
                 ProjectName = "ui-web",
@@ -128,11 +127,12 @@ namespace UI.Web
             };
             try
             {
-                PublishResults.ToElastic(metadata);
+                var publisher = ResultsPublisherFactory.Create();
+                publisher.Publish(metadata);
             }
             catch (System.Exception ex)
             {
-                TestContext.Progress.WriteLine($"[Elastic] Publish failed: {ex.Message}");
+                TestContext.Progress.WriteLine($"[Results] Publish failed: {ex.Message}");
             }
 
 

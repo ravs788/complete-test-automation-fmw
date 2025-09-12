@@ -28,9 +28,9 @@ namespace Core.Utilities
 
             // Prefer values provided in parameters; otherwise fall back to logging-config.json
             var cfg = LoggingConfig.Load();
-            cfg.ElasticUrl = !string.IsNullOrWhiteSpace(elasticUrl) ? elasticUrl : cfg.ElasticUrl;
-            cfg.Username = !string.IsNullOrWhiteSpace(username) ? username : cfg.Username;
-            cfg.Password = !string.IsNullOrWhiteSpace(password) ? password : cfg.Password;
+            cfg.Elastic.Url = !string.IsNullOrWhiteSpace(elasticUrl) ? elasticUrl : cfg.Elastic.Url;
+            cfg.Elastic.Username = !string.IsNullOrWhiteSpace(username) ? username : cfg.Elastic.Username;
+            cfg.Elastic.Password = !string.IsNullOrWhiteSpace(password) ? password : cfg.Elastic.Password;
 
             // Use insecure localhost profile by default; user can override via env-var
             var serverChoice = Enum.TryParse(
@@ -43,13 +43,13 @@ namespace Core.Utilities
             _client = ElasticClientFactory.Create(serverChoice, cfg);
 
             // Probe connectivity and disable logging if server is unreachable
-            string? probeUrl = cfg.ElasticUrl;
+            string? probeUrl = cfg.Elastic?.Url;
             if (serverChoice == ElasticServerChoices.ON_LOCALHOST_SECURE && !string.IsNullOrWhiteSpace(probeUrl))
             {
                 probeUrl = probeUrl.Replace("http://", "https://");
             }
 
-            _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Username, cfg.Password);
+            _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Elastic?.Username, cfg.Elastic?.Password);
             if (!_enabled && !_disabledWarned)
             {
                 System.Console.Error.WriteLine($"[ElasticLoggingService] Elastic unreachable at '{probeUrl}'. Logging disabled.");
