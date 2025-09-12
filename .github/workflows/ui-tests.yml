@@ -1,24 +1,7 @@
 name: UI Web Tests
 
 on:
-  push:
-    paths:
-      - 'UI/**'
-      - 'Core/**'
-      - '.github/workflows/**'
-      - 'bat/**'
-      - 'tools/**'
-      - 'UI.Web.Tests.csproj'
-      - 'pipeline/actions/ui-tests.yml'
-  pull_request:
-    paths:
-      - 'UI/**'
-      - 'Core/**'
-      - '.github/workflows/**'
-      - 'bat/**'
-      - 'tools/**'
-      - 'UI.Web.Tests.csproj'
-      - 'pipeline/actions/ui-tests.yml'
+  workflow_dispatch:
 
 jobs:
   ui-web-tests:

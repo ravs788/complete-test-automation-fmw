@@ -1,19 +1,20 @@
-name: Main Regression Suite
+name: Main Regression
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  regression-api:
+  api-regression:
+    name: API Regression
     uses: ./.github/workflows/reusable-test-runner.yml
     with:
-      test_layer: 'api'
-      tag: 'regression'
+      test_layer: api
+      tag: regression
 
-  regression-ui:
+  ui-regression:
+    name: UI Regression
     uses: ./.github/workflows/reusable-test-runner.yml
     with:
-      test_layer: 'ui'
-      tag: 'regression'
+      test_layer: ui
+      tag: regression

@@ -18,7 +18,7 @@ namespace UI.Web.Tests
     [AllureSuite("AddToCart")]
     [AllureTag("add-to-cart", "ui", "regression")]
     [Parallelizable(ParallelScope.Self)]
-    public class AddToCartTests : BaseTest
+    public class AddToCartTests : BaseWebTest
     {
 
         [Test]
@@ -37,10 +37,17 @@ namespace UI.Web.Tests
             var inventoryPage = new InventoryPage(Driver!);
             AllureApi.Step($"Assert inventory page loaded after login on {browser}", () =>
             {
-                Assert.That(
-                    inventoryPage.IsAtInventoryPage(),
-                    Is.EqualTo(true)
-                );
+                bool actual = inventoryPage.IsAtInventoryPage();
+                try
+                {
+                    Assert.That(actual, Is.EqualTo(true));
+                    Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
+                    throw;
+                }
             });
 
             inventoryPage.AddToCart(testData.Product.Name);
@@ -49,18 +56,31 @@ namespace UI.Web.Tests
 
             AllureApi.Step($"Assert cart page loaded on {browser}", () =>
             {
-                Assert.That(
-                    cartPage.IsLoaded(),
-                    Is.EqualTo(true)
-                );
+                bool actual = cartPage.IsLoaded();
+                try
+                {
+                    Assert.That(actual, Is.EqualTo(true));
+                    Logger.Info($"[{browser}] PASSED: Assert cart page loaded (expected: true, actual: {actual})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert cart page loaded (expected: true, actual: {actual}) - {ex.Message}");
+                    throw;
+                }
             });
             AllureApi.Step($"Assert product is in the cart on {browser}", () =>
             {
                 bool contains = cartPage.GetProductNames().Contains(testData.Product.Name);
-                Assert.That(
-                    contains,
-                    Is.EqualTo(true)
-                );
+                try
+                {
+                    Assert.That(contains, Is.EqualTo(true));
+                    Logger.Info($"[{browser}] PASSED: Assert product '{testData.Product.Name}' is in cart (expected: true, actual: {contains})");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"[{browser}] FAILED: Assert product '{testData.Product.Name}' is in cart (expected: true, actual: {contains}) - {ex.Message}");
+                    throw;
+                }
             });
         }
     }

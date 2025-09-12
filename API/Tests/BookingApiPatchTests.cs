@@ -14,42 +14,9 @@ namespace API.Tests
     [AllureSuite("Booking Patch API")]
     [AllureTag("api", "patch", "regression")]
     [Parallelizable(ParallelScope.All)]
-    public class BookingApiPatchTests
+    public class BookingApiPatchTests : BaseApiTest
     {
-        private ApiClient _client;
-        private DateTime _testStartTime;
 
-        [SetUp]
-        public void SetUp()
-        {
-            _testStartTime = DateTime.Now;
-            _client = new ApiClient();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            DateTime endTime = DateTime.Now;
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
-            {
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Start Time",
-                    value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "End Time",
-                    value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Allure.Net.Commons.Parameter
-                {
-                    name = "Duration (s)",
-                    value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
-                });
-            });
-            _client.Dispose();
-        }
 
         [Test]
         public async Task Patch_Firstname_Lastname_Then_Verify()
@@ -61,8 +28,17 @@ namespace API.Tests
             var postResp = await _client.PostAsync<Booking, Dictionary<string, object>>("booking", original);
             AllureApi.Step("Assert booking created for patch test", () =>
             {
-                Assert.That(postResp, Is.Not.Null);
-                Assert.That(postResp.ContainsKey("bookingid"), "Post response missing id");
+                try
+                {
+                    Assert.That(postResp, Is.Not.Null);
+                    Assert.That(postResp.ContainsKey("bookingid"), "Post response missing id");
+                    Logger.Info("PASSED: Assert booking created for patch test");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert booking created for patch test - {ex.Message}");
+                    throw;
+                }
             });
             int bookingId = int.Parse(postResp["bookingid"].ToString()!);
 
@@ -77,24 +53,60 @@ namespace API.Tests
 
             AllureApi.Step("Assert patchResp is not null", () =>
             {
-                Assert.That(patchResp, Is.Not.Null);
+                try
+                {
+                    Assert.That(patchResp, Is.Not.Null);
+                    Logger.Info("PASSED: Assert patchResp is not null");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert patchResp is not null - {ex.Message}");
+                    throw;
+                }
             });
 
             AllureApi.Step("Assert firstname was patched correctly", () =>
             {
-                Assert.That(patchResp.firstname?.Replace("\"", ""), Is.EqualTo(patchData["firstname"].ToString()));
+                try
+                {
+                    Assert.That(patchResp.firstname?.Replace("\"", ""), Is.EqualTo(patchData["firstname"].ToString()));
+                    Logger.Info("PASSED: Assert firstname was patched correctly");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert firstname was patched correctly - {ex.Message}");
+                    throw;
+                }
             });
             AllureApi.Step("Assert lastname was patched correctly", () =>
             {
-                Assert.That(patchResp.lastname?.Replace("\"", ""), Is.EqualTo(patchData["lastname"].ToString()));
+                try
+                {
+                    Assert.That(patchResp.lastname?.Replace("\"", ""), Is.EqualTo(patchData["lastname"].ToString()));
+                    Logger.Info("PASSED: Assert lastname was patched correctly");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert lastname was patched correctly - {ex.Message}");
+                    throw;
+                }
             });
             AllureApi.Step("Assert original fields are unchanged", () =>
             {
-                Assert.That(patchResp.totalprice, Is.EqualTo(original.totalprice));
-                Assert.That(patchResp.depositpaid, Is.EqualTo(original.depositpaid));
-                Assert.That(patchResp.bookingdates.checkin, Is.EqualTo(original.bookingdates.checkin));
-                Assert.That(patchResp.bookingdates.checkout, Is.EqualTo(original.bookingdates.checkout));
-                Assert.That(patchResp.additionalneeds, Is.EqualTo(original.additionalneeds));
+                try
+                {
+                    Assert.That(patchResp.totalprice, Is.EqualTo(original.totalprice));
+                    Assert.That(patchResp.depositpaid, Is.EqualTo(original.depositpaid));
+                    Assert.That(patchResp.bookingdates.checkin, Is.EqualTo(original.bookingdates.checkin));
+                    Assert.That(patchResp.bookingdates.checkout, Is.EqualTo(original.bookingdates.checkout));
+                    Assert.That(patchResp.additionalneeds, Is.EqualTo(original.additionalneeds));
+                    Logger.Info("PASSED: Assert original fields are unchanged after patch");
+                }
+                catch (AssertionException ex)
+                {
+                    Logger.Error($"FAILED: Assert original fields are unchanged after patch - {ex.Message}");
+                    throw;
+                }
             });
         }
     }

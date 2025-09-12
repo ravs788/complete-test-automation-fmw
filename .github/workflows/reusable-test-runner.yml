@@ -25,6 +25,7 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+
       - name: Restore API Test Dependencies
         if: ${{ inputs.test_layer == 'api' }}
         run: dotnet restore API/API.Tests.csproj
@@ -43,25 +44,16 @@ jobs:
 
       - name: Run Tagged API Tests
         if: ${{ inputs.test_layer == 'api' }}
-        run: dotnet test API/API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
+        working-directory: API
+        run: dotnet test API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
 
       - name: Run Tagged UI Tests
         if: ${{ inputs.test_layer == 'ui' }}
-        run: dotnet test UI/Web/UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
+        working-directory: UI/Web
+        run: dotnet test UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
 
-      - name: Upload Allure Results API
-        if: ${{ inputs.test_layer == 'api' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-api-${{ inputs.tag }}
-          path: API/bin/Debug/net9.0/allure-results
 
-      - name: Upload Allure Results UI
-        if: ${{ inputs.test_layer == 'ui' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-ui-${{ inputs.tag }}
-          path: UI/Web/bin/Debug/net9.0/allure-results
+
 
       - name: Upload NUnit TRX Results API
         if: ${{ inputs.test_layer == 'api' }}

@@ -1,17 +1,21 @@
-name: PR Smoke Suite
+name: PR Smoke
 
 on:
   pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  smoke-api:
+  api-smoke:
+    name: API Smoke
     uses: ./.github/workflows/reusable-test-runner.yml
     with:
-      test_layer: 'api'
-      tag: 'smoke'
+      test_layer: api
+      tag: smoke
 
-  smoke-ui:
+  ui-smoke:
+    name: UI Smoke
     uses: ./.github/workflows/reusable-test-runner.yml
     with:
-      test_layer: 'ui'
-      tag: 'smoke'
+      test_layer: ui
+      tag: smoke
