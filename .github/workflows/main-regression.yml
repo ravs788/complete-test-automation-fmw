@@ -5,27 +5,16 @@ on:
     branches: [ main ]
 
 jobs:
-  main-regression:
-    name: Main Regression (Build + Test)
-    runs-on: windows-latest
+  api-regression:
+    name: API Regression
+    uses: ./.github/workflows/reusable-test-runner.yml
+    with:
+      test_layer: api
+      tag: regression
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-
-      - name: Restore
-        run: dotnet restore modern-test-framework.sln
-
-      - name: Build
-        run: dotnet build modern-test-framework.sln -c Debug --no-restore
-
-      - name: Test API
-        run: dotnet test API/API.Tests.csproj -c Debug --no-build --verbosity normal
-
-      - name: Test UI Web (headless)
-        run: dotnet test UI/Web/UI.Web.Tests.csproj -c Debug --no-build --verbosity normal
+  ui-regression:
+    name: UI Regression
+    uses: ./.github/workflows/reusable-test-runner.yml
+    with:
+      test_layer: ui
+      tag: regression
