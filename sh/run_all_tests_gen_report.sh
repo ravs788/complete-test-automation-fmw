@@ -32,7 +32,7 @@ fi
 # --------------------------------------------------------------------------
 # 0. Kill orphaned WebDriver processes
 # --------------------------------------------------------------------------
-./bat/kill_all_webdrivers.sh
+./sh/kill_all_webdrivers.sh
 
 # --------------------------------------------------------------------------
 # 1. Clean projects and previous Allure folders
