@@ -1,5 +1,6 @@
 using Core.Utilities;
 using API.Utilities;
+using NUnit.Framework.Interfaces;
 
 namespace API.Tests
 {
@@ -58,7 +59,7 @@ namespace API.Tests
                 ProjectName = "api",
                 TestClassName = ctx.Test.ClassName ?? string.Empty,
                 TestMethodName = ctx.Test.MethodName ?? ctx.Test.Name,
-                Status = ctx.Result.Outcome.Status.ToString(),
+                Status = (ctx.Result.Outcome.Status == TestStatus.Passed) ? "PASS" : "FAIL",
                 Duration = (endTime - _testStartTime).TotalSeconds.ToString("F3"),
                 Reason = ctx.Result.Message ?? string.Empty,
                 RunTime = endTime.ToString("o"),
@@ -66,8 +67,10 @@ namespace API.Tests
                 TriggeredBy = System.Environment.UserName,
                 Browser = string.Empty,
                 StartTime = _testStartTime,
-                EndTime = endTime
+            EndTime = endTime
             };
+
+            Logger.Info($"[Result] {ctx.Test.Name} => {metadata.Status}", metadata);
 
             try
             {

@@ -15,7 +15,7 @@ namespace Core.Utilities
     public static class ElasticClientFactory
     {
         /// <summary>
-        /// Creates a configured <see cref="ElasticsearchClient" />.  The client instance is lightweight and
+        /// Creates a configured <see cref="ElasticsearchClient" />. The client instance is lightweight and
         /// intended to be reused across the lifetime of the test run.
         /// </summary>
         public static ElasticsearchClient Create(ElasticServerChoices serverChoice, LoggingConfig config)
@@ -31,30 +31,25 @@ namespace Core.Utilities
 
         private static ElasticsearchClient CreateLocalHttpClient(LoggingConfig cfg)
         {
-            var uri = new Uri(cfg.Elastic?.Url ?? "http://localhost:9200");
+            var uri = new Uri(cfg.Elastic?.Url ?? "http://localhost:5601");
             var settings = new ElasticsearchClientSettings(uri);
-
             if (!string.IsNullOrEmpty(cfg.Elastic?.Username) && !string.IsNullOrEmpty(cfg.Elastic?.Password))
             {
                 settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
             }
-
             return new ElasticsearchClient(settings);
         }
 
         // NOTE: For brevity, HTTPS/Cloud implementations reuse the same basic pattern.
         // Extend with SSL pinning / API-Key auth as needed.
-
         private static ElasticsearchClient CreateLocalHttpsClient(LoggingConfig cfg)
         {
-            var uri = new Uri(cfg.Elastic?.Url?.Replace("http://", "https://") ?? "https://localhost:9200");
+            var uri = new Uri(cfg.Elastic?.Url?.Replace("http://", "https://") ?? "https://localhost:5601");
             var settings = new ElasticsearchClientSettings(uri)
-                               .CertificateFingerprint(cfg.Elastic?.Password) // repurpose Password for fingerprint if supplied
-                               .ServerCertificateValidationCallback((_, _, _, _) => true);
-
+                .CertificateFingerprint(cfg.Elastic?.Password) // repurpose Password for fingerprint if supplied
+                .ServerCertificateValidationCallback((_, _, _, _) => true);
             if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
                 settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
-
             return new ElasticsearchClient(settings);
         }
 
@@ -64,12 +59,10 @@ namespace Core.Utilities
             var url = cfg.Elastic?.Url ?? throw new ArgumentNullException(nameof(cfg.Elastic.Url));
             var uri = new Uri(url);
             var settings = new ElasticsearchClientSettings(uri);
-
             if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
             {
                 settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
             }
-
             return new ElasticsearchClient(settings);
         }
     }

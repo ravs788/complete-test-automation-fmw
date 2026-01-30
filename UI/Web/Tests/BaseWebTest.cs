@@ -115,7 +115,7 @@ namespace UI.Web
                 ProjectName = "ui-web",
                 TestClassName = ctx.Test.ClassName ?? string.Empty,
                 TestMethodName = ctx.Test.MethodName ?? ctx.Test.Name,
-                Status = ctx.Result.Outcome.Status.ToString(),
+                Status = (ctx.Result.Outcome.Status == TestStatus.Passed) ? "PASS" : "FAIL",
                 Duration = (endTime - _testStartTime).TotalSeconds.ToString("F3"),
                 Reason = ctx.Result.Message ?? string.Empty,
                 RunTime = endTime.ToString("o"),
@@ -125,6 +125,7 @@ namespace UI.Web
                 StartTime = _testStartTime,
                 EndTime = endTime
             };
+            Logger.Info($"[Result] {ctx.Test.Name} ({browser}) => {metadata.Status}", metadata);
             try
             {
                 var publisher = ResultsPublisherFactory.Create();

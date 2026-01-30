@@ -116,3 +116,16 @@ echo "Merge  step exit code: $COPY_EXIT"
 echo "Run Timestamp        : $TIMESTAMP"
 echo "==================================================="
 echo
+
+# --------------------------------------------------------------------------
+# Propagate overall status to calling process
+# --------------------------------------------------------------------------
+if [[ $CLEAN_API_EXIT -ne 0 || $CLEAN_WEB_EXIT -ne 0 || \
+      $BUILD_API_EXIT -ne 0 || $BUILD_WEB_EXIT -ne 0 || \
+      $TEST_API_EXIT -ne 0  || $TEST_WEB_EXIT -ne 0  || \
+      $COPY_EXIT -ne 0 ]]; then
+  EXIT_CODE=1
+else
+  EXIT_CODE=0
+fi
+exit $EXIT_CODE

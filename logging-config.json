@@ -3,7 +3,7 @@
   "Elastic": {
     "Url": "http://localhost:9200",
     "Username": "elastic",
-    "Password": "fT-Iv6ecFNr2G0biTXlY"
+    "Password": "elastic123"
   },
   "Console": {
     "Enabled": true
