@@ -29,7 +29,7 @@ namespace Core.Utilities
 
                 if (selected != null && selected.TryCreate(cfg, indexFormat, out var svc, out _))
                 {
-                    return svc;
+                    return MaybeWrapWithFile(cfg, indexFormat, svc);
                 }
             }
 
@@ -38,7 +38,7 @@ namespace Core.Utilities
                 string.Equals(f.Name, "console", StringComparison.OrdinalIgnoreCase));
             if (console != null && console.TryCreate(cfg, indexFormat, out var consoleSvc, out _))
             {
-                return consoleSvc;
+                return MaybeWrapWithFile(cfg, indexFormat, consoleSvc);
             }
 
             // Otherwise, try any available provider
@@ -46,14 +46,33 @@ namespace Core.Utilities
             {
                 if (f.TryCreate(cfg, indexFormat, out var svc, out _))
                 {
-                    return svc;
+                    return MaybeWrapWithFile(cfg, indexFormat, svc);
                 }
             }
 
             // Absolute last resort: direct console logger (in case no factory type was discovered)
             var fallback = new ConsoleLoggingService();
             fallback.Configure(indexFormat);
-            return fallback;
+            return MaybeWrapWithFile(cfg, indexFormat, fallback);
+        }
+
+        private static ILoggingService MaybeWrapWithFile(LoggingConfig cfg, string indexFormat, ILoggingService primary)
+        {
+            try
+            {
+                var fileCfg = cfg.FileLogging;
+                if (fileCfg != null && fileCfg.Enabled && fileCfg.AlsoWriteToFile)
+                {
+                    var fileSvc = new FileLoggingService(fileCfg);
+                    fileSvc.Configure(indexFormat);
+                    return new CompositeLoggingService(new[] { primary, fileSvc });
+                }
+            }
+            catch
+            {
+                // ignore wrapping failures
+            }
+            return primary;
         }
 
         private static List<ILoggingProviderFactory> DiscoverFactories()

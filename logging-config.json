@@ -7,5 +7,14 @@
   },
   "Console": {
     "Enabled": true
+  },
+  "FileLogging": {
+    "Enabled": true,
+    "AlsoWriteToFile": true,
+    "DirectoryPath": "logs",
+    "FileNameTemplate": "framework.log",
+    "RollingStrategy": "size",
+    "MaxFileSizeMB": 10,
+    "RetentionDays": 14
   }
 }

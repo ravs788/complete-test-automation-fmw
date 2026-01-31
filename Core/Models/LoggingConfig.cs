@@ -13,6 +13,7 @@ namespace Core.Utilities
         // Nested sections for provider-specific settings
         public ElasticSection Elastic { get; set; } = new ElasticSection();
         public ConsoleSection Console { get; set; } = new ConsoleSection();
+        public FileSection FileLogging { get; set; } = new FileSection();
 
         public static LoggingConfig Load()
         {
@@ -34,6 +35,7 @@ namespace Core.Utilities
             // Ensure non-null sections
             cfg.Elastic ??= new ElasticSection();
             cfg.Console ??= new ConsoleSection();
+            cfg.FileLogging ??= new FileSection();
 
             return cfg;
         }
