@@ -6,7 +6,7 @@ REM   1. Clean the API test project / solution
 REM   2. Execute the API tests (Allure JSON files are produced automatically
 REM      inside the bin folder by the Allure adapter)
 REM   3. Copy the generated Allure results from
-REM        API\bin\Debug\net9.0\allure-results\
+REM        API\bin\Debug\net10.0\allure-results\
 REM      to a top-level folder called
 REM        allure-results
 REM ============================================================================
@@ -33,9 +33,9 @@ set CLEAN_EXIT=%ERRORLEVEL%
 REM --------------------------------------------------------------------------
 REM Additional clean-up: remove previous Allure result folders
 REM --------------------------------------------------------------------------
-if exist API\bin\Debug\net9.0\allure-results (
+if exist API\bin\Debug\net10.0\allure-results (
     echo Removing previous API allure-results folder...
-    rmdir /S /Q API\bin\Debug\net9.0\allure-results
+    rmdir /S /Q API\bin\Debug\net10.0\allure-results
 )
 if exist allure-results (
     echo Removing previous root allure-results folder...
@@ -57,7 +57,7 @@ REM      • --logger    → keep trx for Azure DevOps / any CI reporting
 REM      • /p:AllureResultsDirectory → tell Allure adapter where to drop results
 REM --------------------------------------------------------------------------
 echo Running API tests...
-%DOTNET_CMD% test API/API.Tests.csproj --no-build --logger "trx;LogFileName=APITests.trx" /p:AllureResultsDirectory=API\bin\Debug\net9.0\allure-results
+%DOTNET_CMD% test API/API.Tests.csproj --no-build --logger "trx;LogFileName=APITests.trx" /p:AllureResultsDirectory=API\bin\Debug\net10.0\allure-results
 set TEST_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -68,7 +68,7 @@ for /f "tokens=1" %%a in ("%date:/=-%") do set TODAY=%%a
 for /f "tokens=1" %%a in ("%time: =0%") do set NOW=%%a
 set TS=!TODAY!_!NOW!
 set TS=!TS::=-!
-echo run.timestamp=!TS!> API\bin\Debug\net9.0\allure-results\environment.properties
+echo run.timestamp=!TS!> API\bin\Debug\net10.0\allure-results\environment.properties
 set TIMESTAMP=!TS!
 
 REM --------------------------------------------------------------------------
@@ -81,7 +81,7 @@ if exist allure-results (
 mkdir allure-results
 
 echo Copying Allure results...
-xcopy /E /I /Y API\bin\Debug\net9.0\allure-results\* allure-results\
+xcopy /E /I /Y API\bin\Debug\net10.0\allure-results\* allure-results\
 set COPY_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------

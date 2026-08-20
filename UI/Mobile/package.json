@@ -1,0 +1,15 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "appium": "appium",
+    "appium:doctor": "appium-doctor",
+    "appium:drivers:install": "appium driver install uiautomator2"
+  },
+  "author": "",
+  "license": "ISC"
+}

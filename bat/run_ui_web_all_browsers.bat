@@ -24,7 +24,7 @@ REM --------------------------------------------------------------------------
 REM 2. Global clean-up of previous run folders
 REM --------------------------------------------------------------------------
 for %%b in (%BROWSERS%) do (
-    if exist UI\Web\bin\Debug\net9.0\allure-results-%%b rmdir /S /Q UI\Web\bin\Debug\net9.0\allure-results-%%b
+    if exist UI\Web\bin\Debug\net10.0\allure-results-%%b rmdir /S /Q UI\Web\bin\Debug\net10.0\allure-results-%%b
 )
 if exist allure-results rmdir /S /Q allure-results
 if exist allure-report rmdir /S /Q allure-report
@@ -58,7 +58,7 @@ for %%b in (%BROWSERS%) do (
     echo Running UI.Web tests on %%b...
     echo ================================================================
     set BROWSER=%%b
-    set RESULT_DIR=UI\Web\bin\Debug\net9.0\allure-results-%%b    
+    set RESULT_DIR=UI\Web\bin\Debug\net10.0\allure-results-%%b    
 
     REM Run tests for current browser
     %DOTNET_CMD% test UI/Web/UI.Web.Tests.csproj ^
@@ -69,9 +69,9 @@ for %%b in (%BROWSERS%) do (
     if errorlevel 1 echo %%b run failed
 
     REM Copy Allure results to per-browser directory
-    if exist UI\Web\bin\Debug\net9.0\allure-results rmdir /S /Q !RESULT_DIR!
-    if exist UI\Web\bin\Debug\net9.0\allure-results xcopy /E /I /Y UI\Web\bin\Debug\net9.0\allure-results !RESULT_DIR! >nul
-    if exist UI\Web\bin\Debug\net9.0\allure-results rmdir /S /Q UI\Web\bin\Debug\net9.0\allure-results
+    if exist UI\Web\bin\Debug\net10.0\allure-results rmdir /S /Q !RESULT_DIR!
+    if exist UI\Web\bin\Debug\net10.0\allure-results xcopy /E /I /Y UI\Web\bin\Debug\net10.0\allure-results !RESULT_DIR! >nul
+    if exist UI\Web\bin\Debug\net10.0\allure-results rmdir /S /Q UI\Web\bin\Debug\net10.0\allure-results
 
     REM Add timestamp & browser info to environment.properties
     for /f "tokens=1" %%d in ("%date:/=-%") do set TODAY=%%d
@@ -90,9 +90,9 @@ REM --------------------------------------------------------------------------
 rmdir /S /Q allure-results
 mkdir allure-results
 for %%b in (%BROWSERS%) do (
-    xcopy /E /I /Y /EXCLUDE:bat\exclude_envprops.txt UI\Web\bin\Debug\net9.0\allure-results-%%b\* allure-results\ >nul
-    if exist UI\Web\bin\Debug\net9.0\allure-results-%%b\environment.properties (
-        copy /Y UI\Web\bin\Debug\net9.0\allure-results-%%b\environment.properties allure-results\environment.%%b.properties >nul
+    xcopy /E /I /Y /EXCLUDE:bat\exclude_envprops.txt UI\Web\bin\Debug\net10.0\allure-results-%%b\* allure-results\ >nul
+    if exist UI\Web\bin\Debug\net10.0\allure-results-%%b\environment.properties (
+        copy /Y UI\Web\bin\Debug\net10.0\allure-results-%%b\environment.properties allure-results\environment.%%b.properties >nul
     )
 )
 

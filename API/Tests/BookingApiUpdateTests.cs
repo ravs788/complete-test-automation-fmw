@@ -14,6 +14,7 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Update API")]
     [AllureTag("api", "put", "regression")]
+    [Category("regression")]
     public class BookingApiUpdateTests : BaseApiTest
     {
 

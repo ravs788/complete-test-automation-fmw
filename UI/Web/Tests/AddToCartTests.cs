@@ -17,13 +17,15 @@ namespace UI.Web.Tests
     [AllureNUnit]
     [AllureSuite("AddToCart")]
     [AllureTag("add-to-cart", "ui", "regression")]
+    [Category("regression")]
     [Parallelizable(ParallelScope.Self)]
     public class AddToCartTests : BaseWebTest
     {
 
         [Test]
         [TestCase("chrome")]
-        [TestCase("firefox")]
+        // TODO: Re-enable after Firefox is installed/configured on the runner.
+        // [TestCase("firefox")]
         [TestCase("edge")]
         public void CanAddBackpackToCart(string browser)
         {

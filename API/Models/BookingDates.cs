@@ -1,8 +1,8 @@
 namespace API.Models
 {
-    public class BookingDates
+    public record class BookingDates
     {
-        public string checkin { get; set; } = "";
-        public string checkout { get; set; } = "";
+        public string checkin { get; init; } = "";
+        public string checkout { get; init; } = "";
     }
 }

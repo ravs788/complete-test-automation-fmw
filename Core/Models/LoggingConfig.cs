@@ -5,14 +5,14 @@ using System.Text.Json;
 
 namespace Core.Utilities
 {
-    public class LoggingConfig
+    public record class LoggingConfig
     {
         // Selected logging provider: "elastic" or "console"
-        public string Provider { get; set; } = "elastic";
+        public string Provider { get; init; } = "elastic";
 
         // Nested sections for provider-specific settings
-        public ElasticSection Elastic { get; set; } = new ElasticSection();
-        public ConsoleSection Console { get; set; } = new ConsoleSection();
+        public ElasticSection Elastic { get; init; } = new ElasticSection();
+        public ConsoleSection Console { get; init; } = new ConsoleSection();
 
         public static LoggingConfig Load()
         {
@@ -32,10 +32,11 @@ namespace Core.Utilities
             var cfg = JsonSerializer.Deserialize<LoggingConfig>(json, options) ?? new LoggingConfig();
 
             // Ensure non-null sections
-            cfg.Elastic ??= new ElasticSection();
-            cfg.Console ??= new ConsoleSection();
-
-            return cfg;
+            return cfg with
+            {
+                Elastic = cfg.Elastic ?? new ElasticSection(),
+                Console = cfg.Console ?? new ConsoleSection()
+            };
         }
 
         private static string FindRootPath()

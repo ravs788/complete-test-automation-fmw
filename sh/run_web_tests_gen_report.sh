@@ -1,89 +1,75 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # ============================================================================
 # Script: run_web_tests_gen_report.sh
 # Purpose:
 #   1. Kill stray WebDriver processes
 #   2. Clean and build the UI/Web test project
-#   3. Execute the Web UI tests (Allure JSON files produced in bin folder)
-#   4. Inject a timestamp into environment.properties so it appears in Allure
-#   5. Copy the results from
-#        UI/Web/bin/Debug/{framework}/allure-results/
-#      to a top-level folder called
-#        allure-results
+#   3. Execute Web UI tests and generate Allure results
+#   4. Add run.timestamp to environment.properties
+#   5. Copy generated results to root-level allure-results
 # ============================================================================
 
-# Source the framework detection utilities
-source sh/detect_net_version.sh
+set +e
 
-# Get the Allure results directory dynamically
-WEB_ALLURE_RESULTS_DIR=$(get_allure_results_dir "UI/Web/UI.Web.Tests.csproj")
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to detect Allure results directory"
-    exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT" || exit 1
+
+if [[ -x "tools/dotnet/dotnet" ]]; then
+  DOTNET_CMD="tools/dotnet/dotnet"
+else
+  DOTNET_CMD="dotnet"
 fi
 
-# --------------------------------------------------------------------------
-# 0. Kill any orphaned browser driver processes
-# --------------------------------------------------------------------------
-./bat/kill_all_webdrivers.sh
+WEB_RESULTS_DIR="UI/Web/bin/Debug/net10.0/allure-results"
+ROOT_RESULTS_DIR="allure-results"
 
-# --------------------------------------------------------------------------
-# 1. Clean UI.Web project
-# --------------------------------------------------------------------------
+"$SCRIPT_DIR/kill_all_webdrivers.sh"
+
 echo "Cleaning UI.Web test project..."
-dotnet clean UI/Web/UI.Web.Tests.csproj
+"$DOTNET_CMD" clean UI/Web/UI.Web.Tests.csproj
 CLEAN_EXIT=$?
 
-# --------------------------------------------------------------------------
-# Additional clean-up: remove previous Allure result folders
-# --------------------------------------------------------------------------
-if [ -d "$WEB_ALLURE_RESULTS_DIR" ]; then
-    echo "Removing previous UI Web allure-results folder..."
-    rm -rf "$WEB_ALLURE_RESULTS_DIR"
+if [[ -d "$WEB_RESULTS_DIR" ]]; then
+  echo "Removing previous UI Web allure-results folder..."
+  rm -rf "$WEB_RESULTS_DIR"
 fi
 
-if [ -d "allure-results" ]; then
-    echo "Removing previous root allure-results folder..."
-    rm -rf allure-results
+if [[ -d "$ROOT_RESULTS_DIR" ]]; then
+  echo "Removing previous root allure-results folder..."
+  rm -rf "$ROOT_RESULTS_DIR"
 fi
 
-# --------------------------------------------------------------------------
-# 2. Build UI.Web test project
-# --------------------------------------------------------------------------
 echo "Building UI.Web test project..."
-dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
+"$DOTNET_CMD" build UI/Web/UI.Web.Tests.csproj --no-restore
 BUILD_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 3. Run UI.Web tests (generates Allure result *.json files)
-# --------------------------------------------------------------------------
 echo "Running UI.Web tests..."
-dotnet test UI/Web/UI.Web.Tests.csproj \
+"$DOTNET_CMD" test UI/Web/UI.Web.Tests.csproj \
   --no-build \
   --logger "trx;LogFileName=WebTests.trx" \
   --test-adapter-path:. \
-  /p:AllureResultsDirectory="$WEB_ALLURE_RESULTS_DIR"
+  /p:AllureResultsDirectory="$WEB_RESULTS_DIR"
 TEST_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 4. Add timestamp to Allure results
-# --------------------------------------------------------------------------
 echo "Adding timestamp to Allure results..."
-TS=$(date +"%Y-%m-%d_%H-%M-%S")
-echo "run.timestamp=$TS" > "$WEB_ALLURE_RESULTS_DIR/environment.properties"
-TIMESTAMP=$TS
+mkdir -p "$WEB_RESULTS_DIR"
+TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
+echo "run.timestamp=$TIMESTAMP" > "$WEB_RESULTS_DIR/environment.properties"
 
-# --------------------------------------------------------------------------
-# 5. Copy Allure results to top-level allure-results directory
-# --------------------------------------------------------------------------
 echo "Preparing target allure-results directory..."
-mkdir -p allure-results
-cp -r "$WEB_ALLURE_RESULTS_DIR"/* allure-results/
-COPY_EXIT=$?
+rm -rf "$ROOT_RESULTS_DIR"
+mkdir -p "$ROOT_RESULTS_DIR"
 
-# --------------------------------------------------------------------------
-# Summary
-# --------------------------------------------------------------------------
+echo "Copying Allure results..."
+if [[ -d "$WEB_RESULTS_DIR" ]]; then
+  cp -R "$WEB_RESULTS_DIR"/. "$ROOT_RESULTS_DIR"/
+  COPY_EXIT=$?
+else
+  COPY_EXIT=1
+fi
+
 echo
 echo "===================== SUMMARY ====================="
 echo "Clean  step exit code : $CLEAN_EXIT"
@@ -93,3 +79,5 @@ echo "Copy   step exit code : $COPY_EXIT"
 echo "Run Timestamp        : $TIMESTAMP"
 echo "==================================================="
 echo
+
+exit "$TEST_EXIT"

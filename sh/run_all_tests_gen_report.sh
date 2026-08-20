@@ -1,109 +1,77 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # ============================================================================
 # Script: run_all_tests_gen_report.sh
 # Purpose:
-#   • Run both API and UI/Web test suites and create a merged Allure report
-#   • Common workflow:
-#       0. Kill orphaned WebDriver processes
-#       1. Clean projects and old Allure result folders
-#       2. Build projects
-#       3. Execute tests (single AllureResultsDirectory each → no duplicates)
-#       4. Inject run.timestamp into each environment.properties
-#       5. Merge results to root-level allure-results
-#       6. Print summary of exit codes and timestamp
+#   Run API and UI/Web test suites and create a merged Allure result folder.
 # ============================================================================
 
-# Source the framework detection utilities
-source sh/detect_net_version.sh
+set +e
 
-# Get the Allure results directories dynamically
-API_ALLURE_RESULTS_DIR=$(get_allure_results_dir "API/API.Tests.csproj")
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to detect API Allure results directory"
-    exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT" || exit 1
+
+if [[ -x "tools/dotnet/dotnet" ]]; then
+  DOTNET_CMD="tools/dotnet/dotnet"
+else
+  DOTNET_CMD="dotnet"
 fi
 
-WEB_ALLURE_RESULTS_DIR=$(get_allure_results_dir "UI/Web/UI.Web.Tests.csproj")
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to detect Web Allure results directory"
-    exit 1
-fi
+API_RESULTS_DIR="API/bin/Debug/net10.0/allure-results"
+WEB_RESULTS_DIR="UI/Web/bin/Debug/net10.0/allure-results"
+ROOT_RESULTS_DIR="allure-results"
 
-# --------------------------------------------------------------------------
-# 0. Kill orphaned WebDriver processes
-# --------------------------------------------------------------------------
-./sh/kill_all_webdrivers.sh
+"$SCRIPT_DIR/kill_all_webdrivers.sh"
 
-# --------------------------------------------------------------------------
-# 1. Clean projects and previous Allure folders
-# --------------------------------------------------------------------------
 echo "Cleaning test projects..."
-dotnet clean API/API.Tests.csproj
+"$DOTNET_CMD" clean API/API.Tests.csproj
 CLEAN_API_EXIT=$?
-dotnet clean UI/Web/UI.Web.Tests.csproj
+"$DOTNET_CMD" clean UI/Web/UI.Web.Tests.csproj
 CLEAN_WEB_EXIT=$?
 
 echo "Removing previous Allure result folders..."
-if [ -d "$API_ALLURE_RESULTS_DIR" ]; then
-    rm -rf "$API_ALLURE_RESULTS_DIR"
-fi
+rm -rf "$API_RESULTS_DIR"
+rm -rf "$WEB_RESULTS_DIR"
+rm -rf "$ROOT_RESULTS_DIR"
 
-if [ -d "$WEB_ALLURE_RESULTS_DIR" ]; then
-    rm -rf "$WEB_ALLURE_RESULTS_DIR"
-fi
-
-if [ -d "allure-results" ]; then
-    rm -rf allure-results
-fi
-
-# --------------------------------------------------------------------------
-# 2. Build projects
-# --------------------------------------------------------------------------
 echo "Building projects..."
-dotnet build API/API.Tests.csproj --no-restore
+"$DOTNET_CMD" build API/API.Tests.csproj --no-restore
 BUILD_API_EXIT=$?
-dotnet build UI/Web/UI.Web.Tests.csproj --no-restore
+"$DOTNET_CMD" build UI/Web/UI.Web.Tests.csproj --no-restore
 BUILD_WEB_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 3. Run tests
-# --------------------------------------------------------------------------
 echo "Running API tests..."
-dotnet test API/API.Tests.csproj \
+"$DOTNET_CMD" test API/API.Tests.csproj \
   --no-build \
   --logger "trx;LogFileName=APITests.trx" \
-  /p:AllureResultsDirectory="$API_ALLURE_RESULTS_DIR"
+  /p:AllureResultsDirectory="$API_RESULTS_DIR"
 TEST_API_EXIT=$?
 
 echo "Running UI.Web tests..."
-dotnet test UI/Web/UI.Web.Tests.csproj \
+"$DOTNET_CMD" test UI/Web/UI.Web.Tests.csproj \
   --no-build \
   --logger "trx;LogFileName=WebTests.trx" \
   --test-adapter-path:. \
-  /p:AllureResultsDirectory="$WEB_ALLURE_RESULTS_DIR"
+  /p:AllureResultsDirectory="$WEB_RESULTS_DIR"
 TEST_WEB_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 4. Add timestamp to both result folders
-# --------------------------------------------------------------------------
 echo "Adding timestamp to Allure results..."
-TS=$(date +"%Y-%m-%d_%H-%M-%S")
-echo "run.timestamp=$TS" > "$API_ALLURE_RESULTS_DIR/environment.properties"
-echo "run.timestamp=$TS" > "$WEB_ALLURE_RESULTS_DIR/environment.properties"
-TIMESTAMP=$TS
+TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
+mkdir -p "$API_RESULTS_DIR" "$WEB_RESULTS_DIR"
+echo "run.timestamp=$TIMESTAMP" > "$API_RESULTS_DIR/environment.properties"
+echo "run.timestamp=$TIMESTAMP" > "$WEB_RESULTS_DIR/environment.properties"
 
-# --------------------------------------------------------------------------
-# 5. Merge results to root allure-results
-# --------------------------------------------------------------------------
 echo "Merging Allure result sets..."
-mkdir -p allure-results
-cp -r "$API_ALLURE_RESULTS_DIR"/* allure-results/
-cp -r "$WEB_ALLURE_RESULTS_DIR"/* allure-results/
+mkdir -p "$ROOT_RESULTS_DIR"
+if [[ -d "$API_RESULTS_DIR" ]]; then
+  cp -R "$API_RESULTS_DIR"/. "$ROOT_RESULTS_DIR"/
+fi
+if [[ -d "$WEB_RESULTS_DIR" ]]; then
+  cp -R "$WEB_RESULTS_DIR"/. "$ROOT_RESULTS_DIR"/
+fi
 COPY_EXIT=$?
 
-# --------------------------------------------------------------------------
-# Summary
-# --------------------------------------------------------------------------
 echo
 echo "===================== SUMMARY ====================="
 echo "Clean  API exit code : $CLEAN_API_EXIT"
@@ -116,3 +84,9 @@ echo "Merge  step exit code: $COPY_EXIT"
 echo "Run Timestamp        : $TIMESTAMP"
 echo "==================================================="
 echo
+
+if [[ "$TEST_API_EXIT" -ne 0 ]]; then
+  exit "$TEST_API_EXIT"
+fi
+
+exit "$TEST_WEB_EXIT"

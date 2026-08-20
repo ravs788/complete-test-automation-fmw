@@ -14,6 +14,7 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Delete API")]
     [AllureTag("api", "delete", "regression")]
+    [Category("regression")]
     public class BookingApiDeleteTests : BaseApiTest
     {
 
