@@ -1,17 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Kill all Chrome driver instances
-pkill -f chromedriver
+# Kill orphaned WebDriver processes if present.
+# This script is intentionally best-effort: missing processes are not failures.
 
-# Kill all Gecko (Firefox) driver instances
-pkill -f geckodriver
+set +e
 
-# Kill all Edge driver instances
-pkill -f msedgedriver
+kill_by_name() {
+  local process_name="$1"
+  if pgrep -x "$process_name" >/dev/null 2>&1; then
+    pkill -x "$process_name"
+  fi
+}
 
-# Kill legacy Edge driver instances if present
-pkill -f edgedriver
-
-# Ignore errors if process is not found
+kill_by_name "chromedriver"
+kill_by_name "geckodriver"
+kill_by_name "msedgedriver"
+kill_by_name "edgedriver"
 
 echo "All browser driver processes have been terminated (if present)."

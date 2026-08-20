@@ -2,13 +2,13 @@ using System.Text.Json.Serialization;
 
 namespace UI.Web.Models
 {
-    public class User
+    public record class User
     {
         [JsonPropertyName("username")]
-        public string Username { get; set; } = "";
+        public string Username { get; init; } = "";
         [JsonPropertyName("password")]
-        public string Password { get; set; } = "";
+        public string Password { get; init; } = "";
         [JsonPropertyName("role")]
-        public string? Role { get; set; }
+        public string? Role { get; init; }
     }
 }

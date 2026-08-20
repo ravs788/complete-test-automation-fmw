@@ -20,10 +20,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up .NET 9.x
+      - name: Set up .NET 10.x
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
 
       - name: Restore API Test Dependencies
@@ -45,12 +45,12 @@ jobs:
       - name: Run Tagged API Tests
         if: ${{ inputs.test_layer == 'api' }}
         working-directory: API
-        run: dotnet test API.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
+        run: dotnet test API.Tests.csproj --no-build --configuration Release --filter "TestCategory=${{ inputs.tag }}" --logger "trx;LogFileName=APITests_${{ inputs.tag }}.trx"
 
       - name: Run Tagged UI Tests
         if: ${{ inputs.test_layer == 'ui' }}
         working-directory: UI/Web
-        run: dotnet test UI.Web.Tests.csproj --no-build --configuration Release --filter "Category=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
+        run: dotnet test UI.Web.Tests.csproj --no-build --configuration Release --filter "TestCategory=${{ inputs.tag }}" --logger "trx;LogFileName=WebTests_${{ inputs.tag }}.trx"
 
 
 

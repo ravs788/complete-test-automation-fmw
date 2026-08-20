@@ -7,7 +7,7 @@ REM   2. Clean and build the UI/Web test project
 REM   3. Execute the Web UI tests (Allure JSON files produced in bin folder)
 REM   4. Inject a timestamp into environment.properties so it appears in Allure
 REM   5. Copy the results from
-REM        UI\Web\bin\Debug\net9.0\allure-results\
+REM        UI\Web\bin\Debug\net10.0\allure-results\
 REM      to a top-level folder called
 REM        allure-results
 REM ============================================================================
@@ -39,9 +39,9 @@ set CLEAN_EXIT=%ERRORLEVEL%
 REM --------------------------------------------------------------------------
 REM Additional clean-up: remove previous Allure result folders
 REM --------------------------------------------------------------------------
-if exist UI\Web\bin\Debug\net9.0\allure-results (
+if exist UI\Web\bin\Debug\net10.0\allure-results (
     echo Removing previous UI Web allure-results folder...
-    rmdir /S /Q UI\Web\bin\Debug\net9.0\allure-results
+    rmdir /S /Q UI\Web\bin\Debug\net10.0\allure-results
 )
 if exist allure-results (
     echo Removing previous root allure-results folder...
@@ -63,7 +63,7 @@ echo Running UI.Web tests...
   --no-build ^
   --logger "trx;LogFileName=WebTests.trx" ^
   --test-adapter-path:. ^
-  /p:AllureResultsDirectory=UI\Web\bin\Debug\net9.0\allure-results
+  /p:AllureResultsDirectory=UI\Web\bin\Debug\net10.0\allure-results
 set TEST_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
@@ -74,7 +74,7 @@ for /f "tokens=1" %%a in ("%date:/=-%") do set TODAY=%%a
 for /f "tokens=1" %%a in ("%time: =0%") do set NOW=%%a
 set TS=!TODAY!_!NOW!
 set TS=!TS::=-!
-echo run.timestamp=!TS!> UI\Web\bin\Debug\net9.0\allure-results\environment.properties
+echo run.timestamp=!TS!> UI\Web\bin\Debug\net10.0\allure-results\environment.properties
 set TIMESTAMP=!TS!
 
 REM --------------------------------------------------------------------------
@@ -82,7 +82,7 @@ REM 5. Copy Allure results to top-level allure-results directory
 REM --------------------------------------------------------------------------
 echo Preparing target allure-results directory...
 mkdir allure-results
-xcopy /E /I /Y UI\Web\bin\Debug\net9.0\allure-results\* allure-results\
+xcopy /E /I /Y UI\Web\bin\Debug\net10.0\allure-results\* allure-results\
 set COPY_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------

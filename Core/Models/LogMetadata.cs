@@ -1,18 +1,18 @@
 namespace Core.Utilities
 {
-    public class LogMetadata
+    public record class LogMetadata
     {
-        public string ProjectName { get; set; }
-        public string TestClassName { get; set; }
-        public string TestMethodName { get; set; }
-        public string Status { get; set; }
-        public string Duration { get; set; }
-        public string Reason { get; set; }
-        public string RunTime { get; set; }
-        public string RunName { get; set; }
-        public string TriggeredBy { get; set; }
-        public string Browser { get; set; }
-        public DateTime? StartTime { get; set; }
-        public DateTime? EndTime { get; set; }
+        public string ProjectName { get; init; } = string.Empty;
+        public string TestClassName { get; init; } = string.Empty;
+        public string TestMethodName { get; init; } = string.Empty;
+        public string Status { get; init; } = string.Empty;
+        public string Duration { get; init; } = string.Empty;
+        public string Reason { get; init; } = string.Empty;
+        public string RunTime { get; init; } = string.Empty;
+        public string RunName { get; init; } = string.Empty;
+        public string TriggeredBy { get; init; } = string.Empty;
+        public string Browser { get; init; } = string.Empty;
+        public DateTime? StartTime { get; init; }
+        public DateTime? EndTime { get; init; }
     }
 }

@@ -13,6 +13,7 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Patch API")]
     [AllureTag("api", "patch", "regression")]
+    [Category("regression")]
     [Parallelizable(ParallelScope.All)]
     public class BookingApiPatchTests : BaseApiTest
     {

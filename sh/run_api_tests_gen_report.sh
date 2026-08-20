@@ -1,88 +1,72 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # ============================================================================
 # Script: run_api_tests_gen_report.sh
 # Purpose:
-#   1. Clean the API test project / solution
-#   2. Execute the API tests (Allure JSON files are produced automatically
-#      inside the bin folder by the Allure adapter)
-#   3. Copy the generated Allure results from
-#        API/bin/Debug/{framework}/allure-results/
-#      to a top-level folder called
-#        allure-results
+#   1. Clean the API test project
+#   2. Build the API test project
+#   3. Execute API tests and generate Allure results
+#   4. Add run.timestamp to environment.properties
+#   5. Copy generated results to root-level allure-results
 # ============================================================================
 
-# Source the framework detection utilities
-source sh/detect_net_version.sh
+set +e
 
-# --------------------------------------------------------------------------
-# 1. Clean API solution / project
-# --------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT" || exit 1
+
+if [[ -x "tools/dotnet/dotnet" ]]; then
+  DOTNET_CMD="tools/dotnet/dotnet"
+else
+  DOTNET_CMD="dotnet"
+fi
+
+API_RESULTS_DIR="API/bin/Debug/net10.0/allure-results"
+ROOT_RESULTS_DIR="allure-results"
+
 echo "Cleaning API solution / project..."
-dotnet clean API/API.Tests.csproj
+"$DOTNET_CMD" clean API/API.Tests.csproj
 CLEAN_EXIT=$?
 
-# Get the Allure results directory dynamically
-API_ALLURE_RESULTS_DIR=$(get_allure_results_dir "API/API.Tests.csproj")
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to detect Allure results directory"
-    exit 1
+if [[ -d "$API_RESULTS_DIR" ]]; then
+  echo "Removing previous API allure-results folder..."
+  rm -rf "$API_RESULTS_DIR"
 fi
 
-# --------------------------------------------------------------------------
-# Additional clean-up: remove previous Allure result folders
-# --------------------------------------------------------------------------
-if [ -d "$API_ALLURE_RESULTS_DIR" ]; then
-    echo "Removing previous API allure-results folder..."
-    rm -rf "$API_ALLURE_RESULTS_DIR"
+if [[ -d "$ROOT_RESULTS_DIR" ]]; then
+  echo "Removing previous root allure-results folder..."
+  rm -rf "$ROOT_RESULTS_DIR"
 fi
 
-if [ -d "allure-results" ]; then
-    echo "Removing previous root allure-results folder..."
-    rm -rf allure-results
-fi
-
-# --------------------------------------------------------------------------
-# 2. Build API test project
-# --------------------------------------------------------------------------
 echo "Building API test project..."
-dotnet build API/API.Tests.csproj --no-restore
+"$DOTNET_CMD" build API/API.Tests.csproj --no-restore
 BUILD_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 3. Run API tests (this generates the Allure result *.json files)
-#    NOTE:
-#      • --no-build  → skip build because we already cleaned
-#      • --logger    → keep trx for Azure DevOps / any CI reporting
-#      • /p:AllureResultsDirectory → tell Allure adapter where to drop results
-# --------------------------------------------------------------------------
 echo "Running API tests..."
-dotnet test API/API.Tests.csproj --no-build --logger "trx;LogFileName=APITests.trx" /p:AllureResultsDirectory="$API_ALLURE_RESULTS_DIR"
+"$DOTNET_CMD" test API/API.Tests.csproj \
+  --no-build \
+  --logger "trx;LogFileName=APITests.trx" \
+  /p:AllureResultsDirectory="$API_RESULTS_DIR"
 TEST_EXIT=$?
 
-# --------------------------------------------------------------------------
-# 4. Add timestamp to Allure results
-# --------------------------------------------------------------------------
 echo "Adding timestamp to Allure results..."
-TS=$(date +"%Y-%m-%d_%H-%M-%S")
-echo "run.timestamp=$TS" > "$API_ALLURE_RESULTS_DIR/environment.properties"
-TIMESTAMP=$TS
+mkdir -p "$API_RESULTS_DIR"
+TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
+echo "run.timestamp=$TIMESTAMP" > "$API_RESULTS_DIR/environment.properties"
 
-# --------------------------------------------------------------------------
-# 5. Copy Allure results to top-level allure-results directory
-# --------------------------------------------------------------------------
 echo "Preparing target allure-results directory..."
-if [ -d "allure-results" ]; then
-    rm -rf allure-results
-fi
-mkdir -p allure-results
+rm -rf "$ROOT_RESULTS_DIR"
+mkdir -p "$ROOT_RESULTS_DIR"
 
 echo "Copying Allure results..."
-cp -r "$API_ALLURE_RESULTS_DIR"/* allure-results/
-COPY_EXIT=$?
+if [[ -d "$API_RESULTS_DIR" ]]; then
+  cp -R "$API_RESULTS_DIR"/. "$ROOT_RESULTS_DIR"/
+  COPY_EXIT=$?
+else
+  COPY_EXIT=1
+fi
 
-# --------------------------------------------------------------------------
-# Summary
-# --------------------------------------------------------------------------
 echo
 echo "===================== SUMMARY ====================="
 echo "Clean  step exit code : $CLEAN_EXIT"
@@ -92,3 +76,5 @@ echo "Copy   step exit code : $COPY_EXIT"
 echo "Run Timestamp        : $TIMESTAMP"
 echo "==================================================="
 echo
+
+exit "$TEST_EXIT"

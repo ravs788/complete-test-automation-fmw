@@ -15,13 +15,16 @@
     [AllureNUnit]
     [AllureSuite("Saucedemo")]
     [AllureTag("saucedemo", "ui", "smoke", "regression")]
+    [Category("smoke")]
+    [Category("regression")]
     [Parallelizable(ParallelScope.Self)]
     public class SauceDemoTests : BaseWebTest
     {
 
         [Test]
         [TestCase("chrome")]
-        [TestCase("firefox")]
+        // TODO: Re-enable after Firefox is installed/configured on the runner.
+        // [TestCase("firefox")]
         [TestCase("edge")]
         public void Saucedemo_Login_ShouldShowInventory(string browser)
         {
