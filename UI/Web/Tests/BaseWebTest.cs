@@ -38,6 +38,7 @@ namespace UI.Web
 
             var config = Core.Utilities.ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
             string browser = "firefox"; // default
+            var headless = config.Headless || IsRunningInGitHubActions();
 
             if (TestContext.CurrentContext.Test.Arguments.Length > 0 && TestContext.CurrentContext.Test.Arguments[0] is string arg)
                 browser = arg.ToLowerInvariant();
@@ -46,7 +47,7 @@ namespace UI.Web
             Uri? remoteUri = useGrid ? new Uri(config.GridUrl) : null;
             var commandTimeout = TimeSpan.FromSeconds(config.DriverCommandTimeoutSec <= 0 ? 60 : config.DriverCommandTimeoutSec);
 
-            Logger.Info($"[SetUp] Starting test '{TestContext.CurrentContext.Test.Name}' on browser '{browser}' (Headless: {config.Headless})");
+            Logger.Info($"[SetUp] Starting test '{TestContext.CurrentContext.Test.Name}' on browser '{browser}' (Headless: {headless})");
 
             switch (browser)
             {
@@ -55,7 +56,7 @@ namespace UI.Web
                     chromeOptions.PageLoadStrategy = PageLoadStrategy.Eager;
                     chromeOptions.AddUserProfilePreference("credentials_enable_Service", false);
                     chromeOptions.AddUserProfilePreference("profile.password_manager_leak_detection", false);
-                    if (config.Headless)
+                    if (headless)
                     {
                         chromeOptions.AddArgument("--headless=new");
                         chromeOptions.AddArgument("--window-size=1920,1080");
@@ -67,7 +68,12 @@ namespace UI.Web
                     }
                     else
                     {
-                        Driver = CreateLocalWebDriver(config.ChromeDriverPath, "chromedriver", chromeOptions.ToCapabilities(), commandTimeout);
+                        Driver = CreateLocalWebDriver(
+                            config.ChromeDriverPath,
+                            "chromedriver",
+                            chromeOptions.ToCapabilities(),
+                            commandTimeout,
+                            () => new ChromeDriver(CreateChromeService(config, commandTimeout), chromeOptions, commandTimeout));
                     }
                     break;
                 case "firefox":
@@ -77,7 +83,7 @@ namespace UI.Web
                     {
                         firefoxOptions.BinaryLocation = config.FirefoxBinaryPath;
                     }
-                    if (config.Headless)
+                    if (headless)
                     {
                         firefoxOptions.AddArgument("--headless");
                         firefoxOptions.AddArgument("--width=1920");
@@ -90,13 +96,18 @@ namespace UI.Web
                     }
                     else
                     {
-                        Driver = CreateLocalWebDriver(config.FirefoxDriverPath, "geckodriver", firefoxOptions.ToCapabilities(), commandTimeout);
+                        Driver = CreateLocalWebDriver(
+                            config.FirefoxDriverPath,
+                            "geckodriver",
+                            firefoxOptions.ToCapabilities(),
+                            commandTimeout,
+                            () => new FirefoxDriver(CreateFirefoxService(config, commandTimeout), firefoxOptions, commandTimeout));
                     }
                     break;
                 case "edge":
                     var edgeOptions = new EdgeOptions();
                     edgeOptions.PageLoadStrategy = PageLoadStrategy.Eager;
-                    if (config.Headless)
+                    if (headless)
                     {
                         edgeOptions.AddArgument("--headless=new");
                         edgeOptions.AddArgument("--window-size=1920,1080");
@@ -108,7 +119,12 @@ namespace UI.Web
                     }
                     else
                     {
-                        Driver = CreateLocalWebDriver(config.EdgeDriverPath, "msedgedriver", edgeOptions.ToCapabilities(), commandTimeout);
+                        Driver = CreateLocalWebDriver(
+                            config.EdgeDriverPath,
+                            "msedgedriver",
+                            edgeOptions.ToCapabilities(),
+                            commandTimeout,
+                            () => new EdgeDriver(CreateEdgeService(config, commandTimeout), edgeOptions, commandTimeout));
                     }
                     break;
                 default:
@@ -118,7 +134,7 @@ namespace UI.Web
                     {
                         defaultOptions.BinaryLocation = config.FirefoxBinaryPath;
                     }
-                    if (config.Headless)
+                    if (headless)
                     {
                         defaultOptions.AddArgument("--headless");
                         defaultOptions.AddArgument("--width=1920");
@@ -131,7 +147,12 @@ namespace UI.Web
                     }
                     else
                     {
-                        Driver = CreateLocalWebDriver(config.FirefoxDriverPath, "geckodriver", defaultOptions.ToCapabilities(), commandTimeout);
+                        Driver = CreateLocalWebDriver(
+                            config.FirefoxDriverPath,
+                            "geckodriver",
+                            defaultOptions.ToCapabilities(),
+                            commandTimeout,
+                            () => new FirefoxDriver(CreateFirefoxService(config, commandTimeout), defaultOptions, commandTimeout));
                     }
                     break;
             }
@@ -139,7 +160,7 @@ namespace UI.Web
             Driver.Manage().Timeouts().AsynchronousJavaScript = TimeSpan.FromSeconds(config.ScriptTimeoutSec <= 0 ? 30 : config.ScriptTimeoutSec);
             Driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(Math.Max(config.ImplicitWaitTimeoutSec, 0));
 
-            if (!config.Headless)
+            if (!headless)
             {
                 Driver.Manage().Window.Maximize();
             }
@@ -167,12 +188,14 @@ namespace UI.Web
             string configuredDriverPath,
             string executableName,
             ICapabilities capabilities,
-            TimeSpan commandTimeout)
+            TimeSpan commandTimeout,
+            Func<IWebDriver> seleniumManagerFactory)
         {
             var driverPath = ResolveDriverPath(configuredDriverPath, executableName);
             if (string.IsNullOrWhiteSpace(driverPath))
             {
-                throw new WebDriverException($"Could not resolve local WebDriver executable '{executableName}'. Configure the matching driver path in UI/Web/config.json or allow Selenium Manager outside the local test fixture.");
+                Logger.Info($"[SetUp] No local '{executableName}' executable was found; using Selenium Manager.");
+                return seleniumManagerFactory();
             }
 
             var port = FindFreeLoopbackPort();
@@ -194,6 +217,9 @@ namespace UI.Web
                 throw;
             }
         }
+
+        private static bool IsRunningInGitHubActions() =>
+            string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase);
 
         private static Process StartLocalDriverProcess(string driverPath, string executableName, int port)
         {
