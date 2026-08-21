@@ -20,6 +20,7 @@ namespace UI.Mobile.Tests.Samples.AndroidWeb
             // BaseMobileTest SetUp navigates to BaseUrl from UI/Mobile/config.json for Mobile Web.
             AllureApi.Step("Wait for username field to be visible", () =>
             {
+                Driver.Navigate().GoToUrl("https://www.saucedemo.com");
                 var username = WaitHelper.UntilVisible(Driver!, By.CssSelector("input#user-name"), 20);
                 Assert.That(username, Is.Not.Null, "Username input should be present on Saucedemo login page.");
             });
