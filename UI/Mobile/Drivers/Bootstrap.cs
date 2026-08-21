@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using Core.Utilities;
@@ -107,6 +108,21 @@ namespace UI.Mobile.Drivers
                     {
                         // Chrome/other chromium-based browsers
                         opts.AddAdditionalAppiumOption("browserName", browserName);
+
+                        // Pass options directly to ChromeDriver to suppress first-run/welcome and sync screens
+                        opts.AddAdditionalAppiumOption("goog:chromeOptions", new Dictionary<string, object>
+                        {
+                            ["args"] = new[]
+                            {
+                                "--no-first-run",
+                                "--disable-fre",
+                                "--no-default-browser-check",
+                                "--disable-popup-blocking",
+                                "--disable-notifications",
+                                "--disable-features=Translate"
+                            }
+                        });
+
                         // If a specific Chromedriver path/dir is provided in config, use it; otherwise fall back to auto-download.
                         if (!string.IsNullOrWhiteSpace(cfg.Android.ChromedriverExecutable))
                         {

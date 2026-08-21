@@ -21,6 +21,7 @@ namespace UI.Mobile.Tests.Samples.AndroidWeb
 
             AllureApi.Step("Wait for username input to be visible", () =>
             {
+                Driver.Navigate().GoToUrl("https://www.saucedemo.com");
                 var username = WaitHelper.UntilVisible(Driver!, By.CssSelector("input#user-name"), 20);
                 Assert.That(username, Is.Not.Null, "Username input should be visible on Saucedemo login page.");
             });
