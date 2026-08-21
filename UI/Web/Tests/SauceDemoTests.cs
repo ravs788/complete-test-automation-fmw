@@ -17,7 +17,6 @@
     [AllureTag("saucedemo", "ui", "smoke", "regression")]
     [Category("smoke")]
     [Category("regression")]
-    [Parallelizable(ParallelScope.Self)]
     public class SauceDemoTests : BaseWebTest
     {
 

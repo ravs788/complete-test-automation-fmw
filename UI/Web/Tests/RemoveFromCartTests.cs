@@ -12,7 +12,6 @@ namespace UI.Web.Tests
     [AllureSuite("RemoveFromCart")]
     [AllureTag("cart", "ui", "regression")]
     [Category("regression")]
-    [Parallelizable(ParallelScope.Self)]
     public class RemoveFromCartTests : BaseWebTest
     {
         [Test]

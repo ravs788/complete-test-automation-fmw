@@ -12,7 +12,6 @@ namespace UI.Web.Tests
     [AllureSuite("NegativeLogin")]
     [AllureTag("login", "negative", "ui", "regression")]
     [Category("regression")]
-    [Parallelizable(ParallelScope.Self)]
     public class NegativeLoginTests : BaseWebTest
     {
         [Test]
