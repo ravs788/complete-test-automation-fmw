@@ -17,13 +17,13 @@ variables:
 
 stages:
   - stage: BuildAndValidate
-    displayName: "PR Validation & Quality Gate"
+    displayName: "PR Validation and Quality Gate"
     jobs:
       # -------------------------------------------------------------
-      # Job 1: Linux Agent for Web & API Suites
+      # Job 1: Linux Agent for Web and API Suites
       # -------------------------------------------------------------
       - job: WebAndApiAutomation
-        displayName: "API & Playwright Web Suites (Linux)"
+        displayName: "API and Playwright Web Suites (Linux)"
         pool:
           vmImage: "ubuntu-latest"
         timeoutInMinutes: 15
@@ -41,17 +41,9 @@ stages:
           - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
 
-          # Fast, targeted browser download with zero apt-get package prompts
           - script: |
-              SCRIPT_PATH=$(find . -name "playwright.ps1" | head -n 1)
-              if [ -n "$SCRIPT_PATH" ]; then
-                echo "Provisioning Chromium browser via: $SCRIPT_PATH"
-                pwsh "$SCRIPT_PATH" install chromium
-              else
-                CLI_PATH=$(find . -name "cli.js" | grep "package/cli.js" | head -n 1)
-                echo "Provisioning Chromium browser via Node CLI: $CLI_PATH"
-                node "$CLI_PATH" install chromium
-              fi
+              dotnet tool install --global Microsoft.Playwright.CLI || dotnet tool update --global Microsoft.Playwright.CLI
+              playwright install --with-deps chromium
             displayName: "Provision Playwright Browsers"
             timeoutInMinutes: 5
 
