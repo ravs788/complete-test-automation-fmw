@@ -41,9 +41,8 @@ stages:
           - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
 
-          - script: |
-              dotnet tool install --global Microsoft.Playwright.CLI || dotnet tool update --global Microsoft.Playwright.CLI
-              playwright install --with-deps chromium
+          # Install Chromium directly using the generated build script in the test folder
+          - script: pwsh tests/Automation.Tests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium
             displayName: "Provision Playwright Browsers"
             timeoutInMinutes: 5
 
