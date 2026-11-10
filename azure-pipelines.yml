@@ -26,6 +26,7 @@ stages:
         displayName: "API & Playwright Web Suites (Linux)"
         pool:
           vmImage: "ubuntu-latest"
+        timeoutInMinutes: 15
         steps:
           - task: UseDotNet@2
             displayName: "Setup .NET SDK 10.x"
@@ -40,17 +41,19 @@ stages:
           - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
 
+          # Fast, targeted browser download with zero apt-get package prompts
           - script: |
               SCRIPT_PATH=$(find . -name "playwright.ps1" | head -n 1)
               if [ -n "$SCRIPT_PATH" ]; then
-                echo "Provisioning browsers using: $SCRIPT_PATH"
-                pwsh "$SCRIPT_PATH" install --with-deps
+                echo "Provisioning Chromium browser via: $SCRIPT_PATH"
+                pwsh "$SCRIPT_PATH" install chromium
               else
                 CLI_PATH=$(find . -name "cli.js" | grep "package/cli.js" | head -n 1)
-                echo "Provisioning browsers using node CLI: $CLI_PATH"
-                node "$CLI_PATH" install --with-deps
+                echo "Provisioning Chromium browser via Node CLI: $CLI_PATH"
+                node "$CLI_PATH" install chromium
               fi
             displayName: "Provision Playwright Browsers"
+            timeoutInMinutes: 5
 
           # Run API Tests (NUnit)
           - script: dotnet test API/API.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=api_results.trx" --collect "XPlat Code Coverage"
@@ -87,6 +90,7 @@ stages:
         displayName: "Desktop UI Tests (Windows)"
         pool:
           vmImage: "windows-latest"
+        timeoutInMinutes: 15
         steps:
           - task: UseDotNet@2
             displayName: "Setup .NET SDK 10.x"
