@@ -41,8 +41,14 @@ stages:
           - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
 
-          # Install Chromium directly using the generated build script in the test folder
-          - script: pwsh tests/Automation.Tests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium
+          # Explicitly compile the xUnit Playwright test project so its bin/Release folder & playwright.ps1 exist
+          - script: dotnet build tests/Automation.Tests/Automation.Tests.csproj --configuration $(buildConfiguration)
+            displayName: "Compile Playwright Test Project"
+
+          # Run the installer directly from inside the build directory
+          - script: |
+              cd tests/Automation.Tests/bin/$(buildConfiguration)/net10.0
+              pwsh ./playwright.ps1 install --with-deps chromium
             displayName: "Provision Playwright Browsers"
             timeoutInMinutes: 5
 
