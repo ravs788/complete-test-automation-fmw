@@ -1,115 +1,24 @@
-trigger:
-  branches:
-    include:
-      - main
-      - release/*
+Condition evaluation
+Starting: Compile Desktop Suite
+==============================================================================
+Task         : Command line
+Description  : Run a command line script using Bash on Linux and macOS and cmd.exe on Windows
+Version      : 2.281.0
+Author       : Microsoft Corporation
+Help         : https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/command-line
+==============================================================================
+Generating script.
+========================== Starting Command Output ===========================
+"C:\Windows\system32\cmd.exe" /D /E:ON /V:OFF /S /C "CALL "D:\a\_temp\5a65a33f-cd99-459d-ba2d-807513708051.cmd""
+MSBUILD : error MSB1008: Only one project can be specified.
+    Full command line: 'C:\hostedtoolcache\windows\dotnet\sdk\10.0.403\MSBuild.exe -maxcpucount --verbosity:m -tlp:default=auto --property:NuGetInteractive=false --restoreProperty:NuGetInteractive=false --restoreProperty:EnableDefaultCompileItems=false --restoreProperty:EnableDefaultEmbeddedResourceItems=false --restoreProperty:EnableDefaultNoneItems=false --nologo UI/Desktop/UI.Desktop.Tests/UI.Desktop.Tests.csproj \ -consoleloggerparameters:Summary -restore'
+  Switches appended by response files:
+Switch: \
 
-pr:
-  branches:
-    include:
-      - main
-
-variables:
-  buildConfiguration: "Release"
-  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
-
-stages:
-  - stage: BuildAndValidate
-    displayName: "PR Validation & Quality Gate"
-    jobs:
-      # Job 1: Linux Agent for Web & API Suites
-      - job: WebAndApiAutomation
-        displayName: "API & Playwright Web Suites (Linux)"
-        pool:
-          vmImage: "ubuntu-latest"
-        steps:
-          - task: UseDotNet@2
-            displayName: "Setup .NET SDK 10.x"
-            inputs:
-              packageType: "sdk"
-              version: "10.x"
-              installationPath: $(Agent.ToolsDirectory)/dotnet
-
-          - script: dotnet restore modern-test-framework.sln
-            displayName: "Restore Solution Dependencies"
-
-          - script: |
-              dotnet build modern-test-framework.sln \
-                --configuration $(buildConfiguration) \
-                --no-restore
-            displayName: "Compile Solution (Release)"
-
-          - script: |
-              pwsh src/Automation.Core/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps || \
-              dotnet tool install --global Microsoft.Playwright.CLI && playwright install --with-deps
-            displayName: "Provision Playwright Browsers"
-
-          # Run API Tests (NUnit)
-          - script: |
-              dotnet test API/API.Tests.csproj \
-                --configuration $(buildConfiguration) \
-                --no-build \
-                --logger "trx;LogFileName=api_results.trx" \
-                --collect "XPlat Code Coverage"
-            displayName: "Run API Test Suite"
-            env:
-              ENVIRONMENT: "CI"
-
-          # Run Web / Playwright Tests (xUnit)
-          - script: |
-              dotnet test tests/Automation.Tests/Automation.Tests.csproj \
-                --configuration $(buildConfiguration) \
-                --no-build \
-                --logger "trx;LogFileName=web_results.trx" \
-                --collect "XPlat Code Coverage"
-            displayName: "Run Playwright Web Suite"
-            env:
-              HEADLESS: "true"
-              ENVIRONMENT: "CI"
-
-          - task: PublishTestResults@2
-            displayName: "Publish VSTest Run Metrics"
-            condition: always()
-            inputs:
-              testResultsFormat: "VSTest"
-              testResultsFiles: "**/*_results.trx"
-              searchFolder: "$(Agent.BuildDirectory)"
-              failTaskOnFailedTests: true
-
-          - task: PublishCodeCoverageResults@2
-            displayName: "Publish Code Coverage Quality Gate"
-            condition: always()
-            inputs:
-              summaryFileLocation: "$(Agent.BuildDirectory)/**/coverage.cobertura.xml"
-
-      # Job 2: Windows Agent for Desktop (WinAppDriver / FlaUI)
-      - job: DesktopAutomation
-        displayName: "Desktop UI Tests (Windows)"
-        pool:
-          vmImage: "windows-latest"
-        steps:
-          - task: UseDotNet@2
-            displayName: "Setup .NET SDK 10.x"
-            inputs:
-              packageType: "sdk"
-              version: "10.x"
-
-          - script: dotnet restore UI/Desktop/UI.Desktop.Tests/UI.Desktop.Tests.csproj
-            displayName: "Restore Desktop Dependencies"
-
-          - script: |
-              dotnet build UI/Desktop/UI.Desktop.Tests/UI.Desktop.Tests.csproj \
-                --configuration $(buildConfiguration) \
-                --no-restore
-            displayName: "Compile Desktop Suite"
-
-          # Note: On Windows hosted agents, WinAppDriver can be started as a service if licensed
-          - task: PublishTestResults@2
-            displayName: "Publish Desktop Test Metrics"
-            condition: always()
-            inputs:
-              testResultsFormat: "VSTest"
-              testResultsFiles: "**/desktop_results.trx"
-              searchFolder: "$(Agent.BuildDirectory)"
-              failTaskOnFailedTests: false
+For switch syntax, type "MSBuild -help"
+'--configuration' is not recognized as an internal or external command,
+operable program or batch file.
+'--no-restore' is not recognized as an internal or external command,
+operable program or batch file.
+##[error]Cmd.exe exited with code '1'.
+Finishing: Compile Desktop Suite
