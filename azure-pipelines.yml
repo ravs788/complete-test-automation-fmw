@@ -40,14 +40,25 @@ stages:
           - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
 
-          - script: pwsh tests/Automation.Tests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps
+          - script: |
+              SCRIPT_PATH=$(find . -name "playwright.ps1" | head -n 1)
+              if [ -n "$SCRIPT_PATH" ]; then
+                echo "Provisioning browsers using: $SCRIPT_PATH"
+                pwsh "$SCRIPT_PATH" install --with-deps
+              else
+                CLI_PATH=$(find . -name "cli.js" | grep "package/cli.js" | head -n 1)
+                echo "Provisioning browsers using node CLI: $CLI_PATH"
+                node "$CLI_PATH" install --with-deps
+              fi
             displayName: "Provision Playwright Browsers"
 
+          # Run API Tests (NUnit)
           - script: dotnet test API/API.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=api_results.trx" --collect "XPlat Code Coverage"
             displayName: "Run API Test Suite"
             env:
               ENVIRONMENT: "CI"
 
+          # Run Web / Playwright Tests (xUnit)
           - script: dotnet test tests/Automation.Tests/Automation.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=web_results.trx" --collect "XPlat Code Coverage"
             displayName: "Run Playwright Web Suite"
             env:
