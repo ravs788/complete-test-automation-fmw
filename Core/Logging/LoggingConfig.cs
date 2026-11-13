@@ -7,6 +7,4 @@ public sealed record LoggingConfig
     public string Provider { get; init; } = "elastic";
 
     public ElasticSection Elastic { get; init; } = new();
-
-    public ConsoleSection Console { get; init; } = new();
 }

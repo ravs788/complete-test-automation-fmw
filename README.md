@@ -242,9 +242,6 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
     "Username": "",
     "Password": "",
     "CertificateFingerprint": ""
-  },
-  "Console": {
-    "Enabled": true
   }
 }
 ```

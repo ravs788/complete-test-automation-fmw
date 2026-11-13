@@ -30,11 +30,7 @@ public static class LoggingConfigProvider
         var cfg = SettingsLoader.Load<LoggingConfig>(FindRootPath(), FileName, EnvPrefix, Aliases);
 
         // A section set to null in the JSON would otherwise override the defaults.
-        return cfg with
-        {
-            Elastic = cfg.Elastic ?? new ElasticSection(),
-            Console = cfg.Console ?? new ConsoleSection()
-        };
+        return cfg with { Elastic = cfg.Elastic ?? new ElasticSection() };
     }
 
     private static string FindRootPath()
