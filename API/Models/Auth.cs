@@ -1,13 +1,13 @@
 namespace API.Models
 {
-    public class AuthRequest
+    public record class AuthRequest
     {
-        public string username { get; set; } = "";
-        public string password { get; set; } = "";
+        public string username { get; init; } = "";
+        public string password { get; init; } = "";
     }
 
-    public class AuthResponse
+    public record class AuthResponse
     {
-        public string token { get; set; } = "";
+        public string token { get; init; } = "";
     }
 }

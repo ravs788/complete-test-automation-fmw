@@ -3,15 +3,15 @@ using System.Text.Json.Serialization;
 
 namespace UI.Web.Models
 {
-    public class CheckoutFlowTestData
+    public record class CheckoutFlowTestData
     {
         [JsonPropertyName("user")]
-        public User User { get; set; } = new User();
+        public User User { get; init; } = new User();
 
         [JsonPropertyName("products")]
-        public List<Product> Products { get; set; } = new();
+        public IReadOnlyList<Product> Products { get; init; } = new List<Product>();
 
         [JsonPropertyName("checkoutInfo")]
-        public CheckoutInfo CheckoutInfo { get; set; } = new CheckoutInfo();
+        public CheckoutInfo CheckoutInfo { get; init; } = new CheckoutInfo();
     }
 }

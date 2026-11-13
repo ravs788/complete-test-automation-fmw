@@ -1,7 +1,7 @@
 namespace Core.Utilities
 {
-    public class ConsoleSection
+    public record class ConsoleSection
     {
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; init; } = true;
     }
 }

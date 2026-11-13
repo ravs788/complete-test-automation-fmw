@@ -16,13 +16,14 @@ namespace UI.Web.Tests
     [AllureNUnit]
     [AllureSuite("CheckoutFlow")]
     [AllureTag("checkout-flow", "ui", "regression")]
-    [Parallelizable(ParallelScope.Self)]
+    [Category("regression")]
     public class CheckoutFlowTests : BaseWebTest
     {
 
         [Test]
         [TestCase("chrome")]
-        [TestCase("firefox")]
+        // TODO: Re-enable after Firefox is installed/configured on the runner.
+        // [TestCase("firefox")]
         [TestCase("edge")]
         public void EndToEnd_Checkout_Success(string browser)
         {

@@ -2,12 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace UI.Web.Models
 {
-    public class AddToCartTestData
+    public record class AddToCartTestData
     {
         [JsonPropertyName("user")]
-        public User User { get; set; } = new User();
+        public User User { get; init; } = new User();
 
         [JsonPropertyName("product")]
-        public Product Product { get; set; } = new Product();
+        public Product Product { get; init; } = new Product();
     }
 }

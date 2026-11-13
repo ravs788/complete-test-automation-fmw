@@ -13,7 +13,7 @@
 
 ## 🚀 Features
 
-- Modular C# .NET 9 test automation framework
+- Modular C# .NET 10 test automation framework
 - Unified UI and API test layers: Selenium-based UI automation and REST API testing side-by-side
 - Page Object Model (POM) for maintainable, reusable UI code
 - Test data parameterization via JSON

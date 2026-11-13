@@ -10,6 +10,8 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Health Check API")]
     [AllureTag("api", "health", "smoke", "regression")]
+    [Category("smoke")]
+    [Category("regression")]
     public class BookingApiHealthCheckTests : BaseApiTest
     {
 

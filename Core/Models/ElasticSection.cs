@@ -1,9 +1,9 @@
 namespace Core.Utilities
 {
-    public class ElasticSection
+    public record class ElasticSection
     {
-        public string? Url { get; set; }
-        public string? Username { get; set; }
-        public string? Password { get; set; }
+        public string? Url { get; init; }
+        public string? Username { get; init; }
+        public string? Password { get; init; }
     }
 }

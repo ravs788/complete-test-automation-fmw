@@ -1,0 +1,42 @@
+{
+  "server": {
+    "url": "http://127.0.0.1:4725/",
+    "commandTimeoutSec": 120,
+    "newCommandTimeoutSec": 120
+  },
+  "platform": "Android",
+  "appType": "Web",
+  "baseUrl": "https://www.saucedemo.com",
+  "device": {
+    "deviceName": "emulator-5554",
+    "platformVersion": "14",
+    "udid": "",
+    "orientation": "portrait"
+  },
+  "android": {
+    "automationName": "UiAutomator2",
+    "app": "",
+    "appPackage": "",
+    "appActivity": "",
+    "browserName": "Chrome",
+    "chromedriverExecutable": "c:/Learning/Testing/modern-test-framework/UI/Mobile/Drivers/chromedriver.exe",
+    "chromedriverExecutableDir": ""
+  },
+  "ios": {
+    "automationName": "XCUITest",
+    "app": "",
+    "bundleId": "",
+    "browserName": "Safari"
+  },
+  "behavior": {
+    "noReset": true,
+    "fullReset": false,
+    "acceptAlertsAutomatically": true
+  },
+  "logging": {
+    "provider": "console"
+  },
+  "testData": {
+    "basePath": "UI/Mobile/test-data"
+  }
+}

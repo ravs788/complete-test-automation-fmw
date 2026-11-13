@@ -13,6 +13,7 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Get API")]
     [AllureTag("api", "get", "regression")]
+    [Category("regression")]
     public class BookingApiGetTests : BaseApiTest
     {
 

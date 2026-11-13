@@ -12,6 +12,7 @@ namespace API.Tests
     [AllureNUnit]
     [AllureSuite("Booking Post API")]
     [AllureTag("api", "post", "regression")]
+    [Category("regression")]
     public class BookingApiPostTests : BaseApiTest
     {
 
@@ -23,7 +24,7 @@ namespace API.Tests
                 "BookingApiPostTests/HappyPath.json"
             );
             // Randomize a key property to avoid demo API duplication/spam rejection
-            newBooking.lastname = $"{newBooking.lastname}_{System.DateTime.UtcNow.Ticks}";
+            newBooking = newBooking with { lastname = $"{newBooking.lastname}_{System.DateTime.UtcNow.Ticks}" };
             var postResponse = await _client.PostAsync<Booking, Dictionary<string, object>>("booking", newBooking);
             AllureApi.Step("Assert booking creation response", () =>
             {

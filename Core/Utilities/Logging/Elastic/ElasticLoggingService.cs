@@ -28,9 +28,15 @@ namespace Core.Utilities
 
             // Prefer values provided in parameters; otherwise fall back to logging-config.json
             var cfg = LoggingConfig.Load();
-            cfg.Elastic.Url = !string.IsNullOrWhiteSpace(elasticUrl) ? elasticUrl : cfg.Elastic.Url;
-            cfg.Elastic.Username = !string.IsNullOrWhiteSpace(username) ? username : cfg.Elastic.Username;
-            cfg.Elastic.Password = !string.IsNullOrWhiteSpace(password) ? password : cfg.Elastic.Password;
+            cfg = cfg with
+            {
+                Elastic = cfg.Elastic with
+                {
+                    Url = !string.IsNullOrWhiteSpace(elasticUrl) ? elasticUrl : cfg.Elastic.Url,
+                    Username = !string.IsNullOrWhiteSpace(username) ? username : cfg.Elastic.Username,
+                    Password = !string.IsNullOrWhiteSpace(password) ? password : cfg.Elastic.Password
+                }
+            };
 
             // Use insecure localhost profile by default; user can override via env-var
             var serverChoice = Enum.TryParse(

@@ -8,6 +8,7 @@ namespace UI.Web.Pages
         private readonly By usernameInput = By.Id("user-name");
         private readonly By passwordInput = By.Id("password");
         private readonly By loginButton = By.Id("login-button");
+        private readonly By errorContainer = By.CssSelector("[data-test='error']");
 
         public LoginPage(IWebDriver driver) : base(driver) { }
 
@@ -26,6 +27,30 @@ namespace UI.Web.Pages
         public void ClickLogin()
         {
             Driver.FindElement(loginButton).Click();
+        }
+
+        public bool IsErrorDisplayed()
+        {
+            try
+            {
+                return Driver.FindElement(errorContainer).Displayed;
+            }
+            catch (NoAlertPresentException)
+            {
+                return false;
+            }
+        }
+
+        public string GetErrorText()
+        {
+            try
+            {
+                return Driver.FindElement(errorContainer).Text;
+            }
+            catch (NoAlertPresentException)
+            {
+                return string.Empty;
+            }
         }
 
         public void Login(string username, string password)
