@@ -3,7 +3,7 @@ namespace Core.Configuration;
 /// <summary>
 /// Thread-safe, lazily loaded <see cref="TestSettings"/>: <c>testsettings.json</c> (test output directory), then
 /// <c>TESTS_*</c> environment variables (e.g. <c>TESTS_RestfulBooker__Password</c>), then the aliases
-/// <c>BROWSER</c> and <c>HEADLESS</c>. See <see cref="SettingsLoader"/>.
+/// <c>BROWSER</c>, <c>HEADLESS</c> and <c>TRACE</c>. See <see cref="SettingsLoader"/>.
 /// </summary>
 public static class ConfigurationProvider
 {
@@ -14,6 +14,7 @@ public static class ConfigurationProvider
     {
         ["BROWSER"] = "Browser",
         ["HEADLESS"] = "Headless",
+        ["TRACE"] = "Trace",
     };
 
     private static readonly Lazy<TestSettings> _lazySettings = new(

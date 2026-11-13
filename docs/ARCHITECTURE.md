@@ -126,12 +126,13 @@ xUnit v2 creates a new test-class instance per test and has no teardown hook tha
 ```text
 Class start   PlaywrightFixture.InitializeAsync → Playwright.CreateAsync() → launch browser (Settings.Browser)
 Per test      UiTestBase.InitializeAsync → new BrowserContext(BaseURL = app's BaseUrl) → new Page(default timeout)
+                                       → start tracing (Trace = on-failure | on)
               [Fact] public Task X() => RunAsync(async () => { ... })
                 └─ TestRunner.RunAsync(logger, "ui-web", class, [CallerMemberName], browser)
                      ├─ log [Start]; Allure name "<test> (<browser>)" + "browser" parameter
                      ├─ body: page objects + Mothers/Builders + AllureApi.Step + Assertions.Expect
                      ├─ PlaywrightException → Assert.Fail (Allure shows "failed", not "broken")
-                     ├─ on failure: full-page screenshot → Allure → rethrow
+                     ├─ on failure: full-page screenshot + Playwright trace → Allure → rethrow
                      └─ finally: Allure Start/End/Duration → log [Finish] → publish LogMetadata
               UiTestBase.DisposeAsync → context.CloseAsync()
 Class end     PlaywrightFixture.DisposeAsync → browser.CloseAsync() → playwright.Dispose()
@@ -198,7 +199,6 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 - Add mobile tests to CI (emulator job or device cloud).
 - Add native-app mobile samples (Android, then iOS).
 - Desktop UI suite (FlaUI / UIA).
-- Optionally record Playwright traces on failure and attach them to Allure.
 
 ---
 

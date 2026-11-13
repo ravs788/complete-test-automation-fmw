@@ -4,6 +4,8 @@
   "Browser": "chromium",
   "Headless": true,
   "DefaultTimeoutMs": 30000,
+  // Playwright trace: off | on-failure (attached to Allure when a test fails) | on. Environment override: TRACE.
+  "Trace": "on-failure",
 
   "TodoMvc": { "BaseUrl": "https://demo.playwright.dev/todomvc/" },
   "SauceDemo": { "BaseUrl": "https://www.saucedemo.com/" },
