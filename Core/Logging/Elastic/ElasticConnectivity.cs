@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 
@@ -9,15 +10,25 @@ namespace Core.Logging.Elastic;
 /// </summary>
 public static class ElasticConnectivity
 {
+    private static readonly ConcurrentDictionary<string, Lazy<bool>> _results = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Returns true if the elastic server at elasticUrl responds within the timeout.
     /// Treats any HTTP status (including 401/403) as "reachable" since the server is up.
     /// Returns false on network errors or timeouts.
+    /// The answer is cached per URL for the rest of the test run, so each test doesn't pay for a probe
+    /// (up to the timeout when the server is unreachable).
     /// </summary>
     public static bool IsReachable(string? elasticUrl, string? username = null, string? password = null, TimeSpan? timeout = null)
     {
         if (string.IsNullOrWhiteSpace(elasticUrl))
             return false;
+
+        return _results.GetOrAdd(elasticUrl, url => new Lazy<bool>(() => Probe(url, username, password, timeout))).Value;
+    }
+
+    private static bool Probe(string elasticUrl, string? username, string? password, TimeSpan? timeout)
+    {
 
         try
         {

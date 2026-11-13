@@ -13,9 +13,9 @@ public class ElasticLoggingProviderFactory : ILoggingProviderFactory
         service = null!;
         reason = null;
 
-        var url = cfg.Elastic?.Url;
-        var user = cfg.Elastic?.Username;
-        var pass = cfg.Elastic?.Password;
+        var url = ElasticClientFactory.ResolveUrl(ElasticClientFactory.CurrentProfile, cfg);
+        var user = cfg.Elastic.Username;
+        var pass = cfg.Elastic.Password;
 
         if (!ElasticConnectivity.IsReachable(url, user, pass))
         {
@@ -24,7 +24,7 @@ public class ElasticLoggingProviderFactory : ILoggingProviderFactory
         }
 
         var elastic = new ElasticLoggingService();
-        elastic.Configure(indexFormat, user, pass, url);
+        elastic.Configure(indexFormat);
         service = elastic;
         return true;
     }

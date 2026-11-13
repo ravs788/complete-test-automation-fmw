@@ -76,7 +76,7 @@ Conventions (the same in every project):
 ### 3.1 Configuration
 
 - **Playwright tests:** `ConfigurationProvider.Current` lazily loads `Tests/testsettings.json` from the output directory (thread-safe) and applies `BROWSER` / `HEADLESS` overrides. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
-- **Logging:** `LoggingConfigProvider.Current` lazily loads `logging-config.json`, found by walking up from the run directory.
+- **Logging:** `LoggingConfigProvider.Current` lazily loads `logging-config.json`, found by walking up from the run directory, and applies `LOGGING_PROVIDER` / `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT` overrides. Credentials only come from the environment.
 - **Mobile:** `MobileSettingsProvider.Current` (in the mobile project) lazily loads `Tests/UI/Mobile/mobilesettings.json` from the output directory.
 
 ### 3.2 Browsers
@@ -109,9 +109,10 @@ ILoggingService               IResultsPublisher
  ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
  └─ ElasticLoggingService      └─ ElasticResultsPublisher
         │ ElasticClientFactory(ELASTIC_SERVER profile)
-        │ ElasticConnectivity probe → disables itself if unreachable
+        │ ElasticConnectivity probe (cached per URL for the run) → console fallback if unreachable
 ```
 
+- Loggers are cached per index format and the publisher once per run; the reachability probe is cached per URL.
 - To add a provider, implement both factory interfaces in `Core`. The factories discover providers by reflection, so no registration code is needed.
 - Each test publishes one `LogMetadata` document (project, class, method, status, duration, reason, timing, browser, user) from `TestRunner`. A publish failure never fails the test.
 
@@ -178,7 +179,7 @@ Stage: BuildAndValidate
       → TRX (gate) + allure-results artifact (+ categories.json)
 ```
 
-Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests through a shared `_run_playwright_tests` helper and collect the Allure results into `./allure-results`. `run_ui_web_all_browsers` runs the web tests once per browser and merges the results; `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
+Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests through a shared `_run_playwright_tests` helper and collect the Allure results into `./allure-results`. `run_ui_web_all_browsers` runs the web tests once per browser and merges the results; `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local Elasticsearch 8 + Kibana (no auth) for the Elastic logging provider.
 
 ---
 
@@ -216,3 +217,4 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |
 | 2026-11-13 | Consistency pass: models in `Core/Models/<App>/`, a Builder + Object Mother per entity for every app in `Core/TestData/<App>/` (JSON test data removed; `TestDataLoader` kept for large tables); namespaces match folders (`Core.Utilities` removed); `LoggingConfigProvider`; `TodoTestBase`; uniform Allure labels; Mobile restructured (`Configuration/`, `Driver/`, `Pages/<App>/`, `Infrastructure/`, `mobilesettings.json`); projects renamed `Tests.UI.Mobile` / `Tests.Desktop`; LF line endings. |
+| 2026-11-14 | Review P1 fixes: Elastic credentials only from environment variables (and the certificate fingerprint has its own setting); `docker-compose.yml` switched from OpenSearch to Elasticsearch 8 + Kibana; reachability probe cached per URL, loggers and publisher created once per run. |

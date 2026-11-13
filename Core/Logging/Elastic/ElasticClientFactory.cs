@@ -4,69 +4,51 @@ using Elastic.Transport;
 namespace Core.Logging.Elastic;
 
 /// <summary>
-/// Factory that produces a ready-to-use <see cref="ElasticsearchClient"/> based on the
-/// ElasticServerChoices profile and credentials defined in logging-config.json.
-/// Mirrors the behaviour of the Java class
+/// Builds an <see cref="ElasticsearchClient"/> for an <see cref="ElasticServerChoices"/> profile from the
+/// <c>Elastic</c> section of <see cref="LoggingConfig"/>. Mirrors the Java class
 /// org.ravs788.extensions.report.ElasticLowLevelRestClientFactory.
 /// </summary>
 public static class ElasticClientFactory
 {
+    /// <summary>The profile from the <c>ELASTIC_SERVER</c> environment variable; defaults to <c>ON_LOCALHOST_INSECURE</c>.</summary>
+    public static ElasticServerChoices CurrentProfile =>
+        Enum.TryParse(Environment.GetEnvironmentVariable("ELASTIC_SERVER"), ignoreCase: true, out ElasticServerChoices parsed)
+            ? parsed
+            : ElasticServerChoices.ON_LOCALHOST_INSECURE;
+
+    /// <summary>The URL the profile connects to (the secure local profile switches to https).</summary>
+    public static string? ResolveUrl(ElasticServerChoices serverChoice, LoggingConfig config) =>
+        serverChoice == ElasticServerChoices.ON_LOCALHOST_SECURE
+            ? (config.Elastic.Url ?? "https://localhost:9200").Replace("http://", "https://")
+            : config.Elastic.Url;
+
     /// <summary>
-    /// Creates a configured <see cref="ElasticsearchClient" />.  The client instance is lightweight and
-    /// intended to be reused across the lifetime of the test run.
+    /// Creates a configured <see cref="ElasticsearchClient"/>. The client is thread-safe and meant to be reused.
     /// </summary>
     public static ElasticsearchClient Create(ElasticServerChoices serverChoice, LoggingConfig config)
     {
-        return serverChoice switch
+        var elastic = config.Elastic;
+        var settings = serverChoice switch
         {
-            ElasticServerChoices.ON_CLOUD => CreateCloudClient(config),
-            ElasticServerChoices.ON_LOCALHOST_SECURE => CreateLocalHttpsClient(config),
-            ElasticServerChoices.ON_LOCALHOST_INSECURE => CreateLocalHttpClient(config),
+            ElasticServerChoices.ON_CLOUD => new ElasticsearchClientSettings(new Uri(
+                elastic.Url ?? throw new InvalidOperationException("Elastic.Url (or ELASTIC_URL) is required for ON_CLOUD."))),
+            ElasticServerChoices.ON_LOCALHOST_SECURE => WithCertificateCheck(
+                new ElasticsearchClientSettings(new Uri(ResolveUrl(serverChoice, config)!)), elastic.CertificateFingerprint),
+            ElasticServerChoices.ON_LOCALHOST_INSECURE => new ElasticsearchClientSettings(new Uri(elastic.Url ?? "http://localhost:9200")),
             _ => throw new ArgumentOutOfRangeException(nameof(serverChoice), serverChoice, null)
         };
-    }
 
-    private static ElasticsearchClient CreateLocalHttpClient(LoggingConfig cfg)
-    {
-        var uri = new Uri(cfg.Elastic?.Url ?? "http://localhost:9200");
-        var settings = new ElasticsearchClientSettings(uri);
-
-        if (!string.IsNullOrEmpty(cfg.Elastic?.Username) && !string.IsNullOrEmpty(cfg.Elastic?.Password))
+        if (!string.IsNullOrEmpty(elastic.Username))
         {
-            settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
+            settings = settings.Authentication(new BasicAuthentication(elastic.Username, elastic.Password ?? string.Empty));
         }
 
         return new ElasticsearchClient(settings);
     }
 
-    // NOTE: For brevity, HTTPS/Cloud implementations reuse the same basic pattern.
-    // Extend with SSL pinning / API-Key auth as needed.
-
-    private static ElasticsearchClient CreateLocalHttpsClient(LoggingConfig cfg)
-    {
-        var uri = new Uri(cfg.Elastic?.Url?.Replace("http://", "https://") ?? "https://localhost:9200");
-        var settings = new ElasticsearchClientSettings(uri)
-                           .CertificateFingerprint(cfg.Elastic?.Password) // repurpose Password for fingerprint if supplied
-                           .ServerCertificateValidationCallback((_, _, _, _) => true);
-
-        if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
-            settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
-
-        return new ElasticsearchClient(settings);
-    }
-
-    private static ElasticsearchClient CreateCloudClient(LoggingConfig cfg)
-    {
-        // For Elastic Cloud, URL should already be https://cluster-id.region.elastic-cloud.com
-        var url = cfg.Elastic?.Url ?? throw new ArgumentNullException(nameof(cfg.Elastic.Url));
-        var uri = new Uri(url);
-        var settings = new ElasticsearchClientSettings(uri);
-
-        if (!string.IsNullOrEmpty(cfg.Elastic?.Username))
-        {
-            settings = settings.Authentication(new BasicAuthentication(cfg.Elastic.Username, cfg.Elastic.Password));
-        }
-
-        return new ElasticsearchClient(settings);
-    }
+    private static ElasticsearchClientSettings WithCertificateCheck(ElasticsearchClientSettings settings, string? fingerprint) =>
+        string.IsNullOrWhiteSpace(fingerprint)
+            // No fingerprint configured: accept the local self-signed certificate (development only).
+            ? settings.ServerCertificateValidationCallback((_, _, _, _) => true)
+            : settings.CertificateFingerprint(fingerprint);
 }

@@ -12,9 +12,9 @@ public class ElasticResultsPublisherFactory : IResultsPublisherFactory
         publisher = null!;
         reason = null;
 
-        var url = cfg.Elastic?.Url;
-        var user = cfg.Elastic?.Username;
-        var pass = cfg.Elastic?.Password;
+        var url = ElasticClientFactory.ResolveUrl(ElasticClientFactory.CurrentProfile, cfg);
+        var user = cfg.Elastic.Username;
+        var pass = cfg.Elastic.Password;
 
         if (!ElasticConnectivity.IsReachable(url, user, pass))
         {
@@ -22,15 +22,7 @@ public class ElasticResultsPublisherFactory : IResultsPublisherFactory
             return false;
         }
 
-        // Build client using existing factory/profile
-        var serverChoice = Enum.TryParse(
-                Environment.GetEnvironmentVariable("ELASTIC_SERVER"),
-                ignoreCase: true,
-                out ElasticServerChoices parsed)
-            ? parsed
-            : ElasticServerChoices.ON_LOCALHOST_INSECURE;
-
-        var client = ElasticClientFactory.Create(serverChoice, cfg);
+        var client = ElasticClientFactory.Create(ElasticClientFactory.CurrentProfile, cfg);
         publisher = new ElasticResultsPublisher(client);
         return true;
     }
