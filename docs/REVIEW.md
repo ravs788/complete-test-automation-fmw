@@ -11,13 +11,13 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R8 | P3 | Open | – | [Page methods don't return the next page](#r8) | Page objects |
 | R10 | P3 | Open | – | [Mixed test method naming](#r10) | Conventions |
 | R12 | P3 | Open | – | [Logging index names differ by suite](#r12) | Logging |
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R8 | P3 | Closed | 2026-11-14 · `ad1a51e` | [Page methods don't return the next page](#r8) | Page objects |
 | R9 | P3 | Closed | 2026-11-14 · `beadaa5` | [CSS-class locators](#r9) | Page objects |
 | R20 | P3 | Closed | 2026-11-14 · `95440c4` | [No retry for transient navigation errors](#r20) | Reliability |
 | R4 | P2 | Closed | 2026-11-14 · `e053af8` | [No Playwright trace on failure](#r4) | Debugging |
@@ -103,7 +103,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r8"></a>
 ### R8. Page methods don't return the next page
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `ad1a51e`. Navigation methods return the next page (LoginAsync → InventoryPage, OpenCartAsync → CartPage, CheckoutAsync → CheckoutInformationPage, FillAndContinueAsync → CheckoutOverviewPage, FinishAsync → CheckoutCompletePage); a rejected login uses LoginExpectingErrorAsync. Tests only create entry pages.
 - **Where:** `Pages/SauceDemo/*`, `Pages/Todo/TodoPage.cs`, and the tests that use them.
 - **Problem:** tests write `await inventory.OpenCartAsync(); var cart = new CartPage(Page);`. Tests have to know which page comes next, and nothing stops them creating a page the browser isn't on.
 - **Fix:** have navigation methods return the next page object, e.g. `Task<CartPage> OpenCartAsync()`, `Task<CheckoutInformationPage> CheckoutAsync()`, `Task<InventoryPage> LoginAsync(...)`.
