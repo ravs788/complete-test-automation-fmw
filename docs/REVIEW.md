@@ -12,8 +12,8 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
 | R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
-| R22 | P4 | Open | – | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R23 | P4 | Open | – | [Allure results pile up across local runs](#r23) | Reporting |
+| R22 | P4 | Closed | 2026-11-14 · `e8ba96d` | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R21 | P3 | Closed | 2026-11-14 · `0f492d8` | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
 | R13 | P3 | Closed | 2026-11-14 · `7a8e003` | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Closed | 2026-11-14 · `7a8e003` | [Allure published as raw results only](#r14) | CI / reporting |
@@ -222,7 +222,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r22"></a>
 ### R22. `Console.Enabled` in `logging-config.json` does nothing
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `e8ba96d`. Removed ConsoleSection and the Console key from code, logging-config.json and the docs. The console stays on as the fallback when Elastic can't be used (see R21), so a switch to turn it off would only hide problems.
 - **Where:** `logging-config.json` (`Console.Enabled`), `Core/Logging/ConsoleSection.cs`.
 - **Problem:** the setting is loaded but never read, so `"Enabled": false` doesn't turn console logging off. A setting that looks like it works but doesn't is misleading.
 - **Fix:** either honour it (e.g. the console provider logs nothing, or only errors, when disabled) or remove `ConsoleSection` and the key from the file and docs.
