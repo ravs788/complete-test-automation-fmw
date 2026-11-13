@@ -11,23 +11,23 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R4 | P2 | Open | – | [No Playwright trace on failure](#r4) | Debugging |
-| R5 | P2 | Open | – | [API tests leave bookings behind](#r5) | Test hygiene |
-| R6 | P2 | Open | – | [Three hand-written config providers, few env overrides](#r6) | Configuration |
-| R7 | P2 | Open | – | [No `Directory.Build.props`; project settings have drifted](#r7) | Build |
 | R8 | P3 | Open | – | [Page methods don't return the next page](#r8) | Page objects |
 | R9 | P3 | Open | – | [CSS-class locators](#r9) | Page objects |
 | R10 | P3 | Open | – | [Mixed test method naming](#r10) | Conventions |
-| R11 | P3 | Open | – | [Restful Booker auth inside the generic `ApiClient`](#r11) | API layer |
 | R12 | P3 | Open | – | [Logging index names differ by suite](#r12) | Logging |
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
-| R15 | P3 | Open | – | [`Tests/Desktop` is an empty project](#r15) | Structure |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
 | R20 | P3 | Open | – | [No retry for transient navigation errors](#r20) | Reliability |
-| R17 | P4 | Open | – | [`Tests/UI/Mobile/.npmrc` points at a private registry](#r17) | Tooling |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
-| R19 | P4 | Open | – | [`ITestDataLoader` has one implementation](#r19) | Simplification |
+| R4 | P2 | Closed | 2026-11-14 · `e053af8` | [No Playwright trace on failure](#r4) | Debugging |
+| R5 | P2 | Closed | 2026-11-14 · `c523e7b` | [API tests leave bookings behind](#r5) | Test hygiene |
+| R11 | P3 | Closed | 2026-11-14 · `064182c` | [Restful Booker auth inside the generic `ApiClient`](#r11) | API layer |
+| R6 | P2 | Closed | 2026-11-14 · `9ec39c5` | [Three hand-written config providers, few env overrides](#r6) | Configuration |
+| R7 | P2 | Closed | 2026-11-14 · `4ab0cef` | [No `Directory.Build.props`; project settings have drifted](#r7) | Build |
+| R19 | P4 | Closed | 2026-11-14 · `aa1079f` | [`ITestDataLoader` has one implementation](#r19) | Simplification |
+| R17 | P4 | Closed | 2026-11-14 · `e4691ba` | [`Tests/UI/Mobile/.npmrc` points at a private registry](#r17) | Tooling |
+| R15 | P3 | Closed | 2026-11-14 · `7cd6f22` | [`Tests/Desktop` is an empty project](#r15) | Structure |
 | R1 | P1 | Closed | 2026-11-14 · `676a882` | [Elastic password committed in `logging-config.json`](#r1) | Security |
 | R2 | P1 | Closed | 2026-11-14 · `676a882` | [Local logging stack (OpenSearch) vs Elasticsearch client](#r2) | Logging |
 | R3 | P1 | Closed | 2026-11-14 · `676a882` | [Elastic probed several times per test](#r3) | Logging / speed |
@@ -67,7 +67,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r4"></a>
 ### R4. No Playwright trace on failure
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `e053af8`. New Trace setting (off | on-failure | on; alias TRACE). Checked with a temporarily failing test: screenshot + 76 KB trace attached as application/vnd.allure.playwright-trace; passing tests have no trace; TRACE=on attaches one to every test.
 - **Where:** `Tests/Infrastructure/UiTestBase.cs`, `Tests/Fixtures/PlaywrightFixture.cs`.
 - **Problem:** a failing UI test only attaches a screenshot. CI failures that don't reproduce locally are hard to diagnose from that alone.
 - **Fix:** start `Context.Tracing` for each test (screenshots, snapshots, sources). On failure, stop it into a `trace.zip` and attach that to Allure; on success, discard it. Optionally make this configurable (`Trace: off | on-failure | on`). Already on the ARCHITECTURE roadmap.
@@ -75,7 +75,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r5"></a>
 ### R5. API tests leave bookings behind
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `c523e7b`. ApiTestBase.CreateBookingAsync records each booking and DisposeAsync deletes them. Checked: a run created 5 bookings; 4 cleaned up with 201, 1 already deleted by the delete test (405).
 - **Where:** `Tests/Api/BookingApi{Post,Get,Patch,Update}Tests.cs`, `Tests/Infrastructure/ApiTestBase.cs`.
 - **Problem:** each of these tests creates a booking on the shared Restful Booker demo and never deletes it.
 - **Fix:** give `ApiTestBase` a helper (e.g. `CreateBookingAsync`) that records the new ID, and delete the recorded bookings in `DisposeAsync`. Cleanup failures should be logged, never fail the test.
@@ -83,7 +83,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r6"></a>
 ### R6. Three hand-written config providers, few env overrides
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `9ec39c5`. SettingsLoader (Microsoft.Extensions.Configuration): JSON, then TESTS_/LOGGING_/MOBILE_ environment variables (__ for nesting), then aliases (BROWSER, HEADLESS, TRACE, ELASTIC_*, APPIUM_URL, DEVICE_NAME). Checked: TESTS_RestfulBooker__Password=wrong breaks exactly the 3 auth tests; TESTS_SauceDemo__BaseUrl redirects the UI tests.
 - **Where:** `Core/Configuration/ConfigurationProvider.cs`, `Core/Logging/LoggingConfigProvider.cs`, `Tests/UI/Mobile/Configuration/MobileSettingsProvider.cs`.
 - **Problem:** the same load-JSON-then-cache code is written three times, and only `BROWSER`/`HEADLESS` can be overridden from the environment. Credentials and machine-specific values (Appium URL, device name) can only be changed by editing committed files.
 - **Fix:** use `Microsoft.Extensions.Configuration` (JSON + environment variables + user-secrets) and bind it to the existing records. Any value then becomes overridable, e.g. `RestfulBooker__Password`, `Elastic__Password`, `Server__Url`. Keep `BROWSER`/`HEADLESS` as aliases. This also helps with R1 and R3.
@@ -91,7 +91,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r7"></a>
 ### R7. No `Directory.Build.props`; project settings have drifted
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `4ab0cef`. Directory.Build.props holds the shared settings; EnforceCodeStyleInBuild reports .editorconfig violations in the build; TreatWarningsAsErrors when TF_BUILD/CI is set. Fixed the remaining warnings (MobileDriverFactory nullable flow, PlaywrightDriverFactory param docs). Checked: a file with a block namespace and an unused using fails a CI-mode build.
 - **Where:** `Core/Core.csproj`, `Pages/Pages.csproj`, `Tests/Tests.csproj`, `Tests/UI/Mobile/Tests.UI.Mobile.csproj`, `Tests/Desktop/Tests.Desktop.csproj`.
 - **Problem:** each project repeats `TargetFramework`/`Nullable`/`ImplicitUsings`, and they've drifted apart: only Core and Mobile set `LangVersion`, and Pages has no `IsPackable`. The `.editorconfig` rules are only checked when someone runs `dotnet format`.
 - **Fix:** move the shared properties into a root `Directory.Build.props` and add `EnforceCodeStyleInBuild=true`. Set `TreatWarningsAsErrors=true` for CI builds. First fix the existing nullable warnings in `Tests/UI/Mobile/Driver/MobileDriverFactory.cs` (lines 36, 40, 45; the two in `ElasticClientFactory.cs` were fixed with R1).
@@ -127,7 +127,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r11"></a>
 ### R11. Restful Booker auth inside the generic `ApiClient`
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `064182c`. ApiClient methods take optional per-request headers; AuthClient.Headers / GetAuthHeadersAsync build Restful Booker's token cookie; ApiTestBase exposes GetAuthHeadersAsync().
 - **Where:** `Core/Api/ApiClient.cs` (`SendRawAsync` sets `Cookie: token=…`), `Core/Api/RestfulBooker/AuthClient.cs`.
 - **Problem:** the generic client knows Restful Booker's token-cookie scheme, so a second API that authenticates differently (e.g. a Bearer header) would need changes to the shared client.
 - **Fix:** have `ApiClient` accept per-request headers (or an auth strategy). Let the Restful Booker code turn its token into the cookie header, e.g. a `RestfulBookerAuth.Cookie(token)` helper next to `AuthClient`.
@@ -159,7 +159,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r15"></a>
 ### R15. `Tests/Desktop` is an empty project
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `7cd6f22`. Removed the empty project; the docs describe how a FlaUI suite would be added later (Windows only).
 - **Where:** `Tests/Desktop/Tests.Desktop.csproj`, `TestAutomationPlatform.slnx`.
 - **Problem:** the project is in the solution but has no code, which suggests a capability the framework doesn't have.
 - **Fix:** remove it until there's a plan, or add a first FlaUI (UI Automation) test with the same structure as the other suites (Configuration/, Driver/, Pages/<App>/, Infrastructure/DesktopTestBase, <App>/ tests). Note that desktop testing is Windows-only.
@@ -187,7 +187,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r17"></a>
 ### R17. `Tests/UI/Mobile/.npmrc` points at a private registry
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `e4691ba`. Removed. Configure a registry in your own ~/.npmrc if you need one.
 - **Where:** `Tests/UI/Mobile/.npmrc`.
 - **Problem:** it sets a company-internal npm registry with `strict-ssl=false`. Outside that network `npm install` fails, and turning off SSL checking is risky in any case.
 - **Fix:** remove it from the repo, and configure the registry in the user's own `~/.npmrc` where it's needed.
@@ -203,7 +203,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r19"></a>
 ### R19. `ITestDataLoader` has one implementation
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `aa1079f`. TestDataLoader is now a static class; the interface and singleton are gone.
 - **Where:** `Core/TestData/ITestDataLoader.cs`, `Core/TestData/TestDataLoader.cs`.
 - **Problem:** the interface has a single implementation, and the class is only used through its static `Instance` singleton. Since JSON test data is now the exception, nothing currently calls it.
 - **Fix:** drop the interface (and possibly the singleton). Bring back an abstraction if a second loader (e.g. CSV, or loading from a database) is ever needed.
