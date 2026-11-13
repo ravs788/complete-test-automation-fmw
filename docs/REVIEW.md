@@ -12,9 +12,9 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
 | R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
-| R21 | P3 | Open | – | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
 | R22 | P4 | Open | – | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R23 | P4 | Open | – | [Allure results pile up across local runs](#r23) | Reporting |
+| R21 | P3 | Closed | 2026-11-14 · `0f492d8` | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
 | R13 | P3 | Closed | 2026-11-14 · `7a8e003` | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Closed | 2026-11-14 · `7a8e003` | [Allure published as raw results only](#r14) | CI / reporting |
 | R18 | P4 | Closed | 2026-11-14 · `536694d` | [No unit tests for the framework itself](#r18) | Quality |
@@ -186,7 +186,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r21"></a>
 ### R21. Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `0f492d8`. The probe requires a 2xx GET / with the configured credentials from Elasticsearch 8+ (not OpenSearch) and explains a failure in one message. If writes fail later, Elastic logging switches to the console once and results publishing stops after one failure. Checked against an unreachable URL, a fake OpenSearch, a wrong password on a secured ES 8.15 and a read-only fake ES (one message each, all tests pass), plus the right password (everything indexed). 10 new unit tests.
 - **Where:** `Core/Logging/Elastic/ElasticConnectivity.cs` (`code >= 200 && code < 500`), `ElasticLoggingService.Write`, `ElasticResultsPublisher.Publish`.
 - **Problem:** the reachability probe counts any 2xx–4xx answer as "reachable". With wrong credentials (401/403), or an incompatible server (the OpenSearch 406 found in R2), the `elastic` provider is chosen anyway. Then every log line prints an indexing error, every test logs a publish failure, and nothing reaches the console fallback. Seen during the R2 investigation.
 - **Fix:** probe with the configured credentials and require 2xx (and, ideally, an Elasticsearch 8.x `version.number` from `GET /`); otherwise fall back to the console with one clear message. Also disable the Elastic logger after the first failed write instead of failing on every line.
