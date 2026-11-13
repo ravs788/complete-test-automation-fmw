@@ -18,8 +18,8 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
-| R20 | P3 | Open | – | [No retry for transient navigation errors](#r20) | Reliability |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R20 | P3 | Closed | 2026-11-14 · `95440c4` | [No retry for transient navigation errors](#r20) | Reliability |
 | R4 | P2 | Closed | 2026-11-14 · `e053af8` | [No Playwright trace on failure](#r4) | Debugging |
 | R5 | P2 | Closed | 2026-11-14 · `c523e7b` | [API tests leave bookings behind](#r5) | Test hygiene |
 | R11 | P3 | Closed | 2026-11-14 · `064182c` | [Restful Booker auth inside the generic `ApiClient`](#r11) | API layer |
@@ -175,7 +175,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r20"></a>
 ### R20. No retry for transient navigation errors
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `95440c4`. BasePage.GotoAsync retries net::ERR_* navigation failures up to twice. Checked with Playwright routing: 2 simulated connection resets, then the page loads; 3 resets, then it fails with net::ERR_CONNECTION_RESET.
 - **Where:** `Pages/SauceDemo/LoginPage.cs`, `Pages/Todo/TodoPage.cs` (`OpenAsync`), `Tests/Infrastructure/UiTestBase.cs`.
 - **Problem:** on 2026-11-14 two UI tests failed once with `net::ERR_CONNECTION_RESET` while opening saucedemo.com and passed on the rerun. A momentary network blip at the demo site fails the whole test. (The failure reasons were read back from Elasticsearch, which shows the R2 fix working.)
 - **Fix:** retry the initial navigation only (not the assertions), e.g. up to 2 extra attempts on network errors (`net::ERR_*`) with a short backoff, in a shared `BasePage.GotoAsync` helper. Avoid blanket test reruns, which hide real failures.
