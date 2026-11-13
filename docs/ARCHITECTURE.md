@@ -137,20 +137,20 @@ The full design, config reference, and local Appium/emulator setup are in [MOBIL
 |-----------|----------------|
 | `TestSettings` (record) | Immutable settings: `BaseUrl`, `Browser`, `Headless`, `DefaultTimeoutMs` |
 | `ConfigurationProvider` | Thread-safe `Lazy<TestSettings>` singleton (`Current`) |
-| `PlaywrightDriverFactory` | `CreateBrowserAsync(type, headless)` for chromium/firefox/webkit; `CreateIsolatedContextAsync` |
+| `PlaywrightDriverFactory` | `CreateBrowserAsync(playwright, type, headless)` for chromium/firefox/webkit (Chromium honours `PLAYWRIGHT_CHANNEL`, e.g. `chrome`); `CreateIsolatedContextAsync`. The caller owns and disposes the `IPlaywright` |
 | `BasePage` | Primary-constructor base holding `IPage` |
 | `TodoPage` | Intent methods (`AddTodoAsync`, `CompleteTodoAsync`, …) plus exposed `ILocator`s for assertions |
 | `TodoItemBuilder` / `TodoItemMother` | GUID-backed test data that can't collide between tests |
-| `PlaywrightFixture` | `IClassFixture` + `IAsyncLifetime`: one browser per class, `CreateCleanPageAsync()` per test |
+| `PlaywrightFixture` | `IClassFixture` + `IAsyncLifetime`: owns the `IPlaywright` instance, one browser per class, `CreateCleanPageAsync()` per test |
 
 ### 4.2 Test lifecycle
 
 ```text
-Class start   PlaywrightFixture.InitializeAsync → launch browser (Settings)
+Class start   PlaywrightFixture.InitializeAsync → Playwright.CreateAsync() → launch browser (Settings)
 Per test      TodoTests.InitializeAsync → new BrowserContext(BaseURL) → new Page(timeout)
               Arrange (Mother) → Act (page intent) → Assert (Assertions.Expect, auto-retry)
               TodoTests.DisposeAsync → context.CloseAsync()
-Class end     PlaywrightFixture.DisposeAsync → browser.CloseAsync()
+Class end     PlaywrightFixture.DisposeAsync → browser.CloseAsync() → playwright.Dispose() (stops the driver process)
 ```
 
 Isolating each test in its own context gives it fresh cookies and storage while keeping only one browser launch per class.
@@ -163,11 +163,11 @@ Isolating each test in its own context gives it fresh cookies and storage while 
 GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)  ──status checks──►  GitHub PR
 
 Stage: BuildAndValidate
- ├─ Job ApiAndPlaywright (ubuntu)
- │    .NET 10 → build slnx → playwright install chromium
- │    → test API (NUnit) + Playwright (xUnit) → TRX (gate) + Cobertura + Allure artifact
- └─ Job SeleniumWeb (ubuntu; Chrome test cases only)
-      PR → Category=smoke · main/release → Category=regression → TRX (gate) + Allure artifact
+ └─ Job Tests (ubuntu; single job, since the org has one parallel job)
+      .NET 10 → build ci.slnf (CI projects only)
+      → API (NUnit) → Playwright (xUnit, system Chrome via PLAYWRIGHT_CHANNEL=chrome)
+      → Selenium (Chrome cases; PR → Category=smoke · main/release → Category=regression)
+      → TRX (gate) + Allure artifacts; Cobertura coverage on main/release only
 ```
 
 Locally, the scripts in `scripts/windows/` and `scripts/unix/` run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
@@ -204,6 +204,7 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 |------------|-------|
 | 2025-09-03 | Initial draft; baseline definition |
 | 2025-09-03 | Added Mobile UI layer; Appium integration planned |
+| 2026-11-13 | CI sped up: suites merged into one job, `ci.slnf` builds only the tested projects, Playwright uses the preinstalled Chrome (`PLAYWRIGHT_CHANNEL`), coverage only on main/release. The Playwright fixture now disposes `IPlaywright`. |
 | 2026-11-13 | CI: Selenium runs Chrome cases only; Desktop job removed until the project has tests. |
 | 2026-11-13 | CI/CD consolidated on Azure Pipelines sourced from GitHub; GitHub Actions retired; Selenium smoke/regression added to the pipeline. |
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
