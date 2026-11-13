@@ -13,7 +13,7 @@ setlocal EnableDelayedExpansion
 REM --------------------------------------------------------------------------
 REM 0. Kill any orphaned browser driver processes
 REM --------------------------------------------------------------------------
-call bat\kill_all_webdrivers.bat
+call scripts\windows\kill_all_webdrivers.bat
 
 REM --------------------------------------------------------------------------
 REM 1. Define browsers to test
@@ -90,7 +90,7 @@ REM --------------------------------------------------------------------------
 rmdir /S /Q allure-results
 mkdir allure-results
 for %%b in (%BROWSERS%) do (
-    xcopy /E /I /Y /EXCLUDE:bat\exclude_envprops.txt UI\Web\bin\Debug\net10.0\allure-results-%%b\* allure-results\ >nul
+    xcopy /E /I /Y /EXCLUDE:scripts\windows\exclude_envprops.txt UI\Web\bin\Debug\net10.0\allure-results-%%b\* allure-results\ >nul
     if exist UI\Web\bin\Debug\net10.0\allure-results-%%b\environment.properties (
         copy /Y UI\Web\bin\Debug\net10.0\allure-results-%%b\environment.properties allure-results\environment.%%b.properties >nul
     )

@@ -25,7 +25,7 @@ A modular C# / .NET 10 test automation framework covering REST API, Web UI, and 
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **Allure reporting**: per-test start/end/duration parameters, screenshots on failure, tag-based categories
 - **CI pipelines**: Azure DevOps (`azure-pipelines.yml`) and GitHub Actions (`.github/workflows/`)
-- **Run scripts for Windows (`bat/`) and macOS/Linux (`sh/`)** for clean → build → test → Allure merge. The batch scripts use a bundled `tools/dotnet` if one exists and fall back to the system `dotnet` otherwise.
+- **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)** for clean → build → test → Allure merge. The batch scripts use a bundled `tools/dotnet` if one exists and fall back to the system `dotnet` otherwise.
 - **Local OpenSearch stack** (`docker-compose.yml`) for the Elastic logging provider
 
 ---
@@ -62,7 +62,6 @@ TestAutomationProj/
 │   │   ├── Utilities/                 # AllureScreenshotHelper, AssertHelper, ConfigSettings
 │   │   ├── test-data/<TestClass>/*.json
 │   │   ├── config.json
-│   │   ├── CONTRIBUTING.md
 │   │   └── UI.Web.Tests.csproj
 │   ├── Mobile/                        # Appium mobile suite (NUnit + Allure)
 │   │   ├── Drivers/Bootstrap.cs       # Builds AppiumOptions/driver for Android/iOS, Native/Web
@@ -70,9 +69,8 @@ TestAutomationProj/
 │   │   ├── Tests/                     # BaseMobileTest + Samples/AndroidWeb smoke tests
 │   │   ├── Utilities/                 # Typed config models, GestureHelper, WaitHelper
 │   │   ├── config.json                # Appium server, platform, device, android/ios, behavior
-│   │   ├── package.json               # npm scripts: appium, appium-doctor, driver install
-│   │   └── Architecture.md            # Mobile layer design and setup guide
-│   └── Desktop/UI.Desktop.Tests/      # Placeholder (xUnit project, no tests yet)
+│   │   └── package.json               # npm scripts: appium, appium-doctor, driver install
+│   └── Desktop/                       # Placeholder (xUnit project, no tests yet)
 │
 ├── src/                               # Playwright stack: libraries
 │   ├── Automation.Core/
@@ -88,26 +86,28 @@ TestAutomationProj/
 │       ├── Fixtures/PlaywrightFixture.cs   # Shared browser per class, fresh context per test
 │       └── Todo/TodoTests.cs
 │
-├── bat/                               # Windows scripts: run suites, merge Allure results, kill drivers, Appium env check/fix
-├── sh/                                # macOS/Linux equivalents of the bat scripts
+├── scripts/
+│   ├── windows/                       # .bat run scripts, kill drivers, Appium env check/fix (.ps1)
+│   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   └── GETTING_STARTED.md             # Step-by-step local setup + troubleshooting
-├── Framework.Examples/                # Pointer README to example tests
+│   ├── ARCHITECTURE.md                # Overall design
+│   ├── MOBILE_ARCHITECTURE.md         # Mobile layer design + Appium setup
+│   ├── GETTING_STARTED.md             # Step-by-step local setup + troubleshooting
+│   └── CONTRIBUTING.md                # Code-style rules
 ├── .github/workflows/                 # GitHub Actions (PR smoke, main regression, manual runs)
 ├── azure-pipelines.yml                # Azure DevOps pipeline
 ├── Directory.Build.props              # Shared Allure results directory for all projects
+├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
 ├── logging-config.json                # Global logging provider configuration
 ├── docker-compose.yml                 # 2-node OpenSearch + Dashboards (ports 9200 / 5601)
 ├── package.json                       # Node deps used by the Appium tooling (appium-chromedriver)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-├── modern-test-framework.sln          # Solution: Core, API, UI.Web, UI.Desktop, UI.Mobile
-└── TestAutomationPlatform.slnx        # New-format solution file (currently empty)
+└── TestAutomationPlatform.slnx        # The solution: all 8 projects
 ```
 
-> **Note:** The Playwright projects (`src/*`, `tests/*`) are **not** in `modern-test-framework.sln`. Build and test them through their `.csproj` files, as `azure-pipelines.yml` does.
+NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there.
 
 Code style for `.cs` files comes from `.editorconfig` (4-space indent, LF line endings, UTF-8, and nullable warnings CS8600/CS8602/CS8603 raised to `warning`).
 
@@ -124,7 +124,7 @@ Code style for `.cs` files comes from `.editorconfig` (4-space indent, LF line e
   pwsh tests/Automation.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
   ```
 - Optional: the [Allure CLI](https://allurereport.org/docs/install/) for viewing reports
-- For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `bat/appium_env_check.ps1` diagnoses the setup and `bat/appium_env_fix.ps1` repairs common problems. See [UI/Mobile/Architecture.md](UI/Mobile/Architecture.md).
+- For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md).
 - Optional: Elasticsearch/OpenSearch for the `elastic` logging provider. `docker compose up -d` starts a local OpenSearch cluster on `http://localhost:9200`, with Dashboards on `http://localhost:5601`.
 
 For a guided walkthrough, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
@@ -134,8 +134,8 @@ For a guided walkthrough, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 ## ⚡ Quick Start
 
 ```bash
-# Restore & build the NUnit solution (Core, API, UI.Web, UI.Mobile, Desktop)
-dotnet build modern-test-framework.sln
+# Restore & build everything
+dotnet build TestAutomationPlatform.slnx
 
 # API tests (NUnit)
 dotnet test API/API.Tests.csproj
@@ -191,7 +191,7 @@ var cfg = ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
 var baseUrl = cfg.BaseUrl;
 ```
 
-**UI/Mobile** (`UI/Mobile/config.json`) holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. See [UI/Mobile/Architecture.md](UI/Mobile/Architecture.md) for every field.
+**UI/Mobile** (`UI/Mobile/config.json`) holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
 
 > In the Selenium suite the browser comes from each test's `[TestCase("chrome")]`, `[TestCase("firefox")]`, `[TestCase("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on when `GITHUB_ACTIONS=true`.
 
@@ -224,7 +224,7 @@ The Playwright suite generates data instead of loading files. It uses `TodoItemM
 
 ## 🧾 Logging (Pluggable Providers)
 
-The NUnit suites read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the current directory to the first folder that contains a `*.sln`.
+The NUnit suites read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
 
 ```json
 {
@@ -292,17 +292,17 @@ Each test class carries `[AllureTag(...)]` (for Allure) and NUnit `[Category(...
 
 ## 🧪 Running Tests via Scripts
 
-Run the scripts from the repository root. Each `bat\*.bat` script (Windows) has an `sh/*.sh` equivalent (macOS/Linux). The shell scripts detect the target framework with `sh/detect_net_version.sh`.
+Run the Windows scripts from the repository root. Each `scripts\windows\*.bat` script has a `scripts/unix/*.sh` equivalent for macOS/Linux, and the shell scripts can be run from any directory. They detect the target framework with `scripts/unix/detect_net_version.sh`.
 
 | Script                                   | What it does |
 |------------------------------------------|--------------|
-| `bat\run_all_tests_gen_report.bat`       | Kills drivers, cleans, builds, runs API + UI/Web, stamps `run.timestamp`, and merges results into `allure-results/` |
-| `bat\run_api_tests_gen_report.bat`       | Runs the API suite only and copies results to `allure-results/` |
-| `bat\run_web_tests_gen_report.bat`       | Runs the UI/Web suite only and copies results to `allure-results/` |
-| `bat\run_ui_web_all_browsers.bat`        | Runs UI/Web once per browser (chrome, firefox, edge), keeps per-browser result sets, then merges them |
-| `bat\run_mobile_android_web.bat`         | Runs the Android mobile-web smoke tests (needs Appium + emulator running) |
-| `bat\kill_all_webdrivers.bat`            | Kills orphaned `chromedriver` / `geckodriver` / `msedgedriver` processes |
-| `bat\appium_env_check.ps1` / `appium_env_fix.ps1` | Diagnose / repair the Windows Appium + Android environment (Java, Android SDK, PATH) |
+| `scripts\windows\run_all_tests_gen_report.bat` | Kills drivers, cleans, builds, runs API + UI/Web, stamps `run.timestamp`, and merges results into `allure-results/` |
+| `scripts\windows\run_api_tests_gen_report.bat` | Runs the API suite only and copies results to `allure-results/` |
+| `scripts\windows\run_web_tests_gen_report.bat` | Runs the UI/Web suite only and copies results to `allure-results/` |
+| `scripts\windows\run_ui_web_all_browsers.bat`  | Runs UI/Web once per browser (chrome, firefox, edge), keeps per-browser result sets, then merges them |
+| `scripts\windows\run_mobile_android_web.bat`   | Runs the Android mobile-web smoke tests (needs Appium + emulator running) |
+| `scripts\windows\kill_all_webdrivers.bat`      | Kills orphaned `chromedriver` / `geckodriver` / `msedgedriver` processes |
+| `scripts\windows\appium_env_check.ps1` / `appium_env_fix.ps1` | Diagnose / repair the Windows Appium + Android environment (Java, Android SDK, PATH) |
 
 ---
 
@@ -314,8 +314,8 @@ Triggers on pushes to `main`, `release/*`, and `add-elastic-logging`, and on PRs
 
 | Job | Agent | Steps |
 |-----|-------|-------|
-| **WebAndApiAutomation** | `ubuntu-latest` | .NET 10 SDK → restore/build `modern-test-framework.sln` (Release) → build `tests/Automation.Tests` → install Playwright Chromium → run **API** (NUnit) + **Playwright** (xUnit) tests with TRX + XPlat code coverage → publish test results (fails on test failure) and Cobertura coverage |
-| **DesktopAutomation** | `windows-latest` | .NET 10 SDK → restore/build `UI.Desktop.Tests` → publish any `desktop_results.trx` |
+| **WebAndApiAutomation** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) + **Playwright** (xUnit) tests with TRX + XPlat code coverage → publish test results (fails on test failure) and Cobertura coverage |
+| **DesktopAutomation** | `windows-latest` | .NET 10 SDK → restore/build `UI/Desktop/UI.Desktop.Tests.csproj` → publish any `desktop_results.trx` |
 
 The Selenium `UI/Web` and Appium `UI/Mobile` suites aren't run in Azure DevOps. On Azure, web coverage comes from the Playwright suite.
 
@@ -387,7 +387,7 @@ The Selenium `UI/Web` and Appium `UI/Mobile` suites aren't run in Azure DevOps. 
 2. Add builders/mothers for test data in `src/Automation.Core/TestData/`.
 3. Add an xUnit class in `tests/Automation.Tests/<Feature>/` that implements `IClassFixture<PlaywrightFixture>, IAsyncLifetime`, and use `Assertions.Expect(...)` for auto-retrying assertions.
 
-See also [UI/Web/CONTRIBUTING.md](UI/Web/CONTRIBUTING.md) for code-style rules.
+See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ---
 
@@ -397,7 +397,6 @@ See also [UI/Web/CONTRIBUTING.md](UI/Web/CONTRIBUTING.md) for code-style rules.
 - **Mobile config is machine-specific.** `UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
 - **Mobile tests have no NUnit `[Category]`**, so the CI smoke/regression filters skip them. No CI job runs mobile tests yet.
 - **Playwright settings are hard-coded.** `TestSettings` doesn't read config files or environment variables yet.
-- **Playwright projects aren't in the solution.** `src/*` and `tests/*` are missing from `modern-test-framework.sln`, and `TestAutomationPlatform.slnx` is empty.
 - **The Desktop job has no test step.** `azure-pipelines.yml` builds `UI.Desktop.Tests` but never runs `dotnet test`, and the project contains no tests yet.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 - **`Core.csproj`** excludes `Utilities\SerilogLoggingService.cs`, which no longer exists. This is harmless but can be removed.
@@ -406,13 +405,13 @@ See also [UI/Web/CONTRIBUTING.md](UI/Web/CONTRIBUTING.md) for code-style rules.
 
 ## 📖 Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer diagram, the test-run flow, and the design decisions behind the UI stacks. The mobile layer has its own design doc: [UI/Mobile/Architecture.md](UI/Mobile/Architecture.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer diagram, the test-run flow, and the design decisions behind the UI stacks. The mobile layer has its own design doc: [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## 🤝 Contributing
 
-Contributions and suggestions are welcome. Open an issue or a PR. Before submitting, run the relevant suite locally (`dotnet test …` or the batch scripts) and follow `.editorconfig` and [UI/Web/CONTRIBUTING.md](UI/Web/CONTRIBUTING.md).
+Contributions and suggestions are welcome. Open an issue or a PR. Before submitting, run the relevant suite locally (`dotnet test …` or the scripts in `scripts/`) and follow `.editorconfig` and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ---
 

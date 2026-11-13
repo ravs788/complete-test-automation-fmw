@@ -72,7 +72,7 @@ Dependency rules:
 ### 3.3 Logging & results publishing
 
 ```text
-            logging-config.json  (found by walking up to the *.sln folder)
+            logging-config.json  (found by walking up from the run dir)
                        │
         ┌──────────────┴───────────────┐
         ▼                              ▼
@@ -125,7 +125,7 @@ Pages: Web/MobileWebBasePage · Native/Android/AndroidBasePage
 Helpers: Interaction/Gestures/GestureHelper · Interaction/Waits/WaitHelper
 ```
 
-The full design, config reference, and local Appium/emulator setup are in [UI/Mobile/Architecture.md](../UI/Mobile/Architecture.md).
+The full design, config reference, and local Appium/emulator setup are in [MOBILE_ARCHITECTURE.md](MOBILE_ARCHITECTURE.md).
 
 ---
 
@@ -172,7 +172,7 @@ Stage: BuildAndValidate                                pr-smoke.yml        ─�
      .NET 10 → build UI.Desktop.Tests → publish TRX
 ```
 
-Locally, the scripts in `bat/` (Windows) and `sh/` (macOS/Linux) run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
+Locally, the scripts in `scripts/windows/` and `scripts/unix/` run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
 
 ---
 
@@ -183,7 +183,7 @@ Locally, the scripts in `bat/` (Windows) and `sh/` (macOS/Linux) run the clean �
 - **New API area:** add models and data under `API/`, and a test class inheriting `BaseApiTest`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
 - **New mobile screen:** add a page under `UI/Mobile/Pages/Web/` or `Pages/Native/<Platform>/`, and a test inheriting `BaseMobileTest`.
-- **Desktop:** fill in `UI/Desktop/UI.Desktop.Tests` with a base test class and page objects that follow the same pattern, and add a test step to the pipeline.
+- **Desktop:** fill in `UI/Desktop` with a base test class and page objects that follow the same pattern, and add a test step to the pipeline.
 
 Update this document whenever a layer, a dependency direction, or a CI flow changes.
 
@@ -192,7 +192,7 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 ## 7. Roadmap
 
 - Make `TestSettings` read from `appsettings`/environment variables (e.g. `HEADLESS`, `BROWSER`, `BASE_URL`).
-- Add the Playwright projects to the solution, or migrate fully to `TestAutomationPlatform.slnx`.
+- Phase 2 restructure: split reusable framework code (`src/Framework.*`) from test projects (`tests/*.Tests`) for every stack, keeping both web stacks.
 - Add Allure reporting to the xUnit/Playwright suite.
 - Add mobile tests to CI, with NUnit `[Category]` attributes and an emulator job, and remove the machine-specific values from `UI/Mobile/config.json`.
 - Add native-app mobile samples (Android, then iOS).
@@ -206,4 +206,5 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 |------------|-------|
 | 2025-09-03 | Initial draft; baseline definition |
 | 2025-09-03 | Added Mobile UI layer; Appium integration planned |
+| 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |

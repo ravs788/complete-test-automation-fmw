@@ -35,15 +35,11 @@ stages:
               version: "10.x"
               installationPath: $(Agent.ToolsDirectory)/dotnet
 
-          - script: dotnet restore modern-test-framework.sln
+          - script: dotnet restore TestAutomationPlatform.slnx
             displayName: "Restore Solution Dependencies"
 
-          - script: dotnet build modern-test-framework.sln --configuration $(buildConfiguration) --no-restore
+          - script: dotnet build TestAutomationPlatform.slnx --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Solution (Release)"
-
-          # Explicitly compile the xUnit Playwright test project so its bin/Release folder & playwright.ps1 exist
-          - script: dotnet build tests/Automation.Tests/Automation.Tests.csproj --configuration $(buildConfiguration)
-            displayName: "Compile Playwright Test Project"
 
           # Run the installer directly from inside the build directory
           - script: |
@@ -95,10 +91,10 @@ stages:
               packageType: "sdk"
               version: "10.x"
 
-          - script: dotnet restore UI/Desktop/UI.Desktop.Tests/UI.Desktop.Tests.csproj
+          - script: dotnet restore UI/Desktop/UI.Desktop.Tests.csproj
             displayName: "Restore Desktop Dependencies"
 
-          - script: dotnet build UI/Desktop/UI.Desktop.Tests/UI.Desktop.Tests.csproj --configuration $(buildConfiguration) --no-restore
+          - script: dotnet build UI/Desktop/UI.Desktop.Tests.csproj --configuration $(buildConfiguration) --no-restore
             displayName: "Compile Desktop Suite"
 
           - task: PublishTestResults@2

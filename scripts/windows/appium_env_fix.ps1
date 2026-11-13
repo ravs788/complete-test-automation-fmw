@@ -1,7 +1,7 @@
 # Appium Android environment quick fix for Windows
 # Usage:
-#   - Set env vars only:  powershell -NoProfile -ExecutionPolicy Bypass -File .\bat\appium_env_fix.ps1
-#   - Set env + install Appium: powershell -NoProfile -ExecutionPolicy Bypass -File .\bat\appium_env_fix.ps1 -InstallAppium
+#   - Set env vars only:  powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\appium_env_fix.ps1
+#   - Set env + install Appium: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\appium_env_fix.ps1 -InstallAppium
 
 param(
   [switch]$InstallAppium = $false,
@@ -201,7 +201,7 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "- Restart your terminal/VS Code to load updated environment variables."
 Write-Host "- In Android Studio SDK Manager, ensure: Platform-Tools, Emulator, Build-Tools, and desired platforms are installed."
-Write-Host "- Run the env check again: powershell -NoProfile -ExecutionPolicy Bypass -File .\bat\appium_env_check.ps1"
-Write-Host "- Optionally install Appium now: powershell -NoProfile -ExecutionPolicy Bypass -File .\bat\appium_env_fix.ps1 -InstallAppium"
+Write-Host "- Run the env check again: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\appium_env_check.ps1"
+Write-Host "- Optionally install Appium now: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\appium_env_fix.ps1 -InstallAppium"
 Write-Host ""
 Write-Host "Done."

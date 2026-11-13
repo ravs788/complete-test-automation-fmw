@@ -27,7 +27,7 @@ if exist "%LOCAL_DOTNET%" (
 REM --------------------------------------------------------------------------
 REM 0. Kill any orphaned browser driver processes
 REM --------------------------------------------------------------------------
-call bat\kill_all_webdrivers.bat
+call scripts\windows\kill_all_webdrivers.bat
 
 REM --------------------------------------------------------------------------
 REM 1. Clean UI.Web project

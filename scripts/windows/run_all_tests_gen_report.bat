@@ -28,7 +28,7 @@ if exist "%LOCAL_DOTNET%" (
 REM --------------------------------------------------------------------------
 REM 0. Kill orphaned WebDriver processes
 REM --------------------------------------------------------------------------
-call bat\kill_all_webdrivers.bat
+call scripts\windows\kill_all_webdrivers.bat
 
 REM --------------------------------------------------------------------------
 REM 1. Clean projects and previous Allure folders

@@ -265,8 +265,8 @@ Proposed layout within `UI/Mobile/`:
   - Android Web sample (e.g., saucedemo mobile login flow)
   - JSON test-data mirroring UI/Web patterns
   - Batch scripts:
-    - `bat/run_mobile_android_native.bat`
-    - `bat/run_mobile_android_web.bat`
+    - `scripts/windows/run_mobile_android_native.bat`
+    - `scripts/windows/run_mobile_android_web.bat`
   - Allure result publication consistent with other layers
 
 - Milestone 4: iOS Enablement (optional)
@@ -323,8 +323,8 @@ Proposed layout within `UI/Mobile/`:
   - `UI/Mobile/config*.json` variants
   - `UI/Mobile/test-data/*`
 - Scripts:
-  - `bat/run_mobile_android_native.bat`
-  - `bat/run_mobile_android_web.bat`
+  - `scripts/windows/run_mobile_android_native.bat`
+  - `scripts/windows/run_mobile_android_web.bat`
 - Docs:
   - This README (kept up to date)
   - Optional: `docs/Mobile.md` for extended setup and CI details

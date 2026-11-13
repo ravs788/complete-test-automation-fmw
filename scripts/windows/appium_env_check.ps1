@@ -1,5 +1,5 @@
 # Appium Android environment diagnostic for Windows
-# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .\bat\appium_env_check.ps1
+# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\appium_env_check.ps1
 
 $ErrorActionPreference = 'SilentlyContinue'
 

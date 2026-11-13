@@ -33,8 +33,8 @@ dotnet restore
 ## 3  Run Everything
 
 ```bash
-bat\run_all_tests_gen_report.bat          # Windows
-sh/run_all_tests_gen_report.sh            # macOS/Linux
+scripts\windows\run_all_tests_gen_report.bat   # Windows
+scripts/unix/run_all_tests_gen_report.sh       # macOS/Linux
 ```
 
 On first run, dependencies will compile – expect 1-2 minutes.
