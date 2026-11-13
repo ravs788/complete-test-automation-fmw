@@ -11,11 +11,11 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R12 | P3 | Open | – | [Logging index names differ by suite](#r12) | Logging |
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R12 | P3 | Closed | 2026-11-14 · `5c0fa57` | [Logging index names differ by suite](#r12) | Logging |
 | R10 | P3 | Closed | 2026-11-14 · `0419662` | [Mixed test method naming](#r10) | Conventions |
 | R8 | P3 | Closed | 2026-11-14 · `ad1a51e` | [Page methods don't return the next page](#r8) | Page objects |
 | R9 | P3 | Closed | 2026-11-14 · `beadaa5` | [CSS-class locators](#r9) | Page objects |
@@ -135,7 +135,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r12"></a>
 ### R12. Logging index names differ by suite
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `5c0fa57`. API logs now go to api-logs-{date}, the same pattern as ui-web-logs / ui-mobile-logs. Checked against the compose stack (api-logs-* got 19 entries for 7 tests: start, finish, and 5 cleanup lines). **Owner action:** update any Kibana data view or dashboard that used test-logs-*.
 - **Where:** `Tests/Infrastructure/ApiTestBase.cs` (`test-logs-…`), `Tests/Infrastructure/UiTestBase.cs` (`ui-web-logs-…`), `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs` (`ui-mobile-logs-…`).
 - **Problem:** the API index name doesn't follow the `<project>-logs-` pattern the others use.
 - **Fix:** rename it to `api-logs-…`. It was left unchanged on purpose, because existing Elastic dashboards and index patterns use the current names. Update those at the same time.
