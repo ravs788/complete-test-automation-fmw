@@ -1,0 +1,13 @@
+{
+  "solution": {
+    "path": "TestAutomationPlatform.slnx",
+    "projects": [
+      "API/API.Tests.csproj",
+      "Core/Core.csproj",
+      "src/Automation.Core/Automation.Core.csproj",
+      "src/Automation.Pages/Automation.Pages.csproj",
+      "tests/Automation.Tests/Automation.Tests.csproj",
+      "UI/Web/UI.Web.Tests.csproj"
+    ]
+  }
+}

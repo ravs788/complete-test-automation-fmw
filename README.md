@@ -122,6 +122,8 @@ Code style for `.cs` files comes from `.editorconfig` (4-space indent, LF line e
   dotnet build tests/Automation.Tests/Automation.Tests.csproj
   pwsh tests/Automation.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
   ```
+
+  Alternatively, skip the download and use your installed Google Chrome by setting `PLAYWRIGHT_CHANNEL=chrome` (this is what CI does).
 - Optional: the [Allure CLI](https://allurereport.org/docs/install/) for viewing reports
 - For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md).
 - Optional: Elasticsearch/OpenSearch for the `elastic` logging provider. `docker compose up -d` starts a local OpenSearch cluster on `http://localhost:9200`, with Dashboards on `http://localhost:5601`.
@@ -205,7 +207,9 @@ var baseUrl = cfg.BaseUrl;
 | `Headless`         | `true`                                   |
 | `DefaultTimeoutMs` | `30000`                                  |
 
-> These values are currently compile-time defaults. No file or environment variable is read yet, so the `HEADLESS` variable set in `azure-pipelines.yml` has no effect.
+> These values are currently compile-time defaults; no file or environment variable overrides them yet.
+>
+> Separately, `PlaywrightDriverFactory` reads the `PLAYWRIGHT_CHANNEL` environment variable for Chromium. When it's set (e.g. `chrome` or `msedge`), Playwright launches that installed browser instead of its bundled Chromium. If it's unset, Playwright uses the bundled Chromium.
 
 ### Test data
 
@@ -316,12 +320,19 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 | PR into `main` | full suites | `Category=smoke`, Chrome |
 | Push to `main` or `release/*` | full suites | `Category=regression`, Chrome |
 
-### Jobs (`azure-pipelines.yml`)
+### Job (`azure-pipelines.yml`)
 
-| Job | Agent | Steps |
-|-----|-------|-------|
-| **ApiAndPlaywright** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) and **Playwright** (xUnit) tests with TRX + code coverage → publish test results (failures fail the build), Cobertura coverage, and API Allure results |
-| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push), **Chrome test cases only** (`Name~chrome` filter; Firefox/Edge run locally via `run_ui_web_all_browsers`) → publish test results and Selenium Allure results |
+All suites run in a **single job** (`Tests`, `ubuntu-latest`):
+
+1. .NET 10 SDK, shallow checkout
+2. Build `ci.slnf` (Release). This is a solution filter with only the projects CI tests: API, Playwright, Selenium and their libraries. Mobile and Desktop are skipped.
+3. Run the **API** (NUnit), **Playwright** (xUnit) and **Selenium** (NUnit) suites. Selenium runs smoke on PRs and regression on pushes, **Chrome test cases only** (`Name~chrome` filter); Firefox and Edge run locally via `run_ui_web_all_browsers`.
+4. Publish TRX test results (failures fail the build) and the Allure results. Cobertura coverage is collected and published on `main`/`release/*` only.
+
+Why it's built this way:
+
+- **One job:** the Azure DevOps org has a single parallel job, so separate jobs ran one after another. Each job also repeated agent start-up, checkout, SDK setup and the build.
+- **No Playwright browser download:** the pipeline sets `PLAYWRIGHT_CHANNEL=chrome`, so Playwright drives the Google Chrome that the hosted image already has.
 
 Allure results are published as pipeline artifacts (`allure-results-api`, `allure-results-ui-web`). To view them, download an artifact and run `allure serve <folder>`.
 
