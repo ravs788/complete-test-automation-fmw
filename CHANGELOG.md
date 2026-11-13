@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-14: Review items R21–R23
+
+- **R21:** Elastic is only used when it can really be written to: `GET /` with the configured credentials must return 2xx from Elasticsearch 8+ (not OpenSearch). Otherwise one message explains why, and logging uses the console. If writes fail later, Elastic logging switches to the console once, and results publishing stops after one failure.
+- **R22:** removed the unused `Console.Enabled` setting.
+- **R23:** each test run clears the previous Allure results first; the pipeline copies results out after every `dotnet test`.
+
 ## 2026-11-14: Review items R4–R20
 
 - **Debugging:** a Playwright trace is attached to Allure when a UI test fails (`Trace`: off | on-failure | on; `TRACE`) (R4). The first page load is retried on `net::ERR_*` network errors (R20).
