@@ -1,5 +1,4 @@
-using NUnit.Framework;
-using NUnit.Framework.Interfaces;
+using System.Runtime.CompilerServices;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
@@ -15,39 +14,51 @@ using System.Net.Sockets;
 
 namespace UI.Web
 {
-    public abstract class BaseWebTest
+    /// <summary>
+    /// Base class for Selenium tests. Each test is an xUnit [Theory] whose first argument is the
+    /// browser; wrap the test body in <see cref="Run"/>. It starts the browser, attaches a screenshot
+    /// to Allure on failure, publishes the result and always quits the driver.
+    /// </summary>
+    public abstract class BaseWebTest : IDisposable
     {
         protected IWebDriver? Driver { get; private set; }
         protected IScreenshotHelper? ScreenshotHelper { get; private set; }
-        protected ILoggingService Logger { get; private set; }
+        protected ILoggingService Logger { get; }
 
-        private DateTime _testStartTime;
         private Process? _localDriverProcess;
 
-        public BaseWebTest()
+        protected BaseWebTest()
         {
             Logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
         }
 
-        [SetUp]
-        public virtual void SetUp()
+        protected void Run(string browser, Action test, [CallerMemberName] string testName = "")
         {
-            _testStartTime = DateTime.Now;
+            browser = string.IsNullOrWhiteSpace(browser) ? "firefox" : browser.ToLowerInvariant();
+            TestRunner.Run(
+                new TestRunInfo(Logger, "ui-web", GetType(), testName, browser),
+                body: () =>
+                {
+                    StartDriver(browser);
+                    test();
+                },
+                onFailure: () => ScreenshotHelper?.CaptureAndAttach("Test Failure", false),
+                cleanup: QuitDriver);
+        }
+
+        private void StartDriver(string browser)
+        {
             EnsureLocalWebDriverBypassesProxy();
             DisableProxyForWebDriverClient();
 
             var config = Core.Utilities.ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
-            string browser = "firefox"; // default
             var headless = config.Headless || IsRunningInCi();
-
-            if (TestContext.CurrentContext.Test.Arguments.Length > 0 && TestContext.CurrentContext.Test.Arguments[0] is string arg)
-                browser = arg.ToLowerInvariant();
 
             bool useGrid = !string.IsNullOrWhiteSpace(config.GridUrl);
             Uri? remoteUri = useGrid ? new Uri(config.GridUrl) : null;
             var commandTimeout = TimeSpan.FromSeconds(config.DriverCommandTimeoutSec <= 0 ? 60 : config.DriverCommandTimeoutSec);
 
-            Logger.Info($"[SetUp] Starting test '{TestContext.CurrentContext.Test.Name}' on browser '{browser}' (Headless: {headless})");
+            Logger.Info($"[SetUp] Starting browser '{browser}' (Headless: {headless})");
 
             switch (browser)
             {
@@ -478,84 +489,30 @@ namespace UI.Web
             public bool IsBypassed(Uri host) => true;
         }
 
-        [TearDown]
-        public virtual void TearDown()
+        private void QuitDriver()
         {
-            DateTime endTime = DateTime.Now;
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
-            {
-                tc.parameters.Add(new Parameter
-                {
-                    name = "Start Time",
-                    value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Parameter
-                {
-                    name = "End Time",
-                    value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff")
-                });
-                tc.parameters.Add(new Parameter
-                {
-                    name = "Duration (s)",
-                    value = (endTime - _testStartTime).TotalSeconds.ToString("F3")
-                });
-            });
-
-            // Log test outcome and duration
-            var ctx = TestContext.CurrentContext;
-            string browser = (ctx.Test.Arguments.Length > 0 && ctx.Test.Arguments[0] is string b) ? b.ToLowerInvariant() : "firefox";
-            Logger.Info($"[TearDown] Finished test '{ctx.Test.Name}' on browser '{browser}' | Outcome: {ctx.Result.Outcome.Status} | Duration(s): {(endTime - _testStartTime).TotalSeconds:F3}");
-            if (ctx.Result.Outcome.Status == TestStatus.Failed)
-            {
-                Logger.Error($"[TearDown] Failure details: {ctx.Result.Message}");
-            }
-
-            // Publish result via configured provider
-            var metadata = new LogMetadata
-            {
-                ProjectName = "ui-web",
-                TestClassName = ctx.Test.ClassName ?? string.Empty,
-                TestMethodName = ctx.Test.MethodName ?? ctx.Test.Name,
-                Status = ctx.Result.Outcome.Status.ToString(),
-                Duration = (endTime - _testStartTime).TotalSeconds.ToString("F3"),
-                Reason = ctx.Result.Message ?? string.Empty,
-                RunTime = endTime.ToString("o"),
-                RunName = ctx.Test.FullName ?? ctx.Test.Name,
-                TriggeredBy = System.Environment.UserName,
-                Browser = browser,
-                StartTime = _testStartTime,
-                EndTime = endTime
-            };
             try
-            {
-                var publisher = ResultsPublisherFactory.Create();
-                publisher.Publish(metadata);
-            }
-            catch (System.Exception ex)
-            {
-                TestContext.Progress.WriteLine($"[Results] Publish failed: {ex.Message}");
-            }
-
-
-            try
-            {
-                // Capture screenshot if test failed
-                if (ScreenshotHelper != null && TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Failed)
-                {
-                    try
-                    {
-                        ScreenshotHelper.CaptureAndAttach("Test Failure", false);
-                    }
-                    catch { }
-                }
-            }
-            finally
             {
                 Driver?.Quit();
                 Driver?.Dispose();
+            }
+            catch
+            {
+                // Do not mask the original test result during cleanup.
+            }
+            finally
+            {
                 Driver = null;
+                ScreenshotHelper = null;
                 StopLocalDriverProcess();
             }
+        }
+
+        /// <summary>Safety net in case a test didn't go through <see cref="Run"/>.</summary>
+        public void Dispose()
+        {
+            QuitDriver();
+            GC.SuppressFinalize(this);
         }
     }
 }

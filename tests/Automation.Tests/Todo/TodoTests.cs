@@ -3,11 +3,16 @@ namespace Automation.Tests.Todo;
 using Automation.Core.Configuration;
 using Automation.Core.TestData;
 using Automation.Pages.Todo;
+using Allure.Net.Commons.Attributes;
 using Automation.Tests.Fixtures;
 using Microsoft.Playwright;
 using System.Threading.Tasks;
 using Xunit;
 
+
+[AllureSuite("TodoMVC")]
+[AllureTag("todo", "ui", "playwright", "regression")]
+[Trait("Category", "regression")]
 public class TodoTests : IClassFixture<PlaywrightFixture>, IAsyncLifetime
 {
     private readonly PlaywrightFixture _fixture;

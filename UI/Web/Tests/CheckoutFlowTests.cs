@@ -1,31 +1,30 @@
 namespace UI.Web.Tests
 {
-    using NUnit.Framework;
     using UI.Web.Pages;
     using UI.Web.Models;
     using Core.Utilities;
     using System.Linq;
-    using Allure.NUnit.Attributes;
-    using Allure.NUnit;
+    using Allure.Net.Commons.Attributes;
     using Allure.Net.Commons;
     using OpenQA.Selenium;
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Firefox;
     using OpenQA.Selenium.Edge;
+    using Xunit;
+    using Xunit.Sdk;
 
-    [AllureNUnit]
     [AllureSuite("CheckoutFlow")]
     [AllureTag("checkout-flow", "ui", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class CheckoutFlowTests : BaseWebTest
     {
 
-        [Test]
-        [TestCase("chrome")]
+        [Theory]
+        [InlineData("chrome")]
         // TODO: Re-enable after Firefox is installed/configured on the runner.
-        // [TestCase("firefox")]
-        [TestCase("edge")]
-        public void EndToEnd_Checkout_Success(string browser)
+        // [InlineData("firefox")]
+        [InlineData("edge")]
+        public void EndToEnd_Checkout_Success(string browser) => Run(browser, () =>
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<CheckoutFlowTestData>("CheckoutFlowTests/EndToEnd_Checkout_Success.json");
@@ -40,10 +39,10 @@ namespace UI.Web.Tests
                 bool actual = inventoryPage.IsAtInventoryPage();
                 try
                 {
-                    Assert.That(actual, "Did not land on inventory page after login.");
+                    Assert.True(actual, "Did not land on inventory page after login.");
                     Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
                     throw;
@@ -63,15 +62,12 @@ namespace UI.Web.Tests
                 var expectedNames = testData.Products.Select(p => p.Name);
                 try
                 {
-                    Assert.That(isLoaded, "Cart page did not load.");
-                    Assert.That(
-                        names,
-                        Is.SupersetOf(expectedNames),
-                        "Cart does not contain correct products"
-                    );
+                    Assert.True(isLoaded, "Cart page did not load.");
+                    // Cart must contain every expected product.
+                    Assert.Superset(expectedNames.ToHashSet(), names.ToHashSet());
                     Logger.Info($"[{browser}] PASSED: Assert cart page loaded (IsLoaded: {isLoaded}) and contains correct products (expected: [{string.Join(",", expectedNames)}], actual: [{string.Join(",", names)}])");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Cart page load/products assertion - {ex.Message} (IsLoaded: {isLoaded}, expected: [{string.Join(",", expectedNames)}], actual: [{string.Join(",", names)}])");
                     throw;
@@ -91,10 +87,10 @@ namespace UI.Web.Tests
                 bool actual = checkoutPage.IsAtCheckoutInfo();
                 try
                 {
-                    Assert.That(actual, "Checkout info page did not load.");
+                    Assert.True(actual, "Checkout info page did not load.");
                     Logger.Info($"[{browser}] PASSED: Assert checkout info page loaded (expected: true, actual: {actual})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert checkout info page loaded (expected: true, actual: {actual}) - {ex.Message}");
                     throw;
@@ -110,19 +106,15 @@ namespace UI.Web.Tests
                 var headerText = completePage.GetCompleteHeaderText();
                 try
                 {
-                    Assert.That(
-                        headerText.ToLower(),
-                        Does.Contain("thank you for your order"),
-                        "Order completion message not displayed."
-                    );
+                    Assert.Contains("thank you for your order", headerText.ToLower());
                     Logger.Info($"[{browser}] PASSED: Order completion message displayed. (Header: '{headerText}')");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Order completion message assertion. (Header: '{headerText}') - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

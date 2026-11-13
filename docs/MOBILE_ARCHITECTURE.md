@@ -5,7 +5,7 @@ Purpose: Define a concrete, reusable Mobile automation layer for both Native app
 This document is the single source of truth for the Mobile layer architecture, conventions, and the step-by-step implementation plan.
 
 - Status: Proposed plan (ready to implement)
-- Stack: .NET (C#), NUnit, Allure, Appium v2, Android (local), iOS (optional via macOS or cloud)
+- Stack: .NET (C#), xUnit v2, Allure (`Allure.Xunit`), Appium v2, Android (local), iOS (optional via macOS or cloud)
 
 ## Table of Contents
 - Goals and Scope
@@ -56,7 +56,7 @@ This document is the single source of truth for the Mobile layer architecture, c
 - Reuse existing Core services for consistency across API, Web, and Mobile layers.
 
 ## Assumptions
-- .NET with NUnit test framework (UI/Web uses NUnit + Allure).
+- .NET with the xUnit v2 test framework, like every other suite in the solution (all use xUnit + Allure).
 - Allure reporting continues.
 - Appium v2 and Selenium.Appium 5.x.
 - Android support locally (Windows). iOS requires macOS or a cloud provider (optional).
@@ -73,7 +73,7 @@ This document is the single source of truth for the Mobile layer architecture, c
   - `MobileOptionsBuilder`: Converts our config into platform-appropriate `AppiumOptions`.
   - `MobileSessionManager` (optional): Manages lifetime/singleton per test class if needed.
 - Test base:
-  - `BaseMobileTest`: Reads config via Core ConfigLoader, initializes driver via factory, wires Core logging, attaches screenshots on failure, and handles teardown.
+  - `BaseMobileTest`: Reads config via Core ConfigLoader, initializes driver via factory, wires Core logging, attaches screenshots on failure, and handles teardown. Tests wrap their body in `Run(() => { ... })`, which delegates to `Core.Utilities.TestRunner` (xUnit v2 has no SetUp/TearDown that knows the test outcome).
 - Page layer:
   - Contracts (interfaces) for page behavior (e.g., `ILoginPage`).
   - Implementations:
@@ -93,8 +93,8 @@ This document is the single source of truth for the Mobile layer architecture, c
 1. `BaseMobileTest` loads `UI/Mobile/config.json` (or environment-specific file) using `Core.Utilities.Config.ConfigLoader`.
 2. `MobileOptionsBuilder` builds `AppiumOptions` from config (platform, appType).
 3. `MobileDriverFactory` uses options + server URL to create an `AndroidDriver` or `IOSDriver`.
-4. Test runs. On failure, screenshot + logs go to Allure via Core services.
-5. Teardown quits the session.
+4. Test runs inside `Run(...)`. On failure, screenshot + logs go to Allure via Core services.
+5. `Run` always quits the session afterwards (`Dispose()` is a safety net).
 
 ## Project Structure
 Proposed layout within `UI/Mobile/`:
@@ -141,8 +141,8 @@ Proposed layout within `UI/Mobile/`:
 - Selenium.WebDriver 4.x
 - Selenium.Support 4.x (if needed)
 - Appium.WebDriver (Selenium.Appium) 5.x
-- NUnit + NUnit3TestAdapter (aligned with existing layers)
-- Allure: Allure.NUnit and Allure.Commons (already in solution; ensure referenced)
+- xunit + xunit.runner.visualstudio 2.8.2 (aligned with the other suites; keep the adapter on 2.x so Allure works)
+- Allure: Allure.Xunit (attributes from `Allure.Net.Commons.Attributes`)
 
 ### Appium Server and Drivers
 - Appium v2 (Node)
@@ -340,7 +340,7 @@ Proposed layout within `UI/Mobile/`:
 - Cloud provider:
   - BrowserStack/Sauce/BitBar/etc.? If yes, which one?
 - Test framework:
-  - Confirm NUnit remains standard for Mobile (aligned with UI/Web).
+  - Resolved: Mobile uses xUnit v2 + Allure.Xunit, like every other suite.
 
 ## Getting Started (Local Setup)
 

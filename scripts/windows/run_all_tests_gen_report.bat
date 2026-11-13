@@ -2,7 +2,7 @@
 REM ============================================================================
 REM Script: run_all_tests_gen_report.bat
 REM Purpose:
-REM   • Run both API and UI/Web test suites and create a merged Allure report
+REM   • Run the API, UI/Web (Selenium) and Playwright suites and create a merged Allure report
 REM   • Common workflow:
 REM       0. Kill orphaned WebDriver processes
 REM       1. Clean projects and old Allure result folders
@@ -38,6 +38,8 @@ echo Cleaning test projects...
 set CLEAN_API_EXIT=%ERRORLEVEL%
 %DOTNET_CMD% clean UI/Web/UI.Web.Tests.csproj
 set CLEAN_WEB_EXIT=%ERRORLEVEL%
+%DOTNET_CMD% clean tests/Automation.Tests/Automation.Tests.csproj
+set CLEAN_PW_EXIT=%ERRORLEVEL%
 
 echo Removing previous Allure result folders...
 if exist API\bin\Debug\net10.0\allure-results (
@@ -45,6 +47,9 @@ if exist API\bin\Debug\net10.0\allure-results (
 )
 if exist UI\Web\bin\Debug\net10.0\allure-results (
     rmdir /S /Q UI\Web\bin\Debug\net10.0\allure-results
+)
+if exist tests\Automation.Tests\bin\Debug\net10.0\allure-results (
+    rmdir /S /Q tests\Automation.Tests\bin\Debug\net10.0\allure-results
 )
 if exist allure-results (
     rmdir /S /Q allure-results
@@ -58,6 +63,8 @@ echo Building projects...
 set BUILD_API_EXIT=%ERRORLEVEL%
 %DOTNET_CMD% build UI/Web/UI.Web.Tests.csproj --no-restore
 set BUILD_WEB_EXIT=%ERRORLEVEL%
+%DOTNET_CMD% build tests/Automation.Tests/Automation.Tests.csproj --no-restore
+set BUILD_PW_EXIT=%ERRORLEVEL%
 
 REM --------------------------------------------------------------------------
 REM 3. Run tests
@@ -77,6 +84,12 @@ echo Running UI.Web tests...
   /p:AllureResultsDirectory=UI\Web\bin\Debug\net10.0\allure-results
 set TEST_WEB_EXIT=%ERRORLEVEL%
 
+echo Running Playwright tests...
+%DOTNET_CMD% test tests/Automation.Tests/Automation.Tests.csproj ^
+  --no-build ^
+  --logger "trx;LogFileName=PlaywrightTests.trx"
+set TEST_PW_EXIT=%ERRORLEVEL%
+
 REM --------------------------------------------------------------------------
 REM 4. Add timestamp to both result folders
 REM --------------------------------------------------------------------------
@@ -87,6 +100,7 @@ set TS=!TODAY!_!NOW!
 set TS=!TS::=-!
 echo run.timestamp=!TS!> API\bin\Debug\net10.0\allure-results\environment.properties
 echo run.timestamp=!TS!> UI\Web\bin\Debug\net10.0\allure-results\environment.properties
+if exist tests\Automation.Tests\bin\Debug\net10.0\allure-results echo run.timestamp=!TS!> tests\Automation.Tests\bin\Debug\net10.0\allure-results\environment.properties
 set TIMESTAMP=!TS!
 
 REM --------------------------------------------------------------------------
@@ -97,6 +111,8 @@ mkdir allure-results
 xcopy /E /I /Y API\bin\Debug\net10.0\allure-results\* allure-results\ >nul
 xcopy /E /I /Y UI\Web\bin\Debug\net10.0\allure-results\* allure-results\ >nul
 set COPY_EXIT=%ERRORLEVEL%
+if exist tests\Automation.Tests\bin\Debug\net10.0\allure-results xcopy /E /I /Y tests\Automation.Tests\bin\Debug\net10.0\allure-results\* allure-results\ >nul
+copy /Y allure-categories.json allure-results\categories.json >nul
 
 REM --------------------------------------------------------------------------
 REM Summary
@@ -105,10 +121,13 @@ echo(
 echo ===================== SUMMARY =====================
 echo Clean  API exit code : %CLEAN_API_EXIT%
 echo Clean  WEB exit code : %CLEAN_WEB_EXIT%
+echo Clean  PW  exit code : %CLEAN_PW_EXIT%
 echo Build  API exit code : %BUILD_API_EXIT%
 echo Build  WEB exit code : %BUILD_WEB_EXIT%
+echo Build  PW  exit code : %BUILD_PW_EXIT%
 echo Test   API exit code : %TEST_API_EXIT%
 echo Test   WEB exit code : %TEST_WEB_EXIT%
+echo Test   PW  exit code : %TEST_PW_EXIT%
 echo Merge  step exit code: %COPY_EXIT%
 echo Run Timestamp        : %TIMESTAMP%
 echo ===================================================

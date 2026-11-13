@@ -1,32 +1,31 @@
 namespace UI.Web.Tests
 {
-    using NUnit.Framework;
     using UI.Web.Pages;
     using UI.Web.Models;
     using Core.Utilities;
-    using Allure.NUnit.Attributes;
-    using Allure.NUnit;
+    using Allure.Net.Commons.Attributes;
     using Allure.Net.Commons;
     using UI.Web.Utilities;
     using OpenQA.Selenium;
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Firefox;
     using OpenQA.Selenium.Edge;
+    using Xunit;
+    using Xunit.Sdk;
     // using Core.Utilities; -- Already above. Don't re-add.
 
-    [AllureNUnit]
     [AllureSuite("AddToCart")]
     [AllureTag("add-to-cart", "ui", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class AddToCartTests : BaseWebTest
     {
 
-        [Test]
-        [TestCase("chrome")]
+        [Theory]
+        [InlineData("chrome")]
         // TODO: Re-enable after Firefox is installed/configured on the runner.
-        // [TestCase("firefox")]
-        [TestCase("edge")]
-        public void CanAddBackpackToCart(string browser)
+        // [InlineData("firefox")]
+        [InlineData("edge")]
+        public void CanAddBackpackToCart(string browser) => Run(browser, () =>
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<AddToCartTestData>("AddToCartTests/CanAddBackpackToCart.json");
@@ -41,10 +40,10 @@ namespace UI.Web.Tests
                 bool actual = inventoryPage.IsAtInventoryPage();
                 try
                 {
-                    Assert.That(actual, Is.EqualTo(true));
+                    Assert.True(actual);
                     Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
                     throw;
@@ -60,10 +59,10 @@ namespace UI.Web.Tests
                 bool actual = cartPage.IsLoaded();
                 try
                 {
-                    Assert.That(actual, Is.EqualTo(true));
+                    Assert.True(actual);
                     Logger.Info($"[{browser}] PASSED: Assert cart page loaded (expected: true, actual: {actual})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert cart page loaded (expected: true, actual: {actual}) - {ex.Message}");
                     throw;
@@ -74,15 +73,15 @@ namespace UI.Web.Tests
                 bool contains = cartPage.GetProductNames().Contains(testData.Product.Name);
                 try
                 {
-                    Assert.That(contains, Is.EqualTo(true));
+                    Assert.True(contains);
                     Logger.Info($"[{browser}] PASSED: Assert product '{testData.Product.Name}' is in cart (expected: true, actual: {contains})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert product '{testData.Product.Name}' is in cart (expected: true, actual: {contains}) - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

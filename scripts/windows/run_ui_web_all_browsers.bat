@@ -65,7 +65,7 @@ for %%b in (%BROWSERS%) do (
       --no-build ^
       --logger "trx;LogFileName=WebTests_%%b.trx" ^
       --test-adapter-path:. ^
-      /p:BROWSER=%%b
+      --filter "DisplayName~%%b"
     if errorlevel 1 echo %%b run failed
 
     REM Copy Allure results to per-browser directory

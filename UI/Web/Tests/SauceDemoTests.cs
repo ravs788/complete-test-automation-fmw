@@ -1,31 +1,30 @@
 ﻿namespace UI.Web.Tests
 {
-    using NUnit.Framework;
     using UI.Web.Pages;
     using UI.Web.Models;
     using Core.Utilities;
-    using Allure.NUnit.Attributes;
-    using Allure.NUnit;
+    using Allure.Net.Commons.Attributes;
     using Allure.Net.Commons;
     using OpenQA.Selenium;
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Firefox;
     using OpenQA.Selenium.Edge;
+    using Xunit;
+    using Xunit.Sdk;
 
-    [AllureNUnit]
     [AllureSuite("Saucedemo")]
     [AllureTag("saucedemo", "ui", "smoke", "regression")]
-    [Category("smoke")]
-    [Category("regression")]
+    [Trait("Category", "smoke")]
+    [Trait("Category", "regression")]
     public class SauceDemoTests : BaseWebTest
     {
 
-        [Test]
-        [TestCase("chrome")]
+        [Theory]
+        [InlineData("chrome")]
         // TODO: Re-enable after Firefox is installed/configured on the runner.
-        // [TestCase("firefox")]
-        [TestCase("edge")]
-        public void Saucedemo_Login_ShouldShowInventory(string browser)
+        // [InlineData("firefox")]
+        [InlineData("edge")]
+        public void Saucedemo_Login_ShouldShowInventory(string browser) => Run(browser, () =>
         {
             // Arrange
             var user = TestDataLoader.Instance.Load<User>("SauceDemoTests/Saucedemo_Login_ShouldShowInventory.json");
@@ -43,10 +42,10 @@
                 bool actual = inventoryPage.IsAtInventoryPage();
                 try
                 {
-                    Assert.That(actual, "User did not land on inventory page after login.");
+                    Assert.True(actual, "User did not land on inventory page after login.");
                     Logger.Info($"[{browser}] PASSED: Assert inventory page loaded after login (expected: true, actual: {actual})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert inventory page loaded after login (expected: true, actual: {actual}) - {ex.Message}");
                     throw;
@@ -57,15 +56,15 @@
                 int count = inventoryPage.GetInventoryItemCount();
                 try
                 {
-                    Assert.That(count, Is.GreaterThan(0), "Inventory item count should be greater than 0.");
+                    Assert.True(count > 0, "Inventory item count should be greater than 0.");
                     Logger.Info($"[{browser}] PASSED: Assert inventory item count > 0 (actual: {count})");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Assert inventory item count > 0 (actual: {count}) - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

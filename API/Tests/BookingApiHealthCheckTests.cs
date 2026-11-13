@@ -1,17 +1,16 @@
-using NUnit.Framework;
 using System.Threading.Tasks;
 using API.Utilities;
 using Allure.Net.Commons;
-using Allure.NUnit;
-using Allure.NUnit.Attributes;
+using Allure.Net.Commons.Attributes;
+using Xunit;
+using Xunit.Sdk;
 
 namespace API.Tests
 {
-    [AllureNUnit]
     [AllureSuite("Booking Health Check API")]
     [AllureTag("api", "health", "smoke", "regression")]
-    [Category("smoke")]
-    [Category("regression")]
+    [Trait("Category", "smoke")]
+    [Trait("Category", "regression")]
     public class BookingApiHealthCheckTests : BaseApiTest
     {
 
@@ -20,8 +19,8 @@ namespace API.Tests
 
 
 
-        [Test]
-        public async Task BookingApi_Ping_Should_Return_201()
+        [Fact]
+        public Task BookingApi_Ping_Should_Return_201() => RunAsync(async () =>
         {
             var response = await _client.GetAsync<object>("ping");
             // With RestSharp, the status code >=200 is required; ensure /ping is alive.
@@ -30,14 +29,13 @@ namespace API.Tests
                 try
                 {
                     Logger.Info("PASSED: API health check (/ping) responded. API is up.");
-                    Assert.Pass("API health check (/ping) responded. API is up.");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: API health check (/ping) - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

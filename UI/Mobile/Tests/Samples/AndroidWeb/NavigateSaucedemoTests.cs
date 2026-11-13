@@ -1,21 +1,18 @@
-using NUnit.Framework;
 using OpenQA.Selenium;
-using Allure.NUnit;
-using Allure.NUnit.Attributes;
+using Allure.Net.Commons.Attributes;
 using Allure.Net.Commons;
 using UI.Mobile;
 using UI.Mobile.Utilities;
+using Xunit;
 
 namespace UI.Mobile.Tests.Samples.AndroidWeb
 {
-    [AllureNUnit]
     [AllureSuite("Mobile Web - Android")]
     [AllureTag("mobile", "web", "android", "smoke")]
-    [Parallelizable(ParallelScope.Self)]
     public class NavigateSaucedemoTests : BaseMobileTest
     {
-        [Test]
-        public void Navigate_To_Saucedemo_ShouldShowLogin()
+        [Fact]
+        public void Navigate_To_Saucedemo_ShouldShowLogin() => Run(() =>
         {
             // BaseMobileTest SetUp navigates to baseUrl from UI/Mobile/config.json ("https://www.saucedemo.com")
 
@@ -23,13 +20,13 @@ namespace UI.Mobile.Tests.Samples.AndroidWeb
             {
                 Driver.Navigate().GoToUrl("https://www.saucedemo.com");
                 var username = WaitHelper.UntilVisible(Driver!, By.CssSelector("input#user-name"), 20);
-                Assert.That(username, Is.Not.Null, "Username input should be visible on Saucedemo login page.");
+                Assert.NotNull(username);
             });
 
             AllureApi.Step("Verify page title contains 'Swag Labs'", () =>
             {
-                Assert.That(Driver!.Title, Does.Contain("Swag Labs"), "Expected Saucedemo title to contain 'Swag Labs'.");
+                Assert.Contains("Swag Labs", Driver!.Title);
             });
-        }
+        });
     }
 }

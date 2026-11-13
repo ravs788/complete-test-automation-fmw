@@ -1,28 +1,27 @@
 namespace UI.Web.Tests
 {
-    using NUnit.Framework;
     using UI.Web.Pages;
     using UI.Web.Models;
     using Core.Utilities;
-    using Allure.NUnit.Attributes;
-    using Allure.NUnit;
+    using Allure.Net.Commons.Attributes;
     using Allure.Net.Commons;
+    using Xunit;
+    using Xunit.Sdk;
 
-    [AllureNUnit]
     [AllureSuite("NegativeLogin")]
     [AllureTag("login", "negative", "ui", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class NegativeLoginTests : BaseWebTest
     {
-        [Test]
-        [TestCase("chrome", "Login_InvalidCredentials.json")]
+        [Theory]
+        [InlineData("chrome", "Login_InvalidCredentials.json")]
         // TODO: Re-enable after Firefox is installed/configured on the runner.
-        // [TestCase("firefox", "Login_InvalidCredentials.json")]
-        [TestCase("edge", "Login_InvalidCredentials.json")]
-        [TestCase("chrome", "Login_BlankPassword.json")]
-        // [TestCase("firefox", "Login_BlankPassword.json")]
-        [TestCase("edge", "Login_BlankPassword.json")]
-        public void NegativeLogin_ShouldShowProperError(string browser, string dataFile)
+        // [InlineData("firefox", "Login_InvalidCredentials.json")]
+        [InlineData("edge", "Login_InvalidCredentials.json")]
+        [InlineData("chrome", "Login_BlankPassword.json")]
+        // [InlineData("firefox", "Login_BlankPassword.json")]
+        [InlineData("edge", "Login_BlankPassword.json")]
+        public void NegativeLogin_ShouldShowProperError(string browser, string dataFile) => Run(browser, () =>
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<NegativeLoginTestData>($"NegativeLoginTests/{dataFile}");
@@ -40,19 +39,16 @@ namespace UI.Web.Tests
 
                 try
                 {
-                    Assert.That(errorDisplayed, Is.True, "Error message was not displayed for invalid login.");
-                    Assert.That(
-                        errorText.ToLowerInvariant(),
-                        Does.Contain(testData.ExpectedError.ToLowerInvariant()),
-                        $"Error text did not match expectation. Expected to contain: '{testData.ExpectedError}', Actual: '{errorText}'");
+                    Assert.True(errorDisplayed, "Error message was not displayed for invalid login.");
+                    Assert.Contains(testData.ExpectedError.ToLowerInvariant(), errorText.ToLowerInvariant());
                     Logger.Info($"[{browser}] PASSED: Negative login produced expected error message.");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: Negative login assertions failed - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

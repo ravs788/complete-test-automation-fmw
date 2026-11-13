@@ -51,7 +51,7 @@ for browser in "${BROWSERS[@]}"; do
     --no-build \
     --logger "trx;LogFileName=WebTests_$browser.trx" \
     --test-adapter-path:. \
-    /p:BROWSER="$browser"
+    --filter "DisplayName~$browser"
   TEST_EXITS["$browser"]=$?
 
   if [[ "${TEST_EXITS[$browser]}" -ne 0 ]]; then

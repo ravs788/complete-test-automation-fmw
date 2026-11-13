@@ -1,7 +1,6 @@
 using System;
+using System.Runtime.CompilerServices;
 using Core.Utilities;
-using NUnit.Framework;
-using NUnit.Framework.Interfaces;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using UI.Mobile.Drivers;
@@ -10,121 +9,78 @@ using Allure.Net.Commons;
 
 namespace UI.Mobile
 {
-    public abstract class BaseMobileTest
+    /// <summary>
+    /// Base class for mobile tests. Wrap each test body in <see cref="Run"/>: it starts the Appium
+    /// session, attaches a screenshot to Allure on failure, publishes the result and quits the driver.
+    /// </summary>
+    public abstract class BaseMobileTest : IDisposable
     {
         protected AppiumDriver? Driver { get; private set; }
-        protected ILoggingService Logger { get; private set; }
-
-        private DateTime _testStartTime;
+        protected ILoggingService Logger { get; }
 
         protected BaseMobileTest()
         {
             Logger = LoggingServiceFactory.CreateLogger("ui-mobile-logs-{0:yyyy.MM.dd}");
         }
 
-        [SetUp]
-        public virtual void SetUp()
-        {
-            _testStartTime = DateTime.Now;
+        protected void Run(Action test, [CallerMemberName] string testName = "") =>
+            TestRunner.Run(
+                new TestRunInfo(Logger, "ui-mobile", GetType(), testName, Browser: "mobile"),
+                body: () =>
+                {
+                    StartSession();
+                    test();
+                },
+                onFailure: AttachFailureScreenshot,
+                cleanup: QuitDriver);
 
+        private void StartSession()
+        {
             var config = ConfigLoader.Load<ConfigSettings>();
             var (platform, appType) = MobileOptionsBuilder.Parse(config);
 
-            Logger.Info($"[SetUp] Starting test '{TestContext.CurrentContext.Test.Name}' on {platform} ({appType})");
-            Logger.Info($"[Device] Name={config.Device.DeviceName}, PlatformVersion={config.Device.PlatformVersion}, UDID={config.Device.Udid}");
+            Logger.Info($"[Device] {platform} ({appType}) Name={config.Device.DeviceName}, PlatformVersion={config.Device.PlatformVersion}, UDID={config.Device.Udid}");
 
             var factory = new MobileDriverFactory();
             Driver = factory.CreateDriver(config, Logger);
 
-            try
+            // For Mobile Web, navigate to BaseUrl if provided
+            if (appType == MobileAppType.Web && !string.IsNullOrWhiteSpace(config.BaseUrl))
             {
-                // For Mobile Web, navigate to BaseUrl if provided
-                if (appType == MobileAppType.Web && !string.IsNullOrWhiteSpace(config.BaseUrl))
-                {
-                    Driver.Navigate().GoToUrl(config.BaseUrl);
-                    Logger.Info($"[SetUp] Navigated to {config.BaseUrl} on {platform} {appType}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"[SetUp] Navigation or init error: {ex.Message}");
-                throw;
+                Driver.Navigate().GoToUrl(config.BaseUrl);
+                Logger.Info($"[SetUp] Navigated to {config.BaseUrl} on {platform} {appType}");
             }
 
             // Append platform/appType to Allure test name (for reporting clarity)
             AllureLifecycle.Instance.UpdateTestCase(x => x.name = $"{x.name} ({platform} {appType})");
         }
 
-        [TearDown]
-        public virtual void TearDown()
+        private void AttachFailureScreenshot()
         {
-            var endTime = DateTime.Now;
-
-            // Add timing details to Allure
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
+            if (Driver is ITakesScreenshot taker)
             {
-                tc.parameters.Add(new Parameter { name = "Start Time", value = _testStartTime.ToString("yyyy-MM-dd HH:mm:ss.fff") });
-                tc.parameters.Add(new Parameter { name = "End Time", value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff") });
-                tc.parameters.Add(new Parameter { name = "Duration (s)", value = (endTime - _testStartTime).TotalSeconds.ToString("F3") });
-            });
-
-            var ctx = TestContext.CurrentContext;
-            Logger.Info($"[TearDown] Finished test '{ctx.Test.Name}' | Outcome: {ctx.Result.Outcome.Status} | Duration(s): {(endTime - _testStartTime).TotalSeconds:F3}");
-            if (ctx.Result.Outcome.Status == TestStatus.Failed)
-            {
-                Logger.Error($"[TearDown] Failure details: {ctx.Result.Message}");
+                var screenshot = taker.GetScreenshot();
+                var filename = $"Test_Failure_{DateTime.Now:yyyyMMddHHmmssfff}.png";
+                AllureApi.AddAttachment("Test Failure (Mobile)", "image/png", screenshot.AsByteArray, filename);
             }
+        }
 
-            // Publish result via configured provider
-            var metadata = new LogMetadata
-            {
-                ProjectName = "ui-mobile",
-                TestClassName = ctx.Test.ClassName ?? string.Empty,
-                TestMethodName = ctx.Test.MethodName ?? ctx.Test.Name,
-                Status = ctx.Result.Outcome.Status.ToString(),
-                Duration = (endTime - _testStartTime).TotalSeconds.ToString("F3"),
-                Reason = ctx.Result.Message ?? string.Empty,
-                RunTime = endTime.ToString("o"),
-                RunName = ctx.Test.FullName ?? ctx.Test.Name,
-                TriggeredBy = Environment.UserName,
-                Browser = "mobile", // placeholder field reuse
-                StartTime = _testStartTime,
-                EndTime = endTime
-            };
+        private void QuitDriver()
+        {
             try
             {
-                var publisher = ResultsPublisherFactory.Create();
-                publisher.Publish(metadata);
+                Driver?.Quit();
+                Driver?.Dispose();
             }
-            catch (Exception ex)
-            {
-                TestContext.Progress.WriteLine($"[Results] Publish failed: {ex.Message}");
-            }
+            catch { }
+            Driver = null;
+        }
 
-            try
-            {
-                // Capture screenshot on failure without requiring a separate helper class
-                if (ctx.Result.Outcome.Status == TestStatus.Failed && Driver is ITakesScreenshot taker)
-                {
-                    try
-                    {
-                        var screenshot = taker.GetScreenshot();
-                        var filename = $"Test_Failure_{DateTime.Now:yyyyMMddHHmmssfff}.png";
-                        AllureApi.AddAttachment("Test Failure (Mobile)", "image/png", screenshot.AsByteArray, filename);
-                    }
-                    catch { /* Swallow to avoid masking the original failure */ }
-                }
-            }
-            finally
-            {
-                try
-                {
-                    Driver?.Quit();
-                    Driver?.Dispose();
-                }
-                catch { }
-                Driver = null;
-            }
+        /// <summary>Safety net in case a test didn't go through <see cref="Run"/>.</summary>
+        public void Dispose()
+        {
+            QuitDriver();
+            GC.SuppressFinalize(this);
         }
     }
 }
