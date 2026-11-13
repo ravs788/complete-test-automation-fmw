@@ -12,7 +12,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
 | R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
-| R23 | P4 | Open | – | [Allure results pile up across local runs](#r23) | Reporting |
+| R23 | P4 | Closed | 2026-11-14 · `03cf510` | [Allure results pile up across local runs](#r23) | Reporting |
 | R22 | P4 | Closed | 2026-11-14 · `e8ba96d` | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R21 | P3 | Closed | 2026-11-14 · `0f492d8` | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
 | R13 | P3 | Closed | 2026-11-14 · `7a8e003` | [CI only runs Chrome](#r13) | CI |
@@ -230,7 +230,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r23"></a>
 ### R23. Allure results pile up across local runs
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `03cf510`. Each test run clears the folder first (module initializer → Core.Testing.AllureResults.ClearPreviousRun). The pipeline copies results out after every dotnet test, including each nightly browser run. Checked: two local runs give 2 results each (before: 2, then 4); a full run keeps all 15; a chrome/chromium/webkit loop keeps all 6.
 - **Where:** `Tests/bin/<Configuration>/net10.0/allure-results/` (written by `Allure.Xunit`).
 - **Problem:** `Allure.Xunit` doesn't clear its results folder, so each local `dotnet test` adds to the previous runs' results (checked: 2 results after one run, 4 after two). `allure serve` on that folder then mixes old and new runs. The run scripts delete the folder first, and CI agents start clean, so only plain local `dotnet test` runs are affected.
 - **Fix:** clear the folder once at the start of a test run, e.g. a `[ModuleInitializer]` in the test projects calling `AllureLifecycle.Instance.CleanupResultDirectory()`, or document running through the scripts.
