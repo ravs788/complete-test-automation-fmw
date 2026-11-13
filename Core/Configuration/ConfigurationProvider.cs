@@ -1,38 +1,24 @@
-using System.Text.Json;
-
 namespace Core.Configuration;
+
 /// <summary>
-/// Thread-safe, lazily loaded <see cref="TestSettings"/>:
-/// <c>testsettings.json</c> (test output directory) → environment overrides (BROWSER, HEADLESS).
+/// Thread-safe, lazily loaded <see cref="TestSettings"/>: <c>testsettings.json</c> (test output directory), then
+/// <c>TESTS_*</c> environment variables (e.g. <c>TESTS_RestfulBooker__Password</c>), then the aliases
+/// <c>BROWSER</c> and <c>HEADLESS</c>. See <see cref="SettingsLoader"/>.
 /// </summary>
 public static class ConfigurationProvider
 {
     public const string FileName = "testsettings.json";
+    public const string EnvPrefix = "TESTS_";
 
-    private static readonly Lazy<TestSettings> _lazySettings = new(Load, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Dictionary<string, string> Aliases = new()
+    {
+        ["BROWSER"] = "Browser",
+        ["HEADLESS"] = "Headless",
+    };
+
+    private static readonly Lazy<TestSettings> _lazySettings = new(
+        () => SettingsLoader.Load<TestSettings>(AppContext.BaseDirectory, FileName, EnvPrefix, Aliases),
+        LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static TestSettings Current => _lazySettings.Value;
-
-    private static TestSettings Load()
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, FileName);
-        var settings = File.Exists(path)
-            ? JsonSerializer.Deserialize<TestSettings>(
-                  File.ReadAllText(path),
-                  new JsonSerializerOptions { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip })
-              ?? new TestSettings()
-            : new TestSettings();
-
-        if (Environment.GetEnvironmentVariable("BROWSER") is { Length: > 0 } browser)
-        {
-            settings = settings with { Browser = browser };
-        }
-
-        if (bool.TryParse(Environment.GetEnvironmentVariable("HEADLESS"), out var headless))
-        {
-            settings = settings with { Headless = headless };
-        }
-
-        return settings;
-    }
 }

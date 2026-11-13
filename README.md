@@ -18,7 +18,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **Mobile tests** (`Tests/UI/Mobile`) with Appium 2: Android mobile web against saucedemo.com, with iOS and native-app support in the driver bootstrap
 - **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
 - **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
-- **Settings in `Tests/testsettings.json`**, with `BROWSER` / `HEADLESS` environment overrides
+- **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Core/Models/<App>/`, a Builder + Object Mother per entity in `Core/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
@@ -151,9 +151,21 @@ allure serve Tests/bin/Debug/net10.0/allure-results
 
 ## ⚙️ Configuration
 
-### Playwright tests: `Tests/testsettings.json`
+All three settings files load the same way (`Core.Configuration.SettingsLoader`, built on `Microsoft.Extensions.Configuration`), once per run, with later sources winning:
 
-`Core.Configuration.ConfigurationProvider.Current` loads `testsettings.json` from the test output directory once (thread-safe), then applies environment overrides:
+1. the JSON file (comments allowed),
+2. environment variables with the file's prefix, using `__` between nested keys,
+3. a few short aliases for the most common settings.
+
+| File | Loaded by | Prefix | Example | Aliases |
+|---|---|---|---|---|
+| `Tests/testsettings.json` | `ConfigurationProvider.Current` | `TESTS_` | `TESTS_RestfulBooker__Password=…` | `BROWSER`, `HEADLESS` |
+| `logging-config.json` | `LoggingConfigProvider.Current` | `LOGGING_` | `LOGGING_PROVIDER=console`, `LOGGING_Elastic__Url=…` | `ELASTIC_URL`, `ELASTIC_USERNAME`, `ELASTIC_PASSWORD`, `ELASTIC_CERT_FINGERPRINT` |
+| `Tests/UI/Mobile/mobilesettings.json` | `MobileSettingsProvider.Current` | `MOBILE_` | `MOBILE_Device__Udid=…` | `APPIUM_URL`, `DEVICE_NAME` |
+
+Keys are case-insensitive. Secrets (passwords, tokens) should come only from the environment or a CI secret variable.
+
+### Playwright tests: `Tests/testsettings.json`
 
 ```json
 {
@@ -174,13 +186,14 @@ allure serve Tests/bin/Debug/net10.0/allure-results
 |---------|--------|----------------------|
 | `Browser` | `chromium` (Playwright's bundled build), `chrome` / `msedge` (installed Google Chrome / Microsoft Edge, no download), `firefox`, `webkit` | `BROWSER` |
 | `Headless` | `true` / `false` | `HEADLESS` |
-| `DefaultTimeoutMs` | Playwright's default timeout per page | – |
+| `DefaultTimeoutMs` | Playwright's default timeout per page | `TESTS_DefaultTimeoutMs` |
+| `<App>.BaseUrl`, `RestfulBooker.Username/Password` | | `TESTS_SauceDemo__BaseUrl`, `TESTS_RestfulBooker__Password`, … |
 
 Base URLs end with `/`, and entry pages open `./` (the context's `BaseURL`), so an app can live under a sub-path such as `/todomvc/`.
 
 ### Mobile: `Tests/UI/Mobile/mobilesettings.json`
 
-Same pattern: `MobileSettingsProvider.Current` loads `mobilesettings.json` from the output directory once. It holds `Platform` (`Android`/`iOS`), `AppType` (`Web`/`Native`), `BaseUrl`, and `Server`, `Device`, `Android`, `IOS` and `Behavior` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
+Same pattern: `MobileSettingsProvider.Current` loads `mobilesettings.json` from the output directory once, then `MOBILE_*` variables and the `APPIUM_URL` / `DEVICE_NAME` aliases. It holds `Platform` (`Android`/`iOS`), `AppType` (`Web`/`Native`), `BaseUrl`, and `Server`, `Device`, `Android`, `IOS` and `Behavior` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
 
 ### Test data
 
@@ -233,7 +246,7 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
 
 | Setting | Environment override | Notes |
 |---|---|---|
-| `Provider` | `LOGGING_PROVIDER` | `elastic` or `console` |
+| `Provider` | `LOGGING_PROVIDER` | `elastic` or `console` (any other key works with the `LOGGING_` prefix too, e.g. `LOGGING_Elastic__Url`) |
 | `Elastic.Url` | `ELASTIC_URL` | |
 | `Elastic.Username` / `Elastic.Password` | `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` | **Only set these in the environment** (or a CI secret variable); keep them empty in the file. The local `docker compose` stack needs none. |
 | `Elastic.CertificateFingerprint` | `ELASTIC_CERT_FINGERPRINT` | CA fingerprint for `ON_LOCALHOST_SECURE`; when empty, the local self-signed certificate is accepted |

@@ -43,7 +43,7 @@ Tests/UI/Mobile/
 ```text
 SauceDemoTests.SauceDemo_LoginPage_ShouldLoad()
   └─ MobileTestBase.Run(body)  →  Core.Testing.TestRunner.Run(...)
-        1. MobileSettingsProvider.Current          (mobilesettings.json, loaded once)
+        1. MobileSettingsProvider.Current          (mobilesettings.json + MOBILE_* / APPIUM_URL / DEVICE_NAME, loaded once)
         2. MobileOptionsBuilder.Parse/Build        → (Android|iOS, Web|Native) → AppiumOptions
         3. MobileDriverFactory.CreateDriver        → AndroidDriver / IOSDriver (Appium server at Server.Url)
         4. Web: navigate to BaseUrl · Native: the app is launched from the capabilities
@@ -57,7 +57,7 @@ SauceDemoTests.SauceDemo_LoginPage_ShouldLoad()
 
 ## Configuration: `mobilesettings.json`
 
-The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Configuration/*.cs`.
+The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
 
 | Section | Keys | Notes |
 |---|---|---|
@@ -113,4 +113,3 @@ The scripts run `dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Ca
 
 - An emulator job in CI (self-hosted agent or a device cloud such as BrowserStack/Sauce Labs). Point `Server.Url` at the provider.
 - Native Android and iOS sample tests.
-- Environment overrides for `mobilesettings.json` (e.g. `APPIUM_URL`, `DEVICE_NAME`), like `BROWSER`/`HEADLESS` on the Playwright side.

@@ -64,7 +64,7 @@ Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Core/Models/RestfulBooker`, `Core/TestData/Todo`, `Core/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
 - **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
-- **Settings = record + cached provider**: `TestSettings`/`ConfigurationProvider`, `LoggingConfig`/`LoggingConfigProvider`, `MobileSettings`/`MobileSettingsProvider`.
+- **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
 ---
@@ -73,9 +73,10 @@ Conventions (the same in every project):
 
 ### 3.1 Configuration
 
-- **Playwright tests:** `ConfigurationProvider.Current` lazily loads `Tests/testsettings.json` from the output directory (thread-safe) and applies `BROWSER` / `HEADLESS` overrides. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
-- **Logging:** `LoggingConfigProvider.Current` lazily loads `logging-config.json`, found by walking up from the run directory, and applies `LOGGING_PROVIDER` / `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT` overrides. Credentials only come from the environment.
-- **Mobile:** `MobileSettingsProvider.Current` (in the mobile project) lazily loads `Tests/UI/Mobile/mobilesettings.json` from the output directory.
+- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases.
+- **Playwright tests:** `ConfigurationProvider.Current`: `Tests/testsettings.json` from the output directory, `TESTS_*`, aliases `BROWSER` / `HEADLESS`. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
+- **Logging:** `LoggingConfigProvider.Current`: `logging-config.json` (found by walking up from the run directory), `LOGGING_*`, aliases `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT`. Credentials only come from the environment.
+- **Mobile:** `MobileSettingsProvider.Current` (in the mobile project): `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.
 
 ### 3.2 Browsers
 

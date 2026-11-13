@@ -1,16 +1,25 @@
-using System.Text.Json;
+using Core.Configuration;
 
 namespace Core.Logging;
 
 /// <summary>
 /// Thread-safe, lazily loaded <see cref="LoggingConfig"/>: <c>logging-config.json</c> (repository root, found by
-/// walking up from the current directory), then environment overrides: <c>LOGGING_PROVIDER</c>, <c>ELASTIC_URL</c>,
-/// <c>ELASTIC_USERNAME</c>, <c>ELASTIC_PASSWORD</c>, <c>ELASTIC_CERT_FINGERPRINT</c>. Credentials belong in the
-/// environment, not in the committed file.
+/// walking up from the current directory), then <c>LOGGING_*</c> environment variables (e.g. <c>LOGGING_PROVIDER</c>,
+/// <c>LOGGING_Elastic__Url</c>), then the aliases <c>ELASTIC_URL</c>, <c>ELASTIC_USERNAME</c>, <c>ELASTIC_PASSWORD</c>,
+/// <c>ELASTIC_CERT_FINGERPRINT</c>. Credentials belong in the environment, not in the committed file.
 /// </summary>
 public static class LoggingConfigProvider
 {
     public const string FileName = "logging-config.json";
+    public const string EnvPrefix = "LOGGING_";
+
+    private static readonly Dictionary<string, string> Aliases = new()
+    {
+        ["ELASTIC_URL"] = "Elastic:Url",
+        ["ELASTIC_USERNAME"] = "Elastic:Username",
+        ["ELASTIC_PASSWORD"] = "Elastic:Password",
+        ["ELASTIC_CERT_FINGERPRINT"] = "Elastic:CertificateFingerprint",
+    };
 
     private static readonly Lazy<LoggingConfig> _lazyConfig = new(Load, LazyThreadSafetyMode.ExecutionAndPublication);
 
@@ -18,30 +27,15 @@ public static class LoggingConfigProvider
 
     private static LoggingConfig Load()
     {
-        var path = Path.Combine(FindRootPath(), FileName);
-        var cfg = JsonSerializer.Deserialize<LoggingConfig>(
-                      File.ReadAllText(path),
-                      new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                  ?? new LoggingConfig();
+        var cfg = SettingsLoader.Load<LoggingConfig>(FindRootPath(), FileName, EnvPrefix, Aliases);
 
         // A section set to null in the JSON would otherwise override the defaults.
-        var elastic = cfg.Elastic ?? new ElasticSection();
         return cfg with
         {
-            Provider = Env("LOGGING_PROVIDER") ?? cfg.Provider,
-            Elastic = elastic with
-            {
-                Url = Env("ELASTIC_URL") ?? elastic.Url,
-                Username = Env("ELASTIC_USERNAME") ?? elastic.Username,
-                Password = Env("ELASTIC_PASSWORD") ?? elastic.Password,
-                CertificateFingerprint = Env("ELASTIC_CERT_FINGERPRINT") ?? elastic.CertificateFingerprint
-            },
+            Elastic = cfg.Elastic ?? new ElasticSection(),
             Console = cfg.Console ?? new ConsoleSection()
         };
     }
-
-    private static string? Env(string name) =>
-        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : null;
 
     private static string FindRootPath()
     {
