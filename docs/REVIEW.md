@@ -12,6 +12,9 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
 | R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
+| R21 | P3 | Open | – | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
+| R22 | P4 | Open | – | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
+| R23 | P4 | Open | – | [Allure results pile up across local runs](#r23) | Reporting |
 | R13 | P3 | Closed | 2026-11-14 · `7a8e003` | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Closed | 2026-11-14 · `7a8e003` | [Allure published as raw results only](#r14) | CI / reporting |
 | R18 | P4 | Closed | 2026-11-14 · `536694d` | [No unit tests for the framework itself](#r18) | Quality |
@@ -180,6 +183,14 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 - **Problem:** on 2026-11-14 two UI tests failed once with `net::ERR_CONNECTION_RESET` while opening saucedemo.com and passed on the rerun. A momentary network blip at the demo site fails the whole test. (The failure reasons were read back from Elasticsearch, which shows the R2 fix working.)
 - **Fix:** retry the initial navigation only (not the assertions), e.g. up to 2 extra attempts on network errors (`net::ERR_*`) with a short backoff, in a shared `BasePage.GotoAsync` helper. Avoid blanket test reruns, which hide real failures.
 
+<a id="r21"></a>
+### R21. Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write
+
+- **Status:** Open
+- **Where:** `Core/Logging/Elastic/ElasticConnectivity.cs` (`code >= 200 && code < 500`), `ElasticLoggingService.Write`, `ElasticResultsPublisher.Publish`.
+- **Problem:** the reachability probe counts any 2xx–4xx answer as "reachable". With wrong credentials (401/403), or an incompatible server (the OpenSearch 406 found in R2), the `elastic` provider is chosen anyway. Then every log line prints an indexing error, every test logs a publish failure, and nothing reaches the console fallback. Seen during the R2 investigation.
+- **Fix:** probe with the configured credentials and require 2xx (and, ideally, an Elasticsearch 8.x `version.number` from `GET /`); otherwise fall back to the console with one clear message. Also disable the Elastic logger after the first failed write instead of failing on every line.
+
 ---
 
 ## P4: Nice to have
@@ -207,3 +218,19 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 - **Where:** `Core/TestData/ITestDataLoader.cs`, `Core/TestData/TestDataLoader.cs`.
 - **Problem:** the interface has a single implementation, and the class is only used through its static `Instance` singleton. Since JSON test data is now the exception, nothing currently calls it.
 - **Fix:** drop the interface (and possibly the singleton). Bring back an abstraction if a second loader (e.g. CSV, or loading from a database) is ever needed.
+
+<a id="r22"></a>
+### R22. `Console.Enabled` in `logging-config.json` does nothing
+
+- **Status:** Open
+- **Where:** `logging-config.json` (`Console.Enabled`), `Core/Logging/ConsoleSection.cs`.
+- **Problem:** the setting is loaded but never read, so `"Enabled": false` doesn't turn console logging off. A setting that looks like it works but doesn't is misleading.
+- **Fix:** either honour it (e.g. the console provider logs nothing, or only errors, when disabled) or remove `ConsoleSection` and the key from the file and docs.
+
+<a id="r23"></a>
+### R23. Allure results pile up across local runs
+
+- **Status:** Open
+- **Where:** `Tests/bin/<Configuration>/net10.0/allure-results/` (written by `Allure.Xunit`).
+- **Problem:** `Allure.Xunit` doesn't clear its results folder, so each local `dotnet test` adds to the previous runs' results (checked: 2 results after one run, 4 after two). `allure serve` on that folder then mixes old and new runs. The run scripts delete the folder first, and CI agents start clean, so only plain local `dotnet test` runs are affected.
+- **Fix:** clear the folder once at the start of a test run, e.g. a `[ModuleInitializer]` in the test projects calling `AllureLifecycle.Instance.CleanupResultDirectory()`, or document running through the scripts.
