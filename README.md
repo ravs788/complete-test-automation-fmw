@@ -207,7 +207,7 @@ Where uniqueness matters, builders generate it (`BookingBuilder`'s last name, `T
 - large or captured payloads (recorded API responses, contract fixtures),
 - data that differs per environment.
 
-Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matching record in `Core/Models/<App>/`, and load it with `TestDataLoader.Instance.Load<T>("<App>/<TestClass>/<Scenario>.json")`. Secrets never go in either. They belong in settings or environment variables.
+Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matching record in `Core/Models/<App>/`, and load it with `TestDataLoader.Load<T>("<App>/<TestClass>/<Scenario>.json")`. Secrets never go in either. They belong in settings or environment variables.
 
 ---
 
