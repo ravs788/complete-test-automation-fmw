@@ -14,21 +14,9 @@ public sealed record TestSettings
 
     public float DefaultTimeoutMs { get; init; } = 30_000f;
 
-    public WebAppSettings TodoMvc { get; init; } = new() { BaseUrl = "https://demo.playwright.dev/todomvc" };
+    public WebAppSettings TodoMvc { get; init; } = new() { BaseUrl = "https://demo.playwright.dev/todomvc/" };
 
     public WebAppSettings SauceDemo { get; init; } = new() { BaseUrl = "https://www.saucedemo.com/" };
 
     public ApiSettings RestfulBooker { get; init; } = new() { BaseUrl = "https://restful-booker.herokuapp.com/" };
-}
-
-public sealed record WebAppSettings
-{
-    public string BaseUrl { get; init; } = string.Empty;
-}
-
-public sealed record ApiSettings
-{
-    public string BaseUrl { get; init; } = string.Empty;
-    public string Username { get; init; } = string.Empty;
-    public string Password { get; init; } = string.Empty;
 }

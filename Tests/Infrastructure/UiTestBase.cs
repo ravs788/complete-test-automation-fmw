@@ -1,15 +1,12 @@
-namespace Tests.Infrastructure;
-
+using System.Runtime.CompilerServices;
 using Allure.Net.Commons;
 using Core.Configuration;
-using Tests.Fixtures;
-using Core.Utilities;
+using Core.Logging;
+using Core.Testing;
 using Microsoft.Playwright;
-using System;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using Xunit;
+using Tests.Fixtures;
 
+namespace Tests.Infrastructure;
 /// <summary>
 /// Base for browser tests. Each test gets a fresh context and page (opened at <see cref="BaseUrl"/>);
 /// wrap the test body in <see cref="RunAsync"/> for logging, Allure timing, a full-page screenshot on
@@ -74,4 +71,3 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
         AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
     }
 }
-

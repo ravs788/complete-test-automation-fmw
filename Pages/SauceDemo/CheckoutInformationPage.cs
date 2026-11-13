@@ -1,9 +1,7 @@
-namespace Pages.SauceDemo;
-
-using Pages.Common;
 using Microsoft.Playwright;
-using System.Threading.Tasks;
+using Pages.Common;
 
+namespace Pages.SauceDemo;
 /// <summary>"Checkout: Your Information" step.</summary>
 public sealed class CheckoutInformationPage(IPage page) : BasePage(page)
 {

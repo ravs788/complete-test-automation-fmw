@@ -1,35 +1,31 @@
-namespace Tests.Api;
-
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
-using Core.Api;
-using Core.Api.RestfulBooker;
+using Core.Models.RestfulBooker;
+using Core.TestData.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
-using Core.Utilities;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Xunit;
 
-[AllureSuite("Booking Post API")]
-[AllureTag("api", "post", "regression")]
+namespace Tests.Api;
+
+[AllureParentSuite("API")]
+[AllureSuite("Restful Booker")]
+[AllureSubSuite("Create booking")]
+[AllureTag("api", "restful-booker", "post", "regression")]
 [Trait("Category", "regression")]
 public class BookingApiPostTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
     public Task Create_New_Booking_Should_Succeed() => RunAsync(async () =>
     {
-        var newBooking = TestDataLoader.Instance.Load<Booking>("BookingApiPostTests/HappyPath.json");
-        // Randomize a key property to avoid demo API duplication/spam rejection
-        newBooking = newBooking with { lastname = $"{newBooking.lastname}_{System.DateTime.UtcNow.Ticks}" };
+        var newBooking = BookingMother.Standard(); // unique last name, so the shared demo API never sees a duplicate
 
         var created = await Client.PostAsync<CreatedBooking>("booking", newBooking);
 
         AllureApi.Step("Assert booking creation response", () =>
         {
             Assert.NotNull(created);
-            Assert.True(created.bookingid > 0, "Response missing bookingid");
-            Assert.Equal(newBooking, created.booking);
+            Assert.True(created.BookingId > 0, "Response missing bookingid");
+            Assert.Equal(newBooking, created.Booking);
         });
     });
 }

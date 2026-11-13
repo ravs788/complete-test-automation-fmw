@@ -7,7 +7,7 @@
 #  - Node.js with Appium v2 installed
 #     npm i -g appium
 #     appium driver install uiautomator2
-#  - Appium server running on http://127.0.0.1:4723/
+#  - Appium server running at the Server.Url in Tests/UI/Mobile/mobilesettings.json (default http://127.0.0.1:4723/)
 #  - Chrome installed on the device/emulator
 # ================================================
 
@@ -30,9 +30,9 @@ else
   echo "[WARN] adb was not found on PATH."
 fi
 
-dotnet test Tests/UI/Mobile/UI.Mobile.Tests.csproj \
+dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj \
   -v minimal \
-  --filter "FullyQualifiedName~UI.Mobile.Tests.Samples.AndroidWeb.SmokeMobileWebTests"
+  --filter "Category=smoke"
 EXIT_CODE=$?
 
 if [[ "$EXIT_CODE" -ne 0 ]]; then

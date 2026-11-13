@@ -1,31 +1,31 @@
-namespace Tests.UI.Web.SauceDemo;
-
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Models.SauceDemo;
 using Core.TestData.SauceDemo;
+using Microsoft.Playwright;
 using Pages.SauceDemo;
 using Tests.Fixtures;
-using Core.Utilities;
-using Microsoft.Playwright;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
 
-[AllureSuite("CheckoutFlow")]
-[AllureTag("checkout-flow", "ui", "regression")]
+namespace Tests.UI.Web.SauceDemo;
+
+[AllureParentSuite("UI Web")]
+[AllureSuite("SauceDemo")]
+[AllureSubSuite("Checkout")]
+[AllureTag("ui", "saucedemo", "checkout", "regression")]
 [Trait("Category", "regression")]
 public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
     public Task EndToEnd_Checkout_Success() => RunAsync(async () =>
     {
-        var testData = TestDataLoader.Instance.Load<CheckoutFlowTestData>("CheckoutFlowTests/EndToEnd_Checkout_Success.json");
+        Product[] products = [ProductMother.Backpack(), ProductMother.BikeLight()];
+        var checkoutInfo = CheckoutInfoMother.Standard();
 
-        var inventory = await LoginAsync(testData.User.Username, testData.User.Password);
+        var inventory = await LoginAsync(UserMother.Standard());
         await AllureApi.Step("Assert inventory page loaded after login", async () =>
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
 
-        foreach (var product in testData.Products)
+        foreach (var product in products)
         {
             await inventory.AddToCartAsync(product.Name);
         }
@@ -35,7 +35,7 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
         await AllureApi.Step("Assert cart contains the selected products", async () =>
         {
             await Assertions.Expect(cart.Title).ToHaveTextAsync("Your Cart");
-            await Assertions.Expect(cart.ItemNames).ToHaveTextAsync(testData.Products.Select(p => p.Name).ToArray());
+            await Assertions.Expect(cart.ItemNames).ToHaveTextAsync(products.Select(p => p.Name).ToArray());
         });
 
         await cart.CheckoutAsync();
@@ -44,9 +44,9 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
             await Assertions.Expect(information.Title).ToHaveTextAsync("Checkout: Your Information"));
 
         await information.FillAndContinueAsync(
-            testData.CheckoutInfo.FirstName,
-            testData.CheckoutInfo.LastName,
-            testData.CheckoutInfo.PostalCode);
+            checkoutInfo.FirstName,
+            checkoutInfo.LastName,
+            checkoutInfo.PostalCode);
 
         var overview = new CheckoutOverviewPage(Page);
         await Assertions.Expect(overview.Title).ToHaveTextAsync("Checkout: Overview");

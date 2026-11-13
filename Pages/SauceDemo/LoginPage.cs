@@ -1,8 +1,7 @@
-namespace Pages.SauceDemo;
-
-using Pages.Common;
 using Microsoft.Playwright;
-using System.Threading.Tasks;
+using Pages.Common;
+
+namespace Pages.SauceDemo;
 
 public sealed class LoginPage(IPage page) : BasePage(page)
 {
@@ -12,8 +11,8 @@ public sealed class LoginPage(IPage page) : BasePage(page)
 
     public ILocator ErrorMessage => Page.Locator("[data-test='error']");
 
-    /// <summary>Opens the login page (the context's BaseURL root).</summary>
-    public async Task OpenAsync() => await Page.GotoAsync("/");
+    /// <summary>Opens the login page (the context's BaseURL).</summary>
+    public async Task OpenAsync() => await Page.GotoAsync("./");
 
     public async Task LoginAsync(string username, string password)
     {

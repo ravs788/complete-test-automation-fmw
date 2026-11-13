@@ -1,0 +1,39 @@
+{
+  // Appium suite settings (Tests/UI/Mobile). Copied to the test output directory.
+  "Platform": "Android",
+  "AppType": "Web",
+  "BaseUrl": "https://www.saucedemo.com/",
+
+  "Server": {
+    "Url": "http://127.0.0.1:4723/",
+    "CommandTimeoutSec": 120,
+    "NewCommandTimeoutSec": 120
+  },
+  "Device": {
+    "DeviceName": "emulator-5554",
+    "PlatformVersion": "14",
+    "Udid": "",
+    "Orientation": "portrait"
+  },
+  "Android": {
+    "AutomationName": "UiAutomator2",
+    "App": "",
+    "AppPackage": "",
+    "AppActivity": "",
+    "BrowserName": "Chrome",
+    // Leave both empty to let Appium download a matching Chromedriver.
+    "ChromedriverExecutable": "",
+    "ChromedriverExecutableDir": ""
+  },
+  "IOS": {
+    "AutomationName": "XCUITest",
+    "App": "",
+    "BundleId": "",
+    "BrowserName": "Safari"
+  },
+  "Behavior": {
+    "NoReset": true,
+    "FullReset": false,
+    "AcceptAlertsAutomatically": true
+  }
+}

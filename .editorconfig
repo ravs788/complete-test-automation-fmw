@@ -18,3 +18,11 @@ dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 dotnet_diagnostic.CS8600.severity = warning
 dotnet_diagnostic.CS8602.severity = warning
 dotnet_diagnostic.CS8603.severity = warning
+
+# Layout: one file-scoped namespace per file (matching the folder), usings above it, System.* first.
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+dotnet_style_namespace_match_folder = true:suggestion
+dotnet_diagnostic.IDE0005.severity = warning

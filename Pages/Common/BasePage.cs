@@ -1,7 +1,6 @@
-namespace Pages.Common;
-
 using Microsoft.Playwright;
-using System;
+
+namespace Pages.Common;
 
 public abstract class BasePage(IPage page)
 {

@@ -1,15 +1,12 @@
-namespace Tests.Infrastructure;
-
+using System.Runtime.CompilerServices;
 using Core.Api;
 using Core.Api.RestfulBooker;
 using Core.Configuration;
+using Core.Logging;
+using Core.Testing;
 using Tests.Fixtures;
-using Core.Utilities;
-using System;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using Xunit;
 
+namespace Tests.Infrastructure;
 /// <summary>
 /// Base for Restful Booker API tests. Each test gets its own <see cref="ApiClient"/>
 /// (a Playwright APIRequestContext); wrap the body in <see cref="RunAsync"/>.

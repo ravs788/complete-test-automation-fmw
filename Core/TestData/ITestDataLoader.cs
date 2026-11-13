@@ -1,7 +1,6 @@
-namespace Core.Utilities
+namespace Core.TestData;
+
+public interface ITestDataLoader
 {
-    public interface ITestDataLoader
-    {
-        T Load<T>(string filePath);
-    }
+    T Load<T>(string filePath);
 }

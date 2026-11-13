@@ -1,16 +1,15 @@
-namespace Tests.UI.Web.SauceDemo;
-
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
 using Core.TestData.SauceDemo;
-using Tests.Fixtures;
-using Core.Utilities;
 using Microsoft.Playwright;
-using System.Threading.Tasks;
-using Xunit;
+using Tests.Fixtures;
 
-[AllureSuite("Saucedemo")]
-[AllureTag("saucedemo", "ui", "smoke", "regression")]
+namespace Tests.UI.Web.SauceDemo;
+
+[AllureParentSuite("UI Web")]
+[AllureSuite("SauceDemo")]
+[AllureSubSuite("Login")]
+[AllureTag("ui", "saucedemo", "login", "smoke", "regression")]
 [Trait("Category", "smoke")]
 [Trait("Category", "regression")]
 public class SauceDemoTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
@@ -18,9 +17,7 @@ public class SauceDemoTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixtu
     [Fact]
     public Task Saucedemo_Login_ShouldShowInventory() => RunAsync(async () =>
     {
-        var user = TestDataLoader.Instance.Load<User>("SauceDemoTests/Saucedemo_Login_ShouldShowInventory.json");
-
-        var inventory = await LoginAsync(user.Username, user.Password);
+        var inventory = await LoginAsync(UserMother.Standard());
 
         await AllureApi.Step("Assert inventory page loaded after login", async () =>
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));

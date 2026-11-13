@@ -5,9 +5,9 @@
     <Project Path="Tests/Tests.csproj" />
   </Folder>
   <Folder Name="/Tests/Desktop/">
-    <Project Path="Tests/Desktop/UI.Desktop.Tests.csproj" />
+    <Project Path="Tests/Desktop/Tests.Desktop.csproj" />
   </Folder>
   <Folder Name="/Tests/UI/Mobile/">
-    <Project Path="Tests/UI/Mobile/UI.Mobile.Tests.csproj" />
+    <Project Path="Tests/UI/Mobile/Tests.UI.Mobile.csproj" />
   </Folder>
 </Solution>
