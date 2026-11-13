@@ -72,6 +72,7 @@ TestAutomationProj/
 │   │       ├── SauceDemo/             # SauceDemoTests
 │   │       ├── mobilesettings.json    # Appium server, platform, device, android/ios, behavior
 │   │       └── package.json           # npm scripts: appium, appium-doctor, driver install
+│   ├── Unit/                          # Framework unit tests (own project: Tests.Unit.csproj; no browser, no network)
 │   ├── Fixtures/                      # PlaywrightFixture (browser per class), ApiFixture
 │   ├── Infrastructure/                # UiTestBase, ApiTestBase
 │   └── testsettings.json              # Browser, headless, timeouts, app URLs, API credentials
@@ -81,7 +82,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests
+├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests, Tests/Unit
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -91,10 +92,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` folder, which is a separate project. Every project's assembly name equals its root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
+Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -126,6 +127,9 @@ Step-by-step setup for **Windows, macOS and Linux**, with what each platform can
 ```bash
 # Restore & build everything
 dotnet build TestAutomationPlatform.slnx
+
+# Framework unit tests (about a second, no browser or network)
+dotnet test Tests/Unit/Tests.Unit.csproj
 
 # All Playwright tests (web UI + API)
 dotnet test Tests/Tests.csproj
@@ -337,9 +341,10 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 
 1. Shallow checkout, .NET 10 SDK
-2. Build `ci.slnf` (Release): `Core`, `Pages` and `Tests`. Mobile is skipped.
-3. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
-4. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
+2. Build `ci.slnf` (Release): `Core`, `Pages`, `Tests` and `Tests/Unit`, with warnings as errors. Mobile is skipped.
+3. `dotnet test Tests/Unit/Tests.Unit.csproj`: the framework unit tests, first, so a broken `Core` fails fast.
+4. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
+5. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
 
 Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
 

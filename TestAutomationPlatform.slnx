@@ -4,6 +4,9 @@
   <Folder Name="/Tests/">
     <Project Path="Tests/Tests.csproj" />
   </Folder>
+  <Folder Name="/Tests/Unit/">
+    <Project Path="Tests/Unit/Tests.Unit.csproj" />
+  </Folder>
   <Folder Name="/Tests/UI/Mobile/">
     <Project Path="Tests/UI/Mobile/Tests.UI.Mobile.csproj" />
   </Folder>

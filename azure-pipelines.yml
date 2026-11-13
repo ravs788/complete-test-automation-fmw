@@ -69,8 +69,13 @@ stages:
               version: "10.x"
 
           # build restores implicitly; one call is faster than restore + build
+          # Directory.Build.props treats warnings (incl. code style) as errors here, because TF_BUILD is set.
           - script: dotnet build ci.slnf --configuration $(buildConfiguration)
             displayName: "Build CI Projects (Release)"
+
+          # Framework unit tests first: they take about a second and fail fast on a broken Core.
+          - script: dotnet test Tests/Unit/Tests.Unit.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=unit_results.trx" $(coverageArgs)
+            displayName: "Run Framework Unit Tests"
 
           - script: dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
             displayName: "Run Playwright UI + API Tests"
@@ -82,7 +87,7 @@ stages:
               testResultsFormat: "VSTest"
               testResultsFiles: "**/*_results.trx"
               searchFolder: "$(System.DefaultWorkingDirectory)"
-              testRunTitle: "Playwright UI + API"
+              testRunTitle: "Unit + Playwright UI + API"
               failTaskOnFailedTests: true
 
           - task: PublishCodeCoverageResults@2

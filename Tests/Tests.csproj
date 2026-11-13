@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
-    <!-- Tests/UI/Mobile (Appium) is a separate project inside this folder; don't compile it here. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);UI/Mobile/**</DefaultItemExcludes>
+    <!-- Tests/UI/Mobile (Appium) and Tests/Unit are separate projects inside this folder; don't compile them here. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);UI/Mobile/**;Unit/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
