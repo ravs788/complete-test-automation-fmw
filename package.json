@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "appium-chromedriver": "^7.0.35",
-    "node-fetch": "^2.6.1"
-  }
-}

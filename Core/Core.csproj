@@ -11,11 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Elastic.Clients.Elasticsearch" />
     <PackageReference Include="Allure.Net.Commons" />
+    <PackageReference Include="Microsoft.Playwright" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Utilities\SerilogLoggingService.cs" />
-  </ItemGroup>
-
 
 </Project>

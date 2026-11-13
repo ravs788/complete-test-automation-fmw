@@ -5,27 +5,24 @@
 [![Issues](https://img.shields.io/github/issues/ravs788/complete-test-automation-fmw)](https://github.com/ravs788/complete-test-automation-fmw/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/ravs788/complete-test-automation-fmw)](https://github.com/ravs788/complete-test-automation-fmw/commits/main)
 
-A modular C# / .NET 10 test automation framework covering REST API, Web UI, and Android mobile-web testing, with Allure reporting, pluggable logging (Console / Elasticsearch), with source on GitHub and CI/CD on Azure DevOps Pipelines.
+A modular C# / .NET 10 test automation framework. **Playwright** drives both the web UI and the REST API tests, **Appium** drives the Android mobile-web tests, and everything runs on **xUnit + Allure**, with pluggable logging (Console / Elasticsearch). Source lives on GitHub and CI/CD runs on Azure DevOps Pipelines.
 
 ---
 
 ## 🚀 Features
 
-- **.NET 10** across all projects (`net10.0`, `LangVersion=latest`, nullable enabled)
-- **One test framework everywhere: xUnit + Allure** (`Allure.Xunit`) for the API, Selenium, Playwright and Mobile suites
-- **Two web UI stacks side by side**
-  - **Selenium + xUnit + Allure** (`UI/Web`) running against [saucedemo.com](https://www.saucedemo.com/) on Chrome, Firefox, and Edge
-  - **Playwright + xUnit + Allure** (`src/` + `tests/`) running against the [Playwright TodoMVC demo](https://demo.playwright.dev/todomvc), using async page objects, web-first assertions, and an Object Mother/Builder for test data
-- **Mobile tests** (`UI/Mobile`) with Appium 2 + xUnit: Android mobile web (Chrome/Firefox) against saucedemo.com, with iOS and native-app support in the driver bootstrap
-- **REST API tests** (`API`) with RestSharp + xUnit against [Restful Booker](https://restful-booker.herokuapp.com/)
-- **Page Object Model** in all UI suites
-- **Selenium Grid support**: set `GridUrl` in `UI/Web/config.json` to run against a remote grid instead of local drivers
-- **JSON test data** loaded by convention from each project's `test-data/` folder (`Core.Utilities.TestDataLoader`)
-- **Per-project configuration**: each `Core`-based project (API, UI/Web, UI/Mobile) owns its `config.json` plus a strongly typed `ConfigSettings` class, loaded through `Core.Utilities.ConfigLoader`
+- **.NET 10** across all projects (`net10.0`, nullable enabled)
+- **Playwright for UI and API**
+  - **Web UI**: [saucedemo.com](https://www.saucedemo.com/) and the [Playwright TodoMVC demo](https://demo.playwright.dev/todomvc), with async page objects and auto-retrying `Expect(...)` assertions, on Chromium, Chrome, Edge, Firefox or WebKit
+  - **REST API**: [Restful Booker](https://restful-booker.herokuapp.com/) through Playwright's `APIRequestContext` (no RestSharp)
+- **Mobile tests** (`Tests/UI/Mobile`) with Appium 2: Android mobile web against saucedemo.com, with iOS and native-app support in the driver bootstrap
+- **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
+- **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `Tests/UI/Mobile/`, `Desktop/`)
+- **Settings in `Tests/testsettings.json`**, with `BROWSER` / `HEADLESS` environment overrides
+- **JSON test data** loaded by convention from `Tests/test-data/` (`TestDataLoader`), plus Builder/Object Mother data for TodoMVC
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
-- **Allure reporting**: per-test start/end/duration parameters, screenshots on failure, tag-based categories
-- **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub: smoke tests on PRs, regression on `main`
-- **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)** for clean → build → test → Allure merge. The batch scripts use a bundled `tools/dotnet` if one exists and fall back to the system `dotnet` otherwise.
+- **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
+- **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
 - **Local OpenSearch stack** (`docker-compose.yml`) for the Elastic logging provider
 
 ---
@@ -35,96 +32,77 @@ A modular C# / .NET 10 test automation framework covering REST API, Web UI, and 
 ```plaintext
 TestAutomationProj/
 │
-├── Core/                              # Shared library for the API, UI/Web and UI/Mobile suites (config, logging, TestRunner)
+├── Core/                              # Shared framework code (Core.csproj; also used by Tests/UI/Mobile)
+│   ├── Api/                           # ApiClient (Playwright APIRequestContext) + ApiException
+│   │   └── RestfulBooker/             # Booking models, AuthClient (token)
+│   ├── Configuration/                 # TestSettings + ConfigurationProvider (testsettings.json, BROWSER/HEADLESS)
+│   │                                  # ConfigLoader (config.json, used by Tests/UI/Mobile)
+│   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Logging/                       # Common/ (factories, interfaces), Console/, Elastic/
 │   ├── Models/                        # LoggingConfig, ElasticSection, ConsoleSection, LogMetadata
-│   └── Utilities/
-│       ├── Config/ConfigLoader.cs           # Loads <output>/config.json into a typed settings class
-│       ├── TestData/                        # ITestDataLoader + TestDataLoader (reads <output>/test-data/...)
-│       ├── Logging/
-│       │   ├── Common/                      # ILoggingService, IResultsPublisher, provider factories + selectors
-│       │   ├── Console/                     # Console logging + results publisher
-│       │   └── Elastic/                     # Elasticsearch client, connectivity probe, logging + publisher
-│       └── Screenshots/                     # IScreenshotHelper + Core stub (UI/Web supplies the real one)
+│   ├── Testing/                       # TestRunner: logging, Allure timing, failure hook, results publishing
+│   └── TestData/                      # TestDataLoader, TodoItem Builder/Mother, SauceDemo/ test-data models
 │
-├── API/                               # API test suite (xUnit + RestSharp + Allure)
-│   ├── Models/                        # Booking, BookingDates, Auth
-│   ├── Tests/                         # BaseApiTest + Get/Post/Put/Patch/Delete/HealthCheck tests
-│   ├── Utilities/                     # ApiClient, AuthHelper, ConfigSettings
+├── Pages/                             # Page objects (Pages.csproj)
+│   ├── Common/BasePage.cs
+│   ├── SauceDemo/                     # LoginPage, InventoryPage, CartPage, Checkout* pages
+│   └── Todo/TodoPage.cs
+│
+├── Tests/                             # All tests
+│   ├── Tests.csproj                   # Playwright tests: Api/ + UI/Web/ (one project, run in CI)
+│   ├── Api/                           # BookingApi{Get,Post,Update,Patch,Delete,HealthCheck}Tests
+│   ├── UI/
+│   │   ├── Web/                       # Playwright web UI tests
+│   │   │   ├── SauceDemo/             # SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
+│   │   │   └── Todo/                  # TodoTests
+│   │   └── Mobile/                    # Appium mobile suite (own project: UI.Mobile.Tests.csproj, refs Core)
+│   │       ├── Drivers/Bootstrap.cs   # Builds AppiumOptions/driver for Android/iOS, Native/Web
+│   │       ├── Pages/                 # Native/Android/AndroidBasePage, Web/MobileWebBasePage
+│   │       ├── Tests/                 # BaseMobileTest + Samples/AndroidWeb smoke tests
+│   │       ├── Utilities/             # Typed config models, GestureHelper, WaitHelper
+│   │       ├── config.json            # Appium server, platform, device, android/ios, behavior
+│   │       └── package.json           # npm scripts: appium, appium-doctor, driver install
+│   ├── Desktop/                       # Placeholder (own project: UI.Desktop.Tests.csproj, no tests yet)
+│   ├── Fixtures/                      # PlaywrightFixture (browser per class), ApiFixture
+│   ├── Infrastructure/                # UiTestBase, ApiTestBase
 │   ├── test-data/<TestClass>/*.json
-│   ├── config.json
-│   └── API.Tests.csproj
-│
-├── UI/
-│   ├── Web/                           # Selenium web suite (xUnit + Allure)
-│   │   ├── Pages/                     # BasePage, LoginPage, InventoryPage, CartPage, Checkout* pages
-│   │   ├── Models/                    # User, Product, CheckoutInfo, *TestData
-│   │   ├── Tests/                     # BaseWebTest, SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
-│   │   ├── Utilities/                 # AllureScreenshotHelper, AssertHelper, ConfigSettings
-│   │   ├── test-data/<TestClass>/*.json
-│   │   ├── config.json
-│   │   └── UI.Web.Tests.csproj
-│   ├── Mobile/                        # Appium mobile suite (xUnit + Allure)
-│   │   ├── Drivers/Bootstrap.cs       # Builds AppiumOptions/driver for Android/iOS, Native/Web
-│   │   ├── Pages/                     # Native/Android/AndroidBasePage, Web/MobileWebBasePage
-│   │   ├── Tests/                     # BaseMobileTest + Samples/AndroidWeb smoke tests
-│   │   ├── Utilities/                 # Typed config models, GestureHelper, WaitHelper
-│   │   ├── config.json                # Appium server, platform, device, android/ios, behavior
-│   │   └── package.json               # npm scripts: appium, appium-doctor, driver install
-│   └── Desktop/                       # Placeholder (xUnit project, no tests yet)
-│
-├── src/                               # Playwright stack: libraries
-│   ├── Automation.Core/
-│   │   ├── Configuration/             # TestSettings record + ConfigurationProvider (lazy singleton)
-│   │   ├── Driver/                    # PlaywrightDriverFactory (browser + isolated context)
-│   │   └── TestData/                  # TodoItem, TodoItemBuilder, TodoItemMother
-│   └── Automation.Pages/
-│       ├── Common/BasePage.cs
-│       └── Todo/TodoPage.cs
-│
-├── tests/                             # Playwright stack: tests
-│   └── Automation.Tests/
-│       ├── Fixtures/PlaywrightFixture.cs   # Shared browser per class, fresh context per test
-│       └── Todo/TodoTests.cs
+│   └── testsettings.json              # Browser, headless, timeouts, app URLs, API credentials
 │
 ├── scripts/
 │   ├── windows/                       # .bat run scripts, kill drivers, Appium env check/fix (.ps1)
 │   └── unix/                          # .sh equivalents for macOS/Linux
-├── docs/
-│   ├── ARCHITECTURE.md                # Overall design
-│   ├── MOBILE_ARCHITECTURE.md         # Mobile layer design + Appium setup
-│   ├── GETTING_STARTED.md             # Step-by-step local setup + troubleshooting
-│   └── CONTRIBUTING.md                # Code-style rules
+├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── .editorconfig                      # C# code style (indent, line endings, nullable warnings)
-├── Directory.Build.props              # Shared Allure results directory for all projects
+├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests
+├── .editorconfig                      # C# code style
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
 ├── logging-config.json                # Global logging provider configuration
 ├── docker-compose.yml                 # 2-node OpenSearch + Dashboards (ports 9200 / 5601)
-├── package.json                       # Node deps used by the Appium tooling (appium-chromedriver)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: all 8 projects
+└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/UI/Mobile, Tests/Desktop
 ```
 
-NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there.
+Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Desktop` folders, which are separate projects.
 
-Code style for `.cs` files comes from `.editorconfig` (4-space indent, LF line endings, UTF-8, and nullable warnings CS8600/CS8602/CS8603 raised to `warning`).
+NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
+
+Code style for `.cs` files comes from `.editorconfig`.
 
 ---
 
 ## 🧰 Prerequisites
 
 - [.NET SDK 10.x](https://dotnet.microsoft.com/download)
-- For the Selenium suite: Chrome, Firefox, and/or Edge installed locally. Selenium Manager resolves the drivers.
-- For the Playwright suite: Playwright browsers, installed after the first build:
+- Browsers for the Playwright tests. Either install Playwright's own builds after the first build:
 
   ```bash
-  dotnet build tests/Automation.Tests/Automation.Tests.csproj
-  pwsh tests/Automation.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
+  dotnet build Tests/Tests.csproj
+  pwsh Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium   # or: install (all browsers)
   ```
 
-  Alternatively, skip the download and use your installed Google Chrome by setting `PLAYWRIGHT_CHANNEL=chrome` (this is what CI does).
+  or use a browser you already have, with `BROWSER=chrome` or `BROWSER=msedge`. CI uses `chrome`.
 - Optional: the [Allure CLI](https://allurereport.org/docs/install/) for viewing reports
 - For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md).
 - Optional: Elasticsearch/OpenSearch for the `elastic` logging provider. `docker compose up -d` starts a local OpenSearch cluster on `http://localhost:9200`, with Dashboards on `http://localhost:5601`.
@@ -139,80 +117,58 @@ For a guided walkthrough, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 # Restore & build everything
 dotnet build TestAutomationPlatform.slnx
 
-# API tests
-dotnet test API/API.Tests.csproj
+# All Playwright tests (web UI + API)
+dotnet test Tests/Tests.csproj
 
-# Selenium web tests (all browsers; add --filter "DisplayName~chrome" for one browser)
-dotnet test UI/Web/UI.Web.Tests.csproj
+# Only the API tests / only the web UI tests
+dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~Tests.Api."
+dotnet test Tests/Tests.csproj --filter "FullyQualifiedName!~Tests.Api."
+
+# Another browser, with the window visible
+BROWSER=webkit HEADLESS=false dotnet test Tests/Tests.csproj
+
+# Smoke tests only
+dotnet test Tests/Tests.csproj --filter "Category=smoke"
 
 # Mobile web smoke tests (Appium server + Android emulator must be running)
-dotnet test UI/Mobile/UI.Mobile.Tests.csproj
+dotnet test Tests/UI/Mobile/UI.Mobile.Tests.csproj
 
-# Playwright web tests
-dotnet test tests/Automation.Tests/Automation.Tests.csproj
-
-# View Allure results (after a run). Each project writes to its own
-# bin/<Configuration>/net10.0/allure-results; the run_all_tests_gen_report
-# scripts merge them into ./allure-results.
-allure serve API/bin/Debug/net10.0/allure-results
+# View Allure results after a run (or use the scripts below, which collect them into ./allure-results)
+allure serve Tests/bin/Debug/net10.0/allure-results
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### API, UI/Web, UI/Mobile: per-project `config.json`
+### Playwright tests: `Tests/testsettings.json`
 
-Each project copies its `config.json` and `test-data/**` to the build output. `ConfigLoader.Load<T>()` reads `config.json` from `AppContext.BaseDirectory`.
+`Core.Configuration.ConfigurationProvider.Current` loads `testsettings.json` from the test output directory once (thread-safe), then applies environment overrides:
 
-**UI/Web** (`UI/Web/config.json`):
 ```json
 {
-  "RunTestsInParallel": false,
-  "Browser": "chrome",
-  "Headless": false,
-  "PageLoadTimeoutSec": 90,
-  "BaseUrl": "https://www.saucedemo.com/"
+  "Browser": "chromium",
+  "Headless": true,
+  "DefaultTimeoutMs": 30000,
+  "TodoMvc": { "BaseUrl": "https://demo.playwright.dev/todomvc" },
+  "SauceDemo": { "BaseUrl": "https://www.saucedemo.com/" },
+  "RestfulBooker": {
+    "BaseUrl": "https://restful-booker.herokuapp.com/",
+    "Username": "admin",
+    "Password": "password123"
+  }
 }
 ```
 
-Other optional `UI/Web` settings (from `ConfigSettings`): `GridUrl` (Selenium Grid; empty = local), `DriverCommandTimeoutSec` (60), `PageLoadTimeoutSec` (30), `ScriptTimeoutSec` (30), `ImplicitWaitTimeoutSec` (0), `ChromeDriverPath` / `FirefoxDriverPath` / `EdgeDriverPath` / `FirefoxBinaryPath` (empty = Selenium Manager resolves them).
+| Setting | Values | Environment override |
+|---------|--------|----------------------|
+| `Browser` | `chromium` (Playwright's bundled build), `chrome` / `msedge` (installed Google Chrome / Microsoft Edge, no download), `firefox`, `webkit` | `BROWSER` |
+| `Headless` | `true` / `false` | `HEADLESS` |
+| `DefaultTimeoutMs` | Playwright's default timeout per page | – |
 
-**API** (`API/config.json`):
-```json
-{
-  "BaseUrl": "https://restful-booker.herokuapp.com/",
-  "DefaultUsername": "admin",
-  "DefaultPassword": "password123"
-}
-```
+### Mobile: `Tests/UI/Mobile/config.json`
 
-Usage:
-```csharp
-using Core.Utilities;
-
-var cfg = ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
-var baseUrl = cfg.BaseUrl;
-```
-
-**UI/Mobile** (`UI/Mobile/config.json`) holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
-
-> In the Selenium suite the browser comes from each test's `[InlineData("chrome")]`, `[InlineData("firefox")]`, `[InlineData("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on in CI, i.e. when `TF_BUILD`, `GITHUB_ACTIONS`, or `CI` is `true`.
-
-### Playwright suite: `TestSettings`
-
-`Automation.Core.Configuration.TestSettings` is an immutable record exposed through `ConfigurationProvider.Current`, a thread-safe lazy singleton:
-
-| Setting            | Default                                  |
-|--------------------|------------------------------------------|
-| `BaseUrl`          | `https://demo.playwright.dev/todomvc`    |
-| `Browser`          | `chromium` (also `firefox`, `webkit`)    |
-| `Headless`         | `true`                                   |
-| `DefaultTimeoutMs` | `30000`                                  |
-
-> These values are currently compile-time defaults; no file or environment variable overrides them yet.
->
-> Separately, `PlaywrightDriverFactory` reads the `PLAYWRIGHT_CHANNEL` environment variable for Chromium. When it's set (e.g. `chrome` or `msedge`), Playwright launches that installed browser instead of its bundled Chromium. If it's unset, Playwright uses the bundled Chromium.
+`Tests/UI/Mobile/config.json` holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. It's loaded with `Core.Utilities.ConfigLoader.Load<T>()`. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
 
 ### Test data
 
@@ -222,15 +178,13 @@ var data = TestDataLoader.Instance.Load<CheckoutFlowTestData>(
     "CheckoutFlowTests/EndToEnd_Checkout_Success.json");
 ```
 
-Convention: `test-data/<TestClassName>/<Scenario>.json`.
-
-The Playwright suite generates data instead of loading files. It uses `TodoItemMother.StandardItem()` / `TodoItemBuilder`, which produce GUID-based titles that can't collide across tests.
+Convention: `Tests/test-data/<TestClassName>/<Scenario>.json`, with the matching models in `Core/TestData/SauceDemo/` (UI) and `Core/Api/RestfulBooker/` (API). The TodoMVC tests generate data instead, with `TodoItemMother.StandardItem()` / `TodoItemBuilder`, so titles are GUID-based and can't collide across tests.
 
 ---
 
 ## 🧾 Logging (Pluggable Providers)
 
-The API, UI/Web and UI/Mobile suites read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
+The Playwright tests (`Tests/`) and the Mobile suite read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
 
 ```json
 {
@@ -261,7 +215,7 @@ var logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
 logger.Info("message");
 ```
 
-Index names in use: `ui-web-logs-{date}` (UI/Web) and `test-logs-{date}` (API).
+Index names in use: `ui-web-logs-{date}` (web UI tests), `test-logs-{date}` (API tests) and `ui-mobile-logs-{date}` (Mobile).
 
 > Don't commit real Elasticsearch credentials. Keep a placeholder in `logging-config.json` and use local overrides.
 
@@ -269,7 +223,7 @@ Index names in use: `ui-web-logs-{date}` (UI/Web) and `test-logs-{date}` (API).
 
 ## 📣 Results Publishing
 
-`BaseApiTest`, `BaseWebTest` and `BaseMobileTest` publish one `LogMetadata` record per test through `ResultsPublisherFactory.Create()`, from `Core.Utilities.TestRunner` (see Test Infrastructure below). The record contains project, class, method, status, duration, failure reason, start/end time, run name, user, and browser. A publish failure is logged and never fails the test.
+`UiTestBase`, `ApiTestBase` and `BaseMobileTest` publish one `LogMetadata` record per test through `ResultsPublisherFactory.Create()`, from `Core`'s `TestRunner` (see Test Infrastructure below). The record contains project (`ui-web`, `api` or `ui-mobile`), class, method, status, duration, failure reason, start/end time, run name, user, and browser. A publish failure is logged and never fails the test.
 
 - `Provider=elastic`: results are indexed into Elasticsearch
 - `Provider=console`: results are printed to the console
@@ -278,41 +232,41 @@ Index names in use: `ui-web-logs-{date}` (UI/Web) and `test-logs-{date}` (API).
 
 ## 📊 Allure Reporting
 
-- Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run. Each project writes results to its own `bin/<Configuration>/net10.0/allure-results/`. The `run_all_tests_gen_report` scripts merge them into a root `allure-results/`, and CI publishes a single merged `allure-results` artifact.
-- Allure attributes (`[AllureSuite]`, `[AllureTag]`, …) come from `Allure.Net.Commons.Attributes`.
-- `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every API, UI/Web and Mobile test.
-- `BaseWebTest` appends the browser to the Allure test name, e.g. `EndToEnd_Checkout_Success (chrome)`, and attaches a screenshot when a test fails. `BaseMobileTest` appends the platform and app type, e.g. `(Android Web)`.
+- Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run, and writes to `bin/<Configuration>/net10.0/allure-results/`. The run scripts collect the results (plus `categories.json`) into `./allure-results`, and CI publishes them as the `allure-results` artifact.
+- Allure attributes (`[AllureSuite]`, `[AllureTag]`, …) come from `Allure.Net.Commons.Attributes`. Steps use `AllureApi.Step(...)`.
+- `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every test.
+- `UiTestBase` appends the browser to the test name, e.g. `EndToEnd_Checkout_Success (chrome)`, records it as a `browser` parameter (so per-browser runs stay separate when merged), and attaches a full-page screenshot when a test fails. `BaseMobileTest` appends the platform and app type, e.g. `(Android Web)`.
+- A failed Playwright `Expect(...)` is reported as an xUnit assertion failure, so Allure shows it as **failed** rather than **broken**.
 - `allure-categories.json` groups results into **UI Tests** and **API Tests** by the `ui` / `api` tags.
-- Playwright tests report to Allure with their suite, tags and pass/fail result. They don't attach screenshots on failure yet.
 
-> **Version pin:** the solution stays on **xUnit v2** with **`xunit.runner.visualstudio` 2.8.2** (see `Directory.Packages.props`). `Allure.Xunit` doesn't support xUnit v3. Test adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter, so you'd get no Allure results.
+> **Version pin:** the solution stays on **xUnit v2** with **`xunit.runner.visualstudio` 2.8.2** (see `Directory.Packages.props`). `Allure.Xunit` doesn't support xUnit v3, and test adapters from 3.0 on can't load Allure's reporter, so you'd get no Allure results.
 
 ### Tags and categories in use
 
-Each test class carries `[AllureTag(...)]` (for Allure) and xUnit `[Trait("Category", ...)]` (for `dotnet test --filter "Category=..."`, which CI uses). Selenium tests are `[Theory]`s with the browser as the first argument, so filter browsers with `DisplayName~chrome`.
+Each test class carries `[AllureTag(...)]` (for Allure) and xUnit `[Trait("Category", ...)]` (for `dotnet test --filter "Category=..."`).
 
-| Suite     | Allure tags | `Category` traits |
-|-----------|-------------|------------------|
-| API       | `api`, `health`/`get`/`post`/`put`/`patch`/`delete`, `smoke`, `regression` | `smoke` (health check only), `regression` (all) |
-| UI/Web    | `ui`, `saucedemo`/`add-to-cart`/`cart`/`checkout-flow`/`login`/`negative`, `smoke`, `regression` | `smoke` (SauceDemo login only), `regression` (all) |
-| Playwright | `todo`, `ui`, `playwright`, `regression` | `regression` |
-| UI/Mobile | `mobile`, `web`, `android`, `smoke` | none yet |
+| Suite | Allure tags | `Category` traits |
+|-------|-------------|-------------------|
+| API (`Tests/Api`) | `api`, `health`/`get`/`post`/`put`/`patch`/`delete`, `smoke`, `regression` | `smoke` (health check only), `regression` (all) |
+| SauceDemo (`Tests/UI/Web/SauceDemo`) | `ui`, `saucedemo`/`add-to-cart`/`cart`/`checkout-flow`/`login`/`negative`, `smoke`, `regression` | `smoke` (login only), `regression` (all) |
+| TodoMVC (`Tests/UI/Web/Todo`) | `todo`, `ui`, `playwright`, `regression` | `regression` |
+| Mobile (`Tests/UI/Mobile`) | `mobile`, `web`, `android`, `smoke` | none yet |
 
 ---
 
 ## 🧪 Running Tests via Scripts
 
-Run the Windows scripts from the repository root. Each `scripts\windows\*.bat` script has a `scripts/unix/*.sh` equivalent for macOS/Linux, and the shell scripts can be run from any directory. They detect the target framework with `scripts/unix/detect_net_version.sh`.
+Each `scripts\windows\*.bat` script has a `scripts/unix/*.sh` equivalent for macOS/Linux; both can be run from any directory. The `run_*` scripts build `Tests/Tests.csproj`, run it, stamp `run.timestamp` and the browser into `environment.properties`, and collect the Allure results plus `categories.json` into `./allure-results`. They honour `BROWSER` and `HEADLESS`.
 
-| Script                                   | What it does |
-|------------------------------------------|--------------|
-| `scripts\windows\run_all_tests_gen_report.bat` | Kills drivers, cleans, builds, runs API + UI/Web + Playwright, stamps `run.timestamp`, and merges results (plus `categories.json`) into `allure-results/` |
-| `scripts\windows\run_api_tests_gen_report.bat` | Runs the API suite only and copies results to `allure-results/` |
-| `scripts\windows\run_web_tests_gen_report.bat` | Runs the UI/Web suite only and copies results to `allure-results/` |
-| `scripts\windows\run_ui_web_all_browsers.bat`  | Runs UI/Web once per browser (chrome, firefox, edge; `--filter DisplayName~<browser>`), keeps per-browser result sets, then merges them |
-| `scripts\windows\run_mobile_android_web.bat`   | Runs the Android mobile-web smoke tests (needs Appium + emulator running) |
-| `scripts\windows\kill_all_webdrivers.bat`      | Kills orphaned `chromedriver` / `geckodriver` / `msedgedriver` processes |
-| `scripts\windows\appium_env_check.ps1` / `appium_env_fix.ps1` | Diagnose / repair the Windows Appium + Android environment (Java, Android SDK, PATH) |
+| Script | What it does |
+|--------|--------------|
+| `run_all_tests_gen_report` | All Playwright tests (web UI + API) |
+| `run_api_tests_gen_report` | API tests only (`FullyQualifiedName~Tests.Api.`) |
+| `run_web_tests_gen_report` | Web UI tests only (SauceDemo + TodoMVC) |
+| `run_ui_web_all_browsers` | Web UI tests once per browser in `BROWSERS` (default `chromium firefox webkit`), merged into one result set with an `environment.<browser>.properties` per browser |
+| `_run_playwright_tests` | Shared helper the scripts above call (`<label> [filter]`) |
+| `run_mobile_android_web` | Runs the Android mobile-web smoke tests (needs Appium + emulator running) |
+| `appium_env_check.ps1` / `appium_env_fix.ps1` | Windows only: diagnose / repair the Appium + Android environment (Java, Android SDK, PATH) |
 
 ---
 
@@ -322,28 +276,23 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 
 ### Triggers
 
-| Event | API + Playwright | Selenium web |
-|-------|------------------|--------------|
-| PR into `main` | full suites | `Category=smoke`, Chrome |
-| Push to `main` or `release/*` | full suites | `Category=regression`, Chrome |
+| Event | Tests run (Chrome) |
+|-------|--------------------|
+| PR into `main` | API + TodoMVC (all), SauceDemo `smoke` (`--filter "FullyQualifiedName!~.SauceDemo.\|Category=smoke"`) |
+| Push to `main` or `release/*` | Everything, plus code coverage |
 
 ### Job (`azure-pipelines.yml`)
 
-All suites run in a **single job** (`Tests`, `ubuntu-latest`):
+Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 
-1. .NET 10 SDK, shallow checkout
-2. Build `ci.slnf` (Release). This is a solution filter with only the projects CI tests: API, Playwright, Selenium and their libraries. Mobile and Desktop are skipped.
-3. Run the **API**, **Playwright** and **Selenium** suites (all xUnit). Selenium runs smoke on PRs and regression on pushes, **Chrome test cases only** (`DisplayName~chrome` filter); Firefox and Edge run locally via `run_ui_web_all_browsers`.
-4. Publish TRX test results (failures fail the build) and the Allure results. Cobertura coverage is collected and published on `main`/`release/*` only.
+1. Shallow checkout, .NET 10 SDK
+2. Build `ci.slnf` (Release): `Core`, `Pages` and `Tests`. Mobile and Desktop are skipped.
+3. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
+4. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
 
-Why it's built this way:
+Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
 
-- **One job:** the Azure DevOps org has a single parallel job, so separate jobs ran one after another. Each job also repeated agent start-up, checkout, SDK setup and the build.
-- **No Playwright browser download:** the pipeline sets `PLAYWRIGHT_CHANNEL=chrome`, so Playwright drives the Google Chrome that the hosted image already has.
-
-The Allure results of all three suites are merged into one pipeline artifact, `allure-results`, which includes `categories.json`. To view them, download the artifact and run `allure serve <folder>`.
-
-The Desktop project isn't in CI because it has no tests yet; add a Windows job once it does. The Appium `UI/Mobile` suite isn't run in CI either: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
+The Appium `Tests/UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide. `Tests/Desktop` has no tests yet.
 
 ### Connecting the pipeline (one-time)
 
@@ -355,80 +304,64 @@ The Desktop project isn't in CI because it has no tests yet; add a Windows job o
 
 ## 🛠️ Test Infrastructure
 
-### `Core/Utilities/Testing/TestRunner.cs` (shared)
+### `Core/Testing/TestRunner.cs`
 
-xUnit v2 has no setup/teardown hook that knows a test's name or whether it passed. So instead of NUnit-style `[SetUp]`/`[TearDown]`, each base class wraps every test body in `TestRunner.Run`/`RunAsync`, which:
+xUnit v2 has no teardown hook that knows a test's name or whether it passed. So each base class wraps every test body in `TestRunner.Run`/`RunAsync`, which:
 
 - logs the start, and on failure, the error
-- runs a failure hook (UI suites: attach a screenshot to Allure) and then rethrows, so the test still fails
-- always adds the Allure timing parameters, publishes the `LogMetadata` result, and runs cleanup (quit the driver)
+- runs a failure hook (UI: attach a screenshot to Allure) and then rethrows, so the test still fails
+- always adds the Allure timing parameters, publishes the `LogMetadata` result, and runs cleanup
 
 A test therefore looks like this:
 
 ```csharp
-[Theory]
-[InlineData("chrome")]
-[InlineData("edge")]
-public void CanAddBackpackToCart(string browser) => Run(browser, () =>
+[Fact]
+public Task CanAddBackpackToCart() => RunAsync(async () =>
 {
-    // test body: Driver, Logger, AllureApi.Step(...), Assert.*
+    // Page, Settings, Logger, AllureApi.Step(...), Assertions.Expect(...)
 });
 ```
 
-### `UI/Web/Tests/BaseWebTest.cs` (Selenium)
+### `Tests/Infrastructure/UiTestBase.cs` (web UI)
 
-- `Run(browser, body)` creates a Chrome, Firefox, or Edge driver for the theory's browser argument, with headless mode taken from config (forced on in CI)
-- Uses a `RemoteWebDriver` against `GridUrl` when one is set. Otherwise it uses a configured driver path, falling back to Selenium Manager.
-- Bypasses system proxies for the local WebDriver connection
-- Applies the page-load, script, and implicit-wait timeouts, maximizes the window, and navigates to `BaseUrl`
-- Appends the browser to the Allure test name and takes a screenshot on failure
-- Always quits the driver. `Dispose()` is a safety net.
-- Test classes run **sequentially** (`UI/Web/Properties/AssemblyInfo.cs` disables xUnit parallelization), matching `RunTestsInParallel: false` and the previous NUnit behaviour
+- Uses `PlaywrightFixture` (`IClassFixture`): **one browser per test class**, launched by `PlaywrightDriverFactory` for the configured `Browser`
+- Gives each test a **new isolated `IBrowserContext` and `Page`** with `BaseURL` set to the app's `BaseUrl` (SauceDemo, TodoMVC) and the default timeout applied, and closes it after the test
+- `RunAsync` adds the browser to the Allure name and parameters, attaches a full-page screenshot on failure, and turns a failed Playwright `Expect` into an xUnit assertion failure
+- `SauceDemoTestBase` adds `LoginAsync(username, password)`
 
-### `API/Tests/BaseApiTest.cs`
+### `Tests/Infrastructure/ApiTestBase.cs` (API)
 
-- The constructor creates a fresh `ApiClient` per test (xUnit creates a new class instance per test), and `Dispose()` disposes it
-- `RunAsync(async () => ...)` records timing to Allure, logs, and publishes the result
-- Test classes run in parallel (xUnit's default), as they did under NUnit
+- Uses `ApiFixture`: one Playwright instance per class, no browser
+- Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
+- `GetAuthTokenAsync()` gets a Restful Booker token. `ApiClient` sends it as the `token` cookie on PUT, PATCH and DELETE.
+- `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)
 
-### `UI/Mobile/Tests/BaseMobileTest.cs` (Appium)
+### `Tests/UI/Mobile/Tests/BaseMobileTest.cs` (Appium)
 
 - `Run(body)` parses `platform` / `appType` from config, and `Drivers/Bootstrap.cs` builds the `AppiumOptions` and the Android or iOS driver
 - For mobile web, navigates to `baseUrl`. For native apps, launches the configured app or package.
-- Records timing, logging, result publishing, and a failure screenshot through `TestRunner`, like the other bases
+- Records timing, logging, result publishing, and a failure screenshot through `TestRunner`
 - Pages inherit `MobileWebBasePage` or `AndroidBasePage`. `GestureHelper` and `WaitHelper` handle swipes, taps, and waits.
-
-### `tests/Automation.Tests/Fixtures/PlaywrightFixture.cs` (Playwright / xUnit)
-
-- Shared through `IClassFixture<PlaywrightFixture>`: launches **one browser per test class**
-- `CreateCleanPageAsync()` gives each test a **new isolated `IBrowserContext`** with `BaseURL` and the default timeout applied
-- Tests close their own context in `DisposeAsync`. The fixture closes the browser.
 
 ---
 
 ## ➕ Adding Tests
 
-### Selenium (UI/Web)
+### Web UI
 
-1. Add or extend a page object in `UI/Web/Pages/` (inherit `BasePage`).
-2. Add test data at `UI/Web/test-data/<TestClass>/<Scenario>.json` and a matching model in `UI/Web/Models/`.
-3. Create a test class that inherits `BaseWebTest`, decorated with `[AllureSuite]`, `[AllureTag("ui", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Make each test a `[Theory]` with one `[InlineData("<browser>")]` per browser, and wrap the body in `Run(browser, () => { ... })`.
+1. Add a page object in `Pages/<App>/` (inherit `Pages.Common.BasePage`), exposing `ILocator`s for assertions and async intent methods for actions.
+2. Add test data at `Tests/test-data/<TestClass>/<Scenario>.json` and a model in `Core/TestData/<App>/` (or a Builder/Mother for generated data).
+3. Add a test class in `Tests/UI/Web/<App>/` that inherits `UiTestBase` (or `SauceDemoTestBase`), takes `PlaywrightFixture` in its constructor, overrides `BaseUrl` if it's a new app (and add its URL to `testsettings.json` / `TestSettings`), and carries `[AllureSuite]`, `[AllureTag("ui", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });` and assert with `Assertions.Expect(...)`.
 
 ### API
 
-1. Add models in `API/Models/` and data in `API/test-data/<TestClass>/`.
-2. Inherit `BaseApiTest`, add `[AllureSuite]`, `[AllureTag("api", ...)]` and `[Trait("Category", ...)]`, and write each test as `[Fact] public Task X() => RunAsync(async () => { ... });`. Use `_client` (`ApiClient`) and `AuthHelper` for authenticated calls.
+1. Add models in `Core/Api/<Service>/` and data in `Tests/test-data/<TestClass>/`.
+2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureSuite]`, `[AllureTag("api", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthTokenAsync()`.
 
 ### Mobile
 
-1. Add a page in `UI/Mobile/Pages/Web/` or `UI/Mobile/Pages/Native/<Platform>/`, inheriting the matching base page.
+1. Add a page in `Tests/UI/Mobile/Pages/Web/` or `Tests/UI/Mobile/Pages/Native/<Platform>/`, inheriting the matching base page.
 2. Create a test class that inherits `BaseMobileTest`, with `[AllureTag("mobile", ...)]` and, once CI runs mobile tests, a `[Trait("Category", ...)]`. Write each test as `[Fact] public void X() => Run(() => { ... });`.
-
-### Playwright
-
-1. Add a page object in `src/Automation.Pages/<Feature>/` (inherit `Automation.Pages.Common.BasePage`) and expose `ILocator`s for assertions.
-2. Add builders/mothers for test data in `src/Automation.Core/TestData/`.
-3. Add an xUnit class in `tests/Automation.Tests/<Feature>/` that implements `IClassFixture<PlaywrightFixture>, IAsyncLifetime`, add `[AllureSuite]`/`[AllureTag]`, and use `Assertions.Expect(...)` for auto-retrying assertions.
 
 See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
@@ -436,13 +369,11 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ## ⚠️ Known Issues / TODO
 
-- **Mobile config is machine-specific.** `UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
+- **Mobile config is machine-specific.** `Tests/UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
 - **Mobile tests aren't in CI.** They have no `Category` trait, and hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
-- **`EndToEnd_Checkout_Success` is occasionally flaky on Edge locally.** A page-object element lookup (`#first-name`) can run before the checkout page has loaded. CI runs Chrome only.
-- **Playwright settings are hard-coded.** `TestSettings` doesn't read config files or environment variables yet.
-- **Desktop is a placeholder.** `UI/Desktop` has no tests yet and isn't part of the CI pipeline. It still builds as part of the solution.
+- **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
+- **Desktop is a placeholder.** `Tests/Desktop` has no tests yet and isn't part of the CI pipeline. It still builds as part of the solution.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
-- **`Core.csproj`** excludes `Utilities\SerilogLoggingService.cs`, which no longer exists. This is harmless but can be removed.
 
 ---
 

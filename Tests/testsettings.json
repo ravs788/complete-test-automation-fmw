@@ -1,0 +1,15 @@
+{
+  // Playwright suites (UI + API). Environment overrides: BROWSER, HEADLESS.
+  // Browser: chromium (bundled) | chrome | msedge (installed browsers) | firefox | webkit
+  "Browser": "chromium",
+  "Headless": true,
+  "DefaultTimeoutMs": 30000,
+
+  "TodoMvc": { "BaseUrl": "https://demo.playwright.dev/todomvc" },
+  "SauceDemo": { "BaseUrl": "https://www.saucedemo.com/" },
+  "RestfulBooker": {
+    "BaseUrl": "https://restful-booker.herokuapp.com/",
+    "Username": "admin",
+    "Password": "password123"
+  }
+}
