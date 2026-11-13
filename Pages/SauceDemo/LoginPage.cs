@@ -13,7 +13,17 @@ public sealed class LoginPage(IPage page) : SauceDemoPage(page)
     /// <summary>Opens the login page (the context's BaseURL).</summary>
     public async Task OpenAsync() => await GotoAsync("./");
 
-    public async Task LoginAsync(string username, string password)
+    /// <summary>Signs in and returns the inventory page.</summary>
+    public async Task<InventoryPage> LoginAsync(string username, string password)
+    {
+        await SubmitAsync(username, password);
+        return new InventoryPage(Page);
+    }
+
+    /// <summary>Submits credentials that should be rejected; stays on the login page (see <see cref="ErrorMessage"/>).</summary>
+    public async Task LoginExpectingErrorAsync(string username, string password) => await SubmitAsync(username, password);
+
+    private async Task SubmitAsync(string username, string password)
     {
         await Username.FillAsync(username);
         await Password.FillAsync(password);

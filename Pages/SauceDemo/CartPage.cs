@@ -12,5 +12,9 @@ public sealed class CartPage(IPage page) : SauceDemoPage(page)
     public async Task RemoveAsync(string productName) =>
         await Item(productName).GetByRole(AriaRole.Button, new() { Name = "Remove" }).ClickAsync();
 
-    public async Task CheckoutAsync() => await TestId("checkout").ClickAsync();
+    public async Task<CheckoutInformationPage> CheckoutAsync()
+    {
+        await TestId("checkout").ClickAsync();
+        return new CheckoutInformationPage(Page);
+    }
 }

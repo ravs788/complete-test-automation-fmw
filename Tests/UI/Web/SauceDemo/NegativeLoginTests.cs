@@ -34,7 +34,7 @@ public class NegativeLoginTests(PlaywrightFixture fixture) : SauceDemoTestBase(f
         var login = new LoginPage(Page);
 
         await login.OpenAsync();
-        await login.LoginAsync(username, password);
+        await login.LoginExpectingErrorAsync(username, password);
 
         await AllureApi.Step("Assert login error displayed", async () =>
         {
