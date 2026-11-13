@@ -7,6 +7,7 @@ using Core.Testing;
 using Tests.Fixtures;
 
 namespace Tests.Infrastructure;
+
 /// <summary>
 /// Base for Restful Booker API tests. Each test gets its own <see cref="ApiClient"/>
 /// (a Playwright APIRequestContext); wrap the body in <see cref="RunAsync"/>.
@@ -34,7 +35,9 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
         }
     }
 
-    protected Task<string> GetAuthTokenAsync() => AuthClient.GetTokenAsync(Client, Api.Username, Api.Password);
+    /// <summary>Headers that authenticate PUT, PATCH and DELETE (a fresh Restful Booker token).</summary>
+    protected Task<IReadOnlyDictionary<string, string>> GetAuthHeadersAsync() =>
+        AuthClient.GetAuthHeadersAsync(Client, Api.Username, Api.Password);
 
     protected Task RunAsync(Func<Task> test, [CallerMemberName] string testName = "") =>
         TestRunner.RunAsync(new TestRunInfo(Logger, "api", GetType(), testName), test);

@@ -25,9 +25,9 @@ public class BookingApiUpdateTests(ApiFixture fixture) : ApiTestBase(fixture)
             Assert.True(created.BookingId > 0, "Post response missing bookingid");
         });
 
-        var token = await GetAuthTokenAsync();
+        var auth = await GetAuthHeadersAsync();
         var updated = BookingMother.FullyChanged();
-        var updateResponse = await Client.PutAsync<Booking>($"booking/{created!.BookingId}", updated, token);
+        var updateResponse = await Client.PutAsync<Booking>($"booking/{created!.BookingId}", updated, auth);
 
         AllureApi.Step("Assert updated booking fields via PUT", () =>
             Assert.Equal(updated, updateResponse));

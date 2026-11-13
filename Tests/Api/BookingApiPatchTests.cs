@@ -25,9 +25,9 @@ public class BookingApiPatchTests(ApiFixture fixture) : ApiTestBase(fixture)
             Assert.True(created.BookingId > 0, "Post response missing id");
         });
 
-        var token = await GetAuthTokenAsync();
+        var auth = await GetAuthHeadersAsync();
         var patch = new BookingPatch { FirstName = "Patched", LastName = "Name" };
-        var patched = await Client.PatchAsync<Booking>($"booking/{created!.BookingId}", patch, token);
+        var patched = await Client.PatchAsync<Booking>($"booking/{created!.BookingId}", patch, auth);
 
         AllureApi.Step("Assert patched fields changed and the other fields are unchanged", () =>
             Assert.Equal(patch.ApplyTo(original), patched));

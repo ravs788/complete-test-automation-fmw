@@ -5,8 +5,9 @@ using Microsoft.Playwright;
 namespace Core.Api;
 
 /// <summary>
-/// Thin JSON client over Playwright's <see cref="IAPIRequestContext"/>.
-/// Non-2xx responses throw <see cref="ApiException"/> carrying the status code.
+/// Thin JSON client over Playwright's <see cref="IAPIRequestContext"/>, independent of any particular API.
+/// Non-2xx responses throw <see cref="ApiException"/> carrying the status code. Authentication is passed in as
+/// per-request <c>headers</c> built by the API-specific code (e.g. <c>RestfulBooker.AuthClient</c>).
 /// </summary>
 public sealed class ApiClient : IAsyncDisposable
 {
@@ -33,44 +34,41 @@ public sealed class ApiClient : IAsyncDisposable
 
     public Task<T?> GetAsync<T>(string endpoint) => SendAsync<T>("GET", endpoint);
 
-    public Task<TResponse?> PostAsync<TResponse>(string endpoint, object body, string? token = null) =>
-        SendAsync<TResponse>("POST", endpoint, body, token);
+    public Task<TResponse?> PostAsync<TResponse>(string endpoint, object body, IReadOnlyDictionary<string, string>? headers = null) =>
+        SendAsync<TResponse>("POST", endpoint, body, headers);
 
-    public Task<TResponse?> PutAsync<TResponse>(string endpoint, object body, string? token = null) =>
-        SendAsync<TResponse>("PUT", endpoint, body, token);
+    public Task<TResponse?> PutAsync<TResponse>(string endpoint, object body, IReadOnlyDictionary<string, string>? headers = null) =>
+        SendAsync<TResponse>("PUT", endpoint, body, headers);
 
-    public Task<TResponse?> PatchAsync<TResponse>(string endpoint, object body, string? token = null) =>
-        SendAsync<TResponse>("PATCH", endpoint, body, token);
+    public Task<TResponse?> PatchAsync<TResponse>(string endpoint, object body, IReadOnlyDictionary<string, string>? headers = null) =>
+        SendAsync<TResponse>("PATCH", endpoint, body, headers);
 
     /// <summary>Sends a DELETE and returns the status code (throws on non-2xx).</summary>
-    public async Task<int> DeleteAsync(string endpoint, string? token = null)
+    public async Task<int> DeleteAsync(string endpoint, IReadOnlyDictionary<string, string>? headers = null)
     {
-        var response = await SendRawAsync("DELETE", endpoint, token: token);
+        var response = await SendRawAsync("DELETE", endpoint, headers: headers);
         EnsureSuccess("DELETE", endpoint, response);
         return response.Status;
     }
 
     /// <summary>Sends a request without checking the status, for tests that assert on it directly.</summary>
-    public async Task<IAPIResponse> SendRawAsync(string method, string endpoint, object? body = null, string? token = null)
+    public async Task<IAPIResponse> SendRawAsync(
+        string method, string endpoint, object? body = null, IReadOnlyDictionary<string, string>? headers = null)
     {
-        var headers = new Dictionary<string, string>();
-        var options = new APIRequestContextOptions { Method = method, Headers = headers };
+        var requestHeaders = new Dictionary<string, string>(headers ?? new Dictionary<string, string>());
+        var options = new APIRequestContextOptions { Method = method, Headers = requestHeaders };
         if (body is not null)
         {
             options.DataString = JsonSerializer.Serialize(body, body.GetType(), JsonOptions);
-            headers["Content-Type"] = "application/json";
-        }
-        if (!string.IsNullOrEmpty(token))
-        {
-            // Restful Booker authenticates write operations with a "token" cookie.
-            headers["Cookie"] = $"token={token}";
+            requestHeaders["Content-Type"] = "application/json";
         }
         return await _request.FetchAsync(endpoint, options);
     }
 
-    private async Task<T?> SendAsync<T>(string method, string endpoint, object? body = null, string? token = null)
+    private async Task<T?> SendAsync<T>(
+        string method, string endpoint, object? body = null, IReadOnlyDictionary<string, string>? headers = null)
     {
-        var response = await SendRawAsync(method, endpoint, body, token);
+        var response = await SendRawAsync(method, endpoint, body, headers);
         EnsureSuccess(method, endpoint, response);
         return JsonSerializer.Deserialize<T>(await response.BodyAsync(), JsonOptions);
     }

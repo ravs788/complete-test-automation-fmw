@@ -34,7 +34,7 @@ TestAutomationProj/
 │
 ├── Core/                              # Shared framework code (Core.csproj; also used by Tests/UI/Mobile)
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext), ApiException
-│   │   └── RestfulBooker/             # AuthClient (POST /auth → token)
+│   │   └── RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
@@ -383,7 +383,7 @@ public Task CanAddBackpackToCart() => RunAsync(async () =>
 
 - Uses `ApiFixture`: one Playwright instance per class, no browser
 - Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
-- `GetAuthTokenAsync()` gets a Restful Booker token. `ApiClient` sends it as the `token` cookie on PUT, PATCH and DELETE.
+- `GetAuthHeadersAsync()` gets a Restful Booker token and returns it as request headers (the `token` cookie), which tests pass to PUT, PATCH and DELETE. `ApiClient` itself knows nothing about any API's auth scheme: it just sends the headers it's given.
 - `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)
 
 ### `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs` (Appium)
@@ -407,7 +407,7 @@ public Task CanAddBackpackToCart() => RunAsync(async () =>
 ### API
 
 1. Add models in `Core/Models/<Service>/`, a Builder + Mother per entity in `Core/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Core/Api/<Service>/`.
-2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthTokenAsync()`.
+2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Core/Api/<Service>/` and return headers the same way).
 
 ### Mobile
 

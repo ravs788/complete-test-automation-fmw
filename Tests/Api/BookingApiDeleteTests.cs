@@ -25,8 +25,8 @@ public class BookingApiDeleteTests(ApiFixture fixture) : ApiTestBase(fixture)
             Assert.True(created.BookingId > 0, "Booking creation missing id");
         });
 
-        var token = await GetAuthTokenAsync();
-        var status = await Client.DeleteAsync($"booking/{created!.BookingId}", token);
+        var auth = await GetAuthHeadersAsync();
+        var status = await Client.DeleteAsync($"booking/{created!.BookingId}", auth);
         AllureApi.Step("Assert delete booking response", () =>
             Assert.Equal(201, status)); // Restful Booker answers DELETE with 201 Created
 
