@@ -11,12 +11,12 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R10 | P3 | Open | – | [Mixed test method naming](#r10) | Conventions |
 | R12 | P3 | Open | – | [Logging index names differ by suite](#r12) | Logging |
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R10 | P3 | Closed | 2026-11-14 · `0419662` | [Mixed test method naming](#r10) | Conventions |
 | R8 | P3 | Closed | 2026-11-14 · `ad1a51e` | [Page methods don't return the next page](#r8) | Page objects |
 | R9 | P3 | Closed | 2026-11-14 · `beadaa5` | [CSS-class locators](#r9) | Page objects |
 | R20 | P3 | Closed | 2026-11-14 · `95440c4` | [No retry for transient navigation errors](#r20) | Reliability |
@@ -119,7 +119,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r10"></a>
 ### R10. Mixed test method naming
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `0419662`. All 16 tests follow Subject_Should_Outcome[_When_Condition] (e.g. Cart_Should_ContainProduct_When_ProductAdded); the rule is in CONTRIBUTING. Allure history restarts once for these tests.
 - **Where:** all test classes, e.g. `CanAddBackpackToCart`, `Create_New_Booking_Should_Succeed`, `UserCanCompleteTodoItem`, `Saucedemo_Login_ShouldShowInventory`.
 - **Problem:** three naming styles across the suites.
 - **Fix:** pick one, e.g. `Subject_Should_Outcome[_When_Condition]`, rename every test, and add the rule to `docs/CONTRIBUTING.md`. Note: renaming resets each test's Allure history (its ID is derived from the full name), so do it in a single change.
