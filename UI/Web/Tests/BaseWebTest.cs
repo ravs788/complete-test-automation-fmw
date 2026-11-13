@@ -38,7 +38,7 @@ namespace UI.Web
 
             var config = Core.Utilities.ConfigLoader.Load<UI.Web.Utilities.ConfigSettings>();
             string browser = "firefox"; // default
-            var headless = config.Headless || IsRunningInGitHubActions();
+            var headless = config.Headless || IsRunningInCi();
 
             if (TestContext.CurrentContext.Test.Arguments.Length > 0 && TestContext.CurrentContext.Test.Arguments[0] is string arg)
                 browser = arg.ToLowerInvariant();
@@ -218,8 +218,13 @@ namespace UI.Web
             }
         }
 
-        private static bool IsRunningInGitHubActions() =>
-            string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase);
+        // CI agents have no display, so force headless there.
+        // Azure Pipelines sets TF_BUILD=True; GitHub Actions sets GITHUB_ACTIONS=true; most CIs set CI=true.
+        private static bool IsRunningInCi() =>
+            IsTrue("TF_BUILD") || IsTrue("GITHUB_ACTIONS") || IsTrue("CI");
+
+        private static bool IsTrue(string variableName) =>
+            string.Equals(Environment.GetEnvironmentVariable(variableName), "true", StringComparison.OrdinalIgnoreCase);
 
         private static Process StartLocalDriverProcess(string driverPath, string executableName, int port)
         {

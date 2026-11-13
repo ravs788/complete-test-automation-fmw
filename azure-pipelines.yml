@@ -1,9 +1,20 @@
+# =============================================================================
+# CI/CD for the test automation framework.
+#
+# Source code lives on GitHub (ravs788/complete-test-automation-fmw).
+# This pipeline is connected to that repo through the Azure Pipelines GitHub app,
+# so pushes and PRs on GitHub trigger it and results appear as GitHub checks.
+#
+#   PR into main      -> API + Playwright (full), Selenium (smoke), Desktop build
+#   Push to main /    -> API + Playwright (full), Selenium (regression), Desktop build
+#   release/*
+# =============================================================================
+
 trigger:
   branches:
     include:
       - main
       - release/*
-      - add-elastic-logging
 
 pr:
   branches:
@@ -14,15 +25,16 @@ variables:
   buildConfiguration: "Release"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  isPullRequest: $[eq(variables['Build.Reason'], 'PullRequest')]
 
 stages:
   - stage: BuildAndValidate
     displayName: "PR Validation and Quality Gate"
     jobs:
       # -------------------------------------------------------------
-      # Job 1: Linux Agent for Web and API Suites
+      # Job 1: API (NUnit) + Playwright web (xUnit) on Linux
       # -------------------------------------------------------------
-      - job: WebAndApiAutomation
+      - job: ApiAndPlaywright
         displayName: "API and Playwright Web Suites (Linux)"
         pool:
           vmImage: "ubuntu-latest"
@@ -48,39 +60,96 @@ stages:
             displayName: "Provision Playwright Browsers"
             timeoutInMinutes: 5
 
-          # Run API Tests (NUnit)
           - script: dotnet test API/API.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=api_results.trx" --collect "XPlat Code Coverage"
             displayName: "Run API Test Suite"
             env:
               ENVIRONMENT: "CI"
 
-          # Run Web / Playwright Tests (xUnit)
           - script: dotnet test tests/Automation.Tests/Automation.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=web_results.trx" --collect "XPlat Code Coverage"
             displayName: "Run Playwright Web Suite"
+            condition: succeededOrFailed()
             env:
-              HEADLESS: "true"
               ENVIRONMENT: "CI"
 
           - task: PublishTestResults@2
-            displayName: "Publish VSTest Run Metrics"
+            displayName: "Publish API + Playwright Test Results"
             condition: always()
             inputs:
               testResultsFormat: "VSTest"
               testResultsFiles: "**/*_results.trx"
-              searchFolder: "$(Agent.BuildDirectory)"
+              searchFolder: "$(System.DefaultWorkingDirectory)"
+              testRunTitle: "API + Playwright"
               failTaskOnFailedTests: true
 
           - task: PublishCodeCoverageResults@2
-            displayName: "Publish Code Coverage Quality Gate"
+            displayName: "Publish Code Coverage"
             condition: always()
             inputs:
-              summaryFileLocation: "$(Agent.BuildDirectory)/**/coverage.cobertura.xml"
+              summaryFileLocation: "$(System.DefaultWorkingDirectory)/**/coverage.cobertura.xml"
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload API Allure Results"
+            condition: always()
+            continueOnError: true
+            inputs:
+              targetPath: "API/bin/$(buildConfiguration)/net10.0/allure-results"
+              artifact: "allure-results-api"
 
       # -------------------------------------------------------------
-      # Job 2: Windows Agent for Desktop UI Automation (FlaUI / UIA)
+      # Job 2: Selenium web (NUnit) on Linux
+      #   PR   -> Category=smoke
+      #   push -> Category=regression
+      # Chrome, Firefox and Edge are preinstalled on ubuntu-latest;
+      # Selenium Manager downloads matching drivers. BaseWebTest forces
+      # headless mode because Azure sets TF_BUILD=True.
+      # -------------------------------------------------------------
+      - job: SeleniumWeb
+        displayName: "Selenium Web Suite (Linux)"
+        pool:
+          vmImage: "ubuntu-latest"
+        timeoutInMinutes: 30
+        steps:
+          - task: UseDotNet@2
+            displayName: "Setup .NET SDK 10.x"
+            inputs:
+              packageType: "sdk"
+              version: "10.x"
+
+          - script: dotnet build UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration)
+            displayName: "Compile Selenium Web Suite"
+
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=smoke" --logger "trx;LogFileName=selenium_smoke_results.trx"
+            displayName: "Run Selenium Smoke (PR)"
+            condition: and(succeeded(), eq(variables.isPullRequest, true))
+
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=regression" --logger "trx;LogFileName=selenium_regression_results.trx"
+            displayName: "Run Selenium Regression (main / release)"
+            condition: and(succeeded(), eq(variables.isPullRequest, false))
+
+          - task: PublishTestResults@2
+            displayName: "Publish Selenium Test Results"
+            condition: always()
+            inputs:
+              testResultsFormat: "VSTest"
+              testResultsFiles: "**/selenium_*_results.trx"
+              searchFolder: "$(System.DefaultWorkingDirectory)"
+              testRunTitle: "Selenium Web"
+              failTaskOnFailedTests: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Selenium Allure Results"
+            condition: always()
+            continueOnError: true
+            inputs:
+              targetPath: "UI/Web/bin/$(buildConfiguration)/net10.0/allure-results"
+              artifact: "allure-results-ui-web"
+
+      # -------------------------------------------------------------
+      # Job 3: Desktop UI (FlaUI / UIA) on Windows - build only until
+      # the project contains tests.
       # -------------------------------------------------------------
       - job: DesktopAutomation
-        displayName: "Desktop UI Tests (Windows)"
+        displayName: "Desktop UI Suite (Windows, build only)"
         pool:
           vmImage: "windows-latest"
         timeoutInMinutes: 15
@@ -91,17 +160,5 @@ stages:
               packageType: "sdk"
               version: "10.x"
 
-          - script: dotnet restore UI/Desktop/UI.Desktop.Tests.csproj
-            displayName: "Restore Desktop Dependencies"
-
-          - script: dotnet build UI/Desktop/UI.Desktop.Tests.csproj --configuration $(buildConfiguration) --no-restore
+          - script: dotnet build UI/Desktop/UI.Desktop.Tests.csproj --configuration $(buildConfiguration)
             displayName: "Compile Desktop Suite"
-
-          - task: PublishTestResults@2
-            displayName: "Publish Desktop Test Metrics"
-            condition: always()
-            inputs:
-              testResultsFormat: "VSTest"
-              testResultsFiles: "**/desktop_results.trx"
-              searchFolder: "$(Agent.BuildDirectory)"
-              failTaskOnFailedTests: false

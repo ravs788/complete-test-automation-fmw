@@ -2,7 +2,7 @@
 
 ## Overview
 
-This framework is a modular C# / .NET 10 test automation platform that covers REST API, Web UI, and Android mobile-web testing. A Desktop project exists as a placeholder. It runs in Azure DevOps and GitHub Actions and reports through Allure, TRX, and an optional Elasticsearch sink.
+This framework is a modular C# / .NET 10 test automation platform that covers REST API, Web UI, and Android mobile-web testing. A Desktop project exists as a placeholder. Source lives on GitHub, and CI/CD runs on Azure DevOps Pipelines. It reports through Allure, TRX, and an optional Elasticsearch sink.
 
 The repository contains **two parallel stacks**:
 
@@ -11,7 +11,7 @@ The repository contains **two parallel stacks**:
 | **NUnit stack** | `Core`, `API`, `UI/Web`, `UI/Mobile` | NUnit 4 | RestSharp, Selenium 4 (local or Grid), Appium 2 | Allure + TRX + Console/Elastic results | Mature: full SauceDemo and Restful Booker suites; Android mobile-web samples |
 | **Playwright stack** | `src/Automation.Core`, `src/Automation.Pages`, `tests/Automation.Tests` | xUnit 2 | Microsoft.Playwright | TRX + Cobertura coverage | Newer: TodoMVC sample; the Azure DevOps web suite |
 
-The Playwright stack is the forward-looking web stack: it is async-first, isolates each test in its own browser context, and uses web-first assertions. The Selenium and Appium suites run in GitHub Actions and through the `bat/` and `sh/` scripts.
+The Playwright stack is the forward-looking web stack: it is async-first, isolates each test in its own browser context, and uses web-first assertions. The Selenium suite also runs in Azure Pipelines (smoke on PRs, regression on `main`). The Appium suite runs locally through `scripts/`.
 
 ---
 
@@ -21,7 +21,7 @@ The Playwright stack is the forward-looking web stack: it is async-first, isolat
 - **Maintainable:** clear layering (config → driver → pages → tests) and small, single-purpose classes.
 - **Comprehensive:** API, browser, and mobile automation today; a desktop slot is reserved.
 - **Observable:** Allure reports, TRX for CI dashboards, optional Elasticsearch for logs and trends.
-- **CI/CD ready:** first-class Azure DevOps pipeline, plus GitHub Actions workflows.
+- **CI/CD ready:** Azure DevOps Pipelines, triggered from GitHub.
 
 ---
 
@@ -106,7 +106,7 @@ ILoggingService               IResultsPublisher
   └─ Driver.Quit() / Dispose()
 ```
 
-Driver creation: when `GridUrl` is set, `BaseWebTest` creates a `RemoteWebDriver`. Otherwise it uses a local driver from a configured path, or Selenium Manager when no path is set. It applies the configured timeouts, bypasses system proxies for the local WebDriver connection, and forces headless mode when `GITHUB_ACTIONS=true`.
+Driver creation: when `GridUrl` is set, `BaseWebTest` creates a `RemoteWebDriver`. Otherwise it uses a local driver from a configured path, or Selenium Manager when no path is set. It applies the configured timeouts, bypasses system proxies for the local WebDriver connection, and forces headless mode on CI agents (`TF_BUILD`, `GITHUB_ACTIONS`, or `CI` = `true`).
 
 `BaseApiTest` follows the same pattern, without a driver: it creates a new `ApiClient` per test and disposes it in teardown. API fixtures run in parallel at assembly level.
 
@@ -160,16 +160,16 @@ Isolating each test in its own context gives it fresh cookies and storage while 
 ## 5. CI/CD
 
 ```text
-Azure DevOps (azure-pipelines.yml)                    GitHub Actions (.github/workflows)
-───────────────────────────────────                   ──────────────────────────────────
-Stage: BuildAndValidate                                pr-smoke.yml        ─┐
- ├─ Job WebAndApiAutomation (ubuntu)                   main-regression.yml ─┴─► reusable-test-runner.yml
- │   .NET 10 → build sln → build Playwright tests         (layer=api|ui, tag=smoke|regression; windows)
- │   → playwright install chromium                     api-tests.yml / ui-tests.yml  (manual)
- │   → test API (NUnit) + Playwright (xUnit)
- │   → publish TRX (gate) + Cobertura coverage
+GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)  ──status checks──►  GitHub PR
+
+Stage: BuildAndValidate
+ ├─ Job ApiAndPlaywright (ubuntu)
+ │    .NET 10 → build slnx → playwright install chromium
+ │    → test API (NUnit) + Playwright (xUnit) → TRX (gate) + Cobertura + Allure artifact
+ ├─ Job SeleniumWeb (ubuntu; Chrome/Firefox/Edge preinstalled)
+ │    PR → Category=smoke · main/release → Category=regression → TRX (gate) + Allure artifact
  └─ Job DesktopAutomation (windows)
-     .NET 10 → build UI.Desktop.Tests → publish TRX
+      .NET 10 → build UI.Desktop.Tests (no tests yet)
 ```
 
 Locally, the scripts in `scripts/windows/` and `scripts/unix/` run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
@@ -206,5 +206,6 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 |------------|-------|
 | 2025-09-03 | Initial draft; baseline definition |
 | 2025-09-03 | Added Mobile UI layer; Appium integration planned |
+| 2026-11-13 | CI/CD consolidated on Azure Pipelines sourced from GitHub; GitHub Actions retired; Selenium smoke/regression added to the pipeline. |
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |

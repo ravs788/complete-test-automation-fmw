@@ -1,12 +1,11 @@
 # Modern Test Framework
 
 <!-- Repo Metadata -->
-[![Main Regression](https://github.com/ravs788/complete-test-automation-fmw/actions/workflows/main-regression.yml/badge.svg)](https://github.com/ravs788/complete-test-automation-fmw/actions/workflows/main-regression.yml)
-[![PR Smoke](https://github.com/ravs788/complete-test-automation-fmw/actions/workflows/pr-smoke.yml/badge.svg)](https://github.com/ravs788/complete-test-automation-fmw/actions/workflows/pr-smoke.yml)
+<!-- Azure Pipelines badge: Pipelines → (pipeline) → ⋯ → Status badge, then paste the Markdown here -->
 [![Issues](https://img.shields.io/github/issues/ravs788/complete-test-automation-fmw)](https://github.com/ravs788/complete-test-automation-fmw/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/ravs788/complete-test-automation-fmw)](https://github.com/ravs788/complete-test-automation-fmw/commits/main)
 
-A modular C# / .NET 10 test automation framework covering REST API, Web UI, and Android mobile-web testing, with Allure reporting, pluggable logging (Console / Elasticsearch), and CI on both Azure DevOps and GitHub Actions.
+A modular C# / .NET 10 test automation framework covering REST API, Web UI, and Android mobile-web testing, with Allure reporting, pluggable logging (Console / Elasticsearch), with source on GitHub and CI/CD on Azure DevOps Pipelines.
 
 ---
 
@@ -24,7 +23,7 @@ A modular C# / .NET 10 test automation framework covering REST API, Web UI, and 
 - **Per-project configuration**: each NUnit project owns its `config.json` plus a strongly typed `ConfigSettings` class, loaded through `Core.Utilities.ConfigLoader`
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **Allure reporting**: per-test start/end/duration parameters, screenshots on failure, tag-based categories
-- **CI pipelines**: Azure DevOps (`azure-pipelines.yml`) and GitHub Actions (`.github/workflows/`)
+- **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub: smoke tests on PRs, regression on `main`
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)** for clean → build → test → Allure merge. The batch scripts use a bundled `tools/dotnet` if one exists and fall back to the system `dotnet` otherwise.
 - **Local OpenSearch stack** (`docker-compose.yml`) for the Elastic logging provider
 
@@ -94,8 +93,7 @@ TestAutomationProj/
 │   ├── MOBILE_ARCHITECTURE.md         # Mobile layer design + Appium setup
 │   ├── GETTING_STARTED.md             # Step-by-step local setup + troubleshooting
 │   └── CONTRIBUTING.md                # Code-style rules
-├── .github/workflows/                 # GitHub Actions (PR smoke, main regression, manual runs)
-├── azure-pipelines.yml                # Azure DevOps pipeline
+├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
 ├── Directory.Build.props              # Shared Allure results directory for all projects
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
@@ -193,7 +191,7 @@ var baseUrl = cfg.BaseUrl;
 
 **UI/Mobile** (`UI/Mobile/config.json`) holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
 
-> In the Selenium suite the browser comes from each test's `[TestCase("chrome")]`, `[TestCase("firefox")]`, `[TestCase("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on when `GITHUB_ACTIONS=true`.
+> In the Selenium suite the browser comes from each test's `[TestCase("chrome")]`, `[TestCase("firefox")]`, `[TestCase("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on in CI, i.e. when `TF_BUILD`, `GITHUB_ACTIONS`, or `CI` is `true`.
 
 ### Playwright suite: `TestSettings`
 
@@ -308,26 +306,32 @@ Run the Windows scripts from the repository root. Each `scripts\windows\*.bat` s
 
 ## 🔁 CI/CD
 
-### Azure DevOps: `azure-pipelines.yml`
+Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipeline is connected to the GitHub repo through the Azure Pipelines GitHub app, so pushes and PRs on GitHub trigger it, and its results show up as checks on the GitHub PR.
 
-Triggers on pushes to `main`, `release/*`, and `add-elastic-logging`, and on PRs into `main`.
+### Triggers
+
+| Event | API + Playwright | Selenium web | Desktop |
+|-------|------------------|--------------|---------|
+| PR into `main` | full suites | `Category=smoke` | build only |
+| Push to `main` or `release/*` | full suites | `Category=regression` | build only |
+
+### Jobs (`azure-pipelines.yml`)
 
 | Job | Agent | Steps |
 |-----|-------|-------|
-| **WebAndApiAutomation** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) + **Playwright** (xUnit) tests with TRX + XPlat code coverage → publish test results (fails on test failure) and Cobertura coverage |
-| **DesktopAutomation** | `windows-latest` | .NET 10 SDK → restore/build `UI/Desktop/UI.Desktop.Tests.csproj` → publish any `desktop_results.trx` |
+| **ApiAndPlaywright** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) and **Playwright** (xUnit) tests with TRX + code coverage → publish test results (failures fail the build), Cobertura coverage, and API Allure results |
+| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push) on Chrome, Firefox, and Edge (preinstalled on the agent; Selenium Manager fetches drivers) → publish test results and Selenium Allure results |
+| **DesktopAutomation** | `windows-latest` | .NET 10 SDK → build `UI/Desktop/UI.Desktop.Tests.csproj` (no tests yet) |
 
-The Selenium `UI/Web` and Appium `UI/Mobile` suites aren't run in Azure DevOps. On Azure, web coverage comes from the Playwright suite.
+Allure results are published as pipeline artifacts (`allure-results-api`, `allure-results-ui-web`). To view them, download an artifact and run `allure serve <folder>`.
 
-### GitHub Actions: `.github/workflows/`
+The Appium `UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
 
-| Workflow                    | Trigger                    | Runs |
-|-----------------------------|----------------------------|------|
-| `pr-smoke.yml`              | PR to `main`               | API + UI smoke via `reusable-test-runner.yml` |
-| `main-regression.yml`       | Push to `main`             | API + UI regression via `reusable-test-runner.yml` |
-| `reusable-test-runner.yml`  | `workflow_call`            | Sets up .NET 10, builds the chosen layer, runs `dotnet test --filter "Category=<tag>"`, then uploads TRX |
-| `api-tests.yml`             | Manual (`workflow_dispatch`) | Full API suite and uploads Allure + TRX |
-| `ui-tests.yml`              | Manual (`workflow_dispatch`) | Full UI/Web suite and uploads Allure + TRX |
+### Connecting the pipeline (one-time)
+
+1. In Azure DevOps, go to **Pipelines → New pipeline → GitHub (YAML)**, then authorize or install the Azure Pipelines GitHub app for `ravs788/complete-test-automation-fmw`.
+2. Choose **Existing Azure Pipelines YAML file** → `/azure-pipelines.yml`.
+3. Optional: in GitHub **Settings → Branches**, protect `main` and require the Azure pipeline check before merging.
 
 ---
 
@@ -335,7 +339,7 @@ The Selenium `UI/Web` and Appium `UI/Mobile` suites aren't run in Azure DevOps. 
 
 ### `UI/Web/Tests/BaseWebTest.cs` (Selenium / NUnit)
 
-- Creates a Chrome, Firefox, or Edge driver from the test-case argument (default: Firefox), with headless mode taken from config (forced on in GitHub Actions)
+- Creates a Chrome, Firefox, or Edge driver from the test-case argument (default: Firefox), with headless mode taken from config (forced on in CI)
 - Uses a `RemoteWebDriver` against `GridUrl` when one is set. Otherwise it uses a configured driver path, falling back to Selenium Manager.
 - Bypasses system proxies for the local WebDriver connection
 - Applies the page-load, script, and implicit-wait timeouts, maximizes the window, and navigates to `BaseUrl`
@@ -393,9 +397,8 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ## ⚠️ Known Issues / TODO
 
-- **Release vs Debug artifact paths.** The manual GitHub workflows (`api-tests.yml`, `ui-tests.yml`) build in Release but upload Allure results from `bin/Debug/net10.0/...`.
 - **Mobile config is machine-specific.** `UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
-- **Mobile tests have no NUnit `[Category]`**, so the CI smoke/regression filters skip them. No CI job runs mobile tests yet.
+- **Mobile tests aren't in CI.** They have no NUnit `[Category]`, and hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
 - **Playwright settings are hard-coded.** `TestSettings` doesn't read config files or environment variables yet.
 - **The Desktop job has no test step.** `azure-pipelines.yml` builds `UI.Desktop.Tests` but never runs `dotnet test`, and the project contains no tests yet.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
