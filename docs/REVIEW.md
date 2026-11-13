@@ -13,7 +13,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 |---|---|---|---|---|---|
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
-| R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
+| R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
 | R18 | P4 | Closed | 2026-11-14 · `536694d` | [No unit tests for the framework itself](#r18) | Quality |
 | R12 | P3 | Closed | 2026-11-14 · `5c0fa57` | [Logging index names differ by suite](#r12) | Logging |
 | R10 | P3 | Closed | 2026-11-14 · `0419662` | [Mixed test method naming](#r10) | Conventions |
@@ -167,7 +167,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r16"></a>
 ### R16. Mobile suite not in CI
 
-- **Status:** Open
+- **Status:** Open, partly done. In `46ed506` (2026-11-14) the project was added to `ci.slnf`, so CI now catches compile errors. **Still open:** actually running the tests needs a self-hosted agent with an emulator or a device-cloud account (owner decision); then point `APPIUM_URL` / `MOBILE_*` at it.
 - **Where:** `azure-pipelines.yml`, `Tests/UI/Mobile`.
 - **Problem:** hosted agents have no Android emulator, so the Appium suite never runs automatically and can quietly break.
 - **Fix:** add a self-hosted agent with an emulator, or use a device cloud (BrowserStack / Sauce Labs) by pointing `Server.Url` at the provider. In the meantime, at least build `Tests.UI.Mobile.csproj` in CI (add it to `ci.slnf`) so compile errors are caught.
