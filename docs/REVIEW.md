@@ -14,7 +14,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
-| R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R18 | P4 | Closed | 2026-11-14 · `536694d` | [No unit tests for the framework itself](#r18) | Quality |
 | R12 | P3 | Closed | 2026-11-14 · `5c0fa57` | [Logging index names differ by suite](#r12) | Logging |
 | R10 | P3 | Closed | 2026-11-14 · `0419662` | [Mixed test method naming](#r10) | Conventions |
 | R8 | P3 | Closed | 2026-11-14 · `ad1a51e` | [Page methods don't return the next page](#r8) | Page objects |
@@ -195,7 +195,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r18"></a>
 ### R18. No unit tests for the framework itself
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `536694d`. Tests/Unit (Tests.Unit.csproj): 24 tests in about 50 ms covering builders/Mothers, BookingPatch.ApplyTo, SettingsLoader precedence, Elastic URL resolution, ApiException and TestRunner hooks. Built in CI via ci.slnf and run before the Playwright suite.
 - **Where:** `Core/`.
 - **Problem:** framework logic (`BookingPatch.ApplyTo`, the builders, config providers, `ApiClient` error handling, `TestRunner`) is only tested indirectly, through the end-to-end suites.
 - **Fix:** add a small `Core.Tests` project with fast unit tests (no browser, no network) and run it first in CI.
