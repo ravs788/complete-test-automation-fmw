@@ -312,15 +312,15 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 
 | Event | API + Playwright | Selenium web | Desktop |
 |-------|------------------|--------------|---------|
-| PR into `main` | full suites | `Category=smoke` | build only |
-| Push to `main` or `release/*` | full suites | `Category=regression` | build only |
+| PR into `main` | full suites | `Category=smoke`, Chrome | build only |
+| Push to `main` or `release/*` | full suites | `Category=regression`, Chrome | build only |
 
 ### Jobs (`azure-pipelines.yml`)
 
 | Job | Agent | Steps |
 |-----|-------|-------|
 | **ApiAndPlaywright** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) and **Playwright** (xUnit) tests with TRX + code coverage → publish test results (failures fail the build), Cobertura coverage, and API Allure results |
-| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push) on Chrome, Firefox, and Edge (preinstalled on the agent; Selenium Manager fetches drivers) → publish test results and Selenium Allure results |
+| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push), **Chrome test cases only** (`Name~chrome` filter; Firefox/Edge run locally via `run_ui_web_all_browsers`) → publish test results and Selenium Allure results |
 | **DesktopAutomation** | `windows-latest` | .NET 10 SDK → build `UI/Desktop/UI.Desktop.Tests.csproj` (no tests yet) |
 
 Allure results are published as pipeline artifacts (`allure-results-api`, `allure-results-ui-web`). To view them, download an artifact and run `allure serve <folder>`.

@@ -99,9 +99,10 @@ stages:
       # Job 2: Selenium web (NUnit) on Linux
       #   PR   -> Category=smoke
       #   push -> Category=regression
-      # Chrome, Firefox and Edge are preinstalled on ubuntu-latest;
-      # Selenium Manager downloads matching drivers. BaseWebTest forces
-      # headless mode because Azure sets TF_BUILD=True.
+      # CI runs the Chrome test cases only (Name~chrome); Firefox and Edge
+      # cases still run locally (scripts/*/run_ui_web_all_browsers).
+      # Selenium Manager downloads chromedriver. BaseWebTest forces headless
+      # mode because Azure sets TF_BUILD=True.
       # -------------------------------------------------------------
       - job: SeleniumWeb
         displayName: "Selenium Web Suite (Linux)"
@@ -118,11 +119,11 @@ stages:
           - script: dotnet build UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration)
             displayName: "Compile Selenium Web Suite"
 
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=smoke" --logger "trx;LogFileName=selenium_smoke_results.trx"
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=smoke&Name~chrome" --logger "trx;LogFileName=selenium_smoke_results.trx"
             displayName: "Run Selenium Smoke (PR)"
             condition: and(succeeded(), eq(variables.isPullRequest, true))
 
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=regression" --logger "trx;LogFileName=selenium_regression_results.trx"
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=regression&Name~chrome" --logger "trx;LogFileName=selenium_regression_results.trx"
             displayName: "Run Selenium Regression (main / release)"
             condition: and(succeeded(), eq(variables.isPullRequest, false))
 

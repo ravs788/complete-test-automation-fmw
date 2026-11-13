@@ -10,6 +10,8 @@ namespace UI.Web.Pages
 
         public string GetCompleteHeaderText()
         {
+            // PageLoadStrategy is Eager, so the confirmation page may still be rendering after "Finish".
+            WaitForElementVisible(headerText);
             return Driver.FindElement(headerText).Text;
         }
     }
