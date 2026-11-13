@@ -177,7 +177,10 @@ Stage: BuildAndValidate
       → dotnet test Tests/Tests.csproj, BROWSER=chrome (preinstalled Chrome, no download)
           PR           → --filter "FullyQualifiedName!~.SauceDemo.|Category=smoke"
           main/release → all tests + coverage
-      → TRX (gate) + allure-results artifact (+ categories.json)
+      → nightly (schedule, main): install Playwright browsers → web UI tests on chromium, firefox, webkit
+      → TRX (gate) + allure-results artifact
+      → previous allure-report/history (same branch) + results → Allure CLI → allure-report artifact
+        (HTML with trends + single-file allure-report.html)
 ```
 
 Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests through a shared `_run_playwright_tests` helper and collect the Allure results into `./allure-results`. `run_ui_web_all_browsers` runs the web tests once per browser and merges the results; `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local Elasticsearch 8 + Kibana (no auth) for the Elastic logging provider.

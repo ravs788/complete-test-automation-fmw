@@ -331,10 +331,11 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 
 ### Triggers
 
-| Event | Tests run (Chrome) |
-|-------|--------------------|
-| PR into `main` | API + TodoMVC (all), SauceDemo `smoke` (`--filter "FullyQualifiedName!~.SauceDemo.\|Category=smoke"`) |
-| Push to `main` or `release/*` | Everything, plus code coverage |
+| Event | Tests run |
+|-------|-----------|
+| PR into `main` | Unit tests; API + TodoMVC (all), SauceDemo `smoke` on Chrome (`--filter "FullyQualifiedName!~.SauceDemo.\|Category=smoke"`) |
+| Push to `main` or `release/*` | Unit tests; everything on Chrome, plus code coverage |
+| Nightly, 02:00 UTC (`main`, only if it changed) | As a push to `main`, plus the web UI tests again on Playwright's **Chromium, Firefox and WebKit** |
 
 ### Job (`azure-pipelines.yml`)
 
@@ -344,7 +345,9 @@ Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 2. Build `ci.slnf` (Release): `Core`, `Pages`, `Tests`, `Tests/Unit` and `Tests/UI/Mobile` (compile check only), with warnings as errors.
 3. `dotnet test Tests/Unit/Tests.Unit.csproj`: the framework unit tests, first, so a broken `Core` fails fast.
 4. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
-5. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
+5. Nightly only: install Playwright's browsers and run the web UI tests once per browser (Chromium, Firefox, WebKit).
+6. Publish TRX test results (failures fail the build) and coverage (`main`/`release/*` only).
+7. Allure: publish the raw `allure-results`, then build the **`allure-report`** artifact with the Allure CLI (version pinned in `allureVersion`). The report includes trends: the previous report's `history/` on the same branch is fed into each new one. Download the artifact and open **`allure-report.html`** (a single self-contained file), or serve the folder.
 
 Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
 
