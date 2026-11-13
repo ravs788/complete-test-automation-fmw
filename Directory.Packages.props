@@ -12,16 +12,16 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
   </ItemGroup>
 
-  <ItemGroup Label="NUnit">
-    <PackageVersion Include="NUnit" Version="4.2.2" />
-    <PackageVersion Include="NUnit.Analyzers" Version="4.4.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
-    <PackageVersion Include="Allure.NUnit" Version="2.12.1" />
-  </ItemGroup>
-
-  <ItemGroup Label="xUnit">
+  <!--
+    xUnit v2 on purpose: Allure.Xunit (2.15) doesn't support xUnit v3 yet.
+    xunit.runner.visualstudio must stay on 2.x: 3.x/4.x are built on the v3 runner and can't
+    load Allure's (v2) runner reporter, so no Allure results are written. Don't bump it.
+  -->
+  <ItemGroup Label="xUnit + Allure">
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Allure.Xunit" Version="2.15.0" />
+    <PackageVersion Include="Allure.Net.Commons" Version="2.15.0" />
   </ItemGroup>
 
   <ItemGroup Label="Browser and device automation">

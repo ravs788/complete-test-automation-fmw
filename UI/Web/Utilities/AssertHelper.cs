@@ -1,5 +1,5 @@
 using Core.Utilities;
-using NUnit.Framework;
+using Xunit;
 using System;
 
 namespace UI.Web.Utilities
@@ -13,14 +13,14 @@ namespace UI.Web.Utilities
         {
             try
             {
-                if (Assert.Equals(expected, actual))
+                if (EqualityComparer<T>.Default.Equals(expected, actual))
                 {
                     screenshotHelper?.CaptureAndAttach($"Assert Equals Passed: {message}", true);
                 }
                 else
                 {
                     screenshotHelper?.CaptureAndAttach($"Assert Equals Failed: {message}", false);
-                    Assert.Fail($"Assert.Equals failed: {message}");
+                    Assert.Fail($"Expected <{expected}> but was <{actual}>: {message}");
                 }
             }
             catch (Exception)

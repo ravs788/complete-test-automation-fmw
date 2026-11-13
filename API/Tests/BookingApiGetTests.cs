@@ -1,25 +1,24 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using API.Utilities;
 using API.Models;
 using Core.Utilities;
 using Allure.Net.Commons;
-using Allure.NUnit;
-using Allure.NUnit.Attributes;
+using Allure.Net.Commons.Attributes;
+using Xunit;
+using Xunit.Sdk;
 
 namespace API.Tests
 {
-    [AllureNUnit]
     [AllureSuite("Booking Get API")]
     [AllureTag("api", "get", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class BookingApiGetTests : BaseApiTest
     {
 
 
-        [Test]
-        public async Task Get_All_Booking_Ids()
+        [Fact]
+        public Task Get_All_Booking_Ids() => RunAsync(async () =>
         {
             // /booking returns array of objects with bookingid fields
             var bookingIds = await _client.GetAsync<List<Dictionary<string, int>>>("booking");
@@ -27,19 +26,20 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(bookingIds, Is.Not.Null.And.Not.Empty, "Booking IDs should be returned");
+                    Assert.NotNull(bookingIds);
+                    Assert.NotEmpty(bookingIds);
                     Logger.Info("PASSED: Assert that bookingIds are returned (Not.Null/Not.Empty)");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert that bookingIds are returned - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
 
-        [Test]
-        public async Task Get_Booking_By_Id()
+        [Fact]
+        public Task Get_Booking_By_Id() => RunAsync(async () =>
         {
             // Create a new booking from test-data
             var newBooking = TestDataLoader.Instance.Load<Booking>(
@@ -52,11 +52,11 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(postResponse, Is.Not.Null, "Booking creation failed");
-                    Assert.That(postResponse.ContainsKey("bookingid"), "Post response does not include bookingid");
+                    Assert.NotNull(postResponse);
+                    Assert.True(postResponse.ContainsKey("bookingid"), "Post response does not include bookingid");
                     Logger.Info("PASSED: Assert booking created for get-by-id test");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert booking created for get-by-id test - {ex.Message}");
                     throw;
@@ -71,22 +71,22 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(booking, Is.Not.Null, "Booking details not found for fresh booking");
-                    Assert.That(booking.firstname, Is.EqualTo(newBooking.firstname));
-                    Assert.That(booking.lastname, Is.EqualTo(newBooking.lastname));
-                    Assert.That(booking.totalprice, Is.EqualTo(newBooking.totalprice));
-                    Assert.That(booking.depositpaid, Is.EqualTo(newBooking.depositpaid));
-                    Assert.That(booking.bookingdates.checkin, Is.EqualTo(newBooking.bookingdates.checkin));
-                    Assert.That(booking.bookingdates.checkout, Is.EqualTo(newBooking.bookingdates.checkout));
-                    Assert.That(booking.additionalneeds, Is.EqualTo(newBooking.additionalneeds));
+                    Assert.NotNull(booking);
+                    Assert.Equal(newBooking.firstname, booking.firstname);
+                    Assert.Equal(newBooking.lastname, booking.lastname);
+                    Assert.Equal(newBooking.totalprice, booking.totalprice);
+                    Assert.Equal(newBooking.depositpaid, booking.depositpaid);
+                    Assert.Equal(newBooking.bookingdates.checkin, booking.bookingdates.checkin);
+                    Assert.Equal(newBooking.bookingdates.checkout, booking.bookingdates.checkout);
+                    Assert.Equal(newBooking.additionalneeds, booking.additionalneeds);
                     Logger.Info("PASSED: Assert booking record retrieval and all checked fields match expected values.");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert booking record retrieval and fields - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

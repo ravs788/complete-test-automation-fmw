@@ -1,25 +1,24 @@
 namespace UI.Web.Tests
 {
-    using NUnit.Framework;
     using UI.Web.Pages;
     using UI.Web.Models;
     using Core.Utilities;
-    using Allure.NUnit.Attributes;
-    using Allure.NUnit;
+    using Allure.Net.Commons.Attributes;
     using Allure.Net.Commons;
+    using Xunit;
+    using Xunit.Sdk;
 
-    [AllureNUnit]
     [AllureSuite("RemoveFromCart")]
     [AllureTag("cart", "ui", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class RemoveFromCartTests : BaseWebTest
     {
-        [Test]
-        [TestCase("chrome")]
+        [Theory]
+        [InlineData("chrome")]
         // TODO: Re-enable after Firefox is installed/configured on the runner.
-        // [TestCase("firefox")]
-        [TestCase("edge")]
-        public void CanRemoveBackpackFromCart(string browser)
+        // [InlineData("firefox")]
+        [InlineData("edge")]
+        public void CanRemoveBackpackFromCart(string browser) => Run(browser, () =>
         {
             // Arrange
             var testData = TestDataLoader.Instance.Load<AddToCartTestData>("RemoveFromCartTests/RemoveBackpackFromCart.json");
@@ -39,10 +38,10 @@ namespace UI.Web.Tests
                 bool contains = cartPage.ContainsProduct(testData.Product.Name);
                 try
                 {
-                    Assert.That(contains, Is.True, $"Cart should contain '{testData.Product.Name}' before removal.");
+                    Assert.True(contains, $"Cart should contain '{testData.Product.Name}' before removal.");
                     Logger.Info($"[{browser}] PASSED: Product '{testData.Product.Name}' present in cart prior to removal.");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: {ex.Message}");
                     throw;
@@ -57,15 +56,15 @@ namespace UI.Web.Tests
                 bool contains = cartPage.ContainsProduct(testData.Product.Name);
                 try
                 {
-                    Assert.That(contains, Is.False, $"Cart should not contain '{testData.Product.Name}' after removal.");
+                    Assert.False(contains, $"Cart should not contain '{testData.Product.Name}' after removal.");
                     Logger.Info($"[{browser}] PASSED: Product '{testData.Product.Name}' successfully removed from cart.");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"[{browser}] FAILED: {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

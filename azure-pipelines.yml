@@ -12,6 +12,9 @@
 # Everything runs in ONE job on purpose: the org has a single parallel job, so
 # separate jobs ran back to back and each paid agent start-up, checkout, SDK
 # setup and build again. CI builds only the projects it tests (ci.slnf).
+#
+# All suites use xUnit + Allure.Xunit; their Allure results are merged into a
+# single "allure-results" artifact (download it and run `allure serve <dir>`).
 # =============================================================================
 
 trigger:
@@ -72,11 +75,11 @@ stages:
             displayName: "Run Playwright Web Suite"
             condition: succeededOrFailed()
 
-          # CI runs the Chrome test cases only (Name~chrome); Firefox and Edge
+          # CI runs the Chrome test cases only (DisplayName~chrome); Firefox and Edge
           # cases still run locally (scripts/*/run_ui_web_all_browsers).
           # Selenium Manager downloads chromedriver. BaseWebTest forces headless
           # mode because Azure sets TF_BUILD=True.
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=$(seleniumCategory)&Name~chrome" --logger "trx;LogFileName=selenium_results.trx"
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=$(seleniumCategory)&DisplayName~chrome" --logger "trx;LogFileName=selenium_results.trx"
             displayName: "Run Selenium Web Suite ($(seleniumCategory))"
             condition: succeededOrFailed()
 
@@ -96,18 +99,23 @@ stages:
             inputs:
               summaryFileLocation: "$(System.DefaultWorkingDirectory)/**/coverage.cobertura.xml"
 
-          - task: PublishPipelineArtifact@1
-            displayName: "Upload API Allure Results"
+          # Allure result files have unique names, so the suites' folders merge into one.
+          - script: |
+              out="$(Build.ArtifactStagingDirectory)/allure-results"
+              mkdir -p "$out"
+              for d in API tests/Automation.Tests UI/Web; do
+                src="$d/bin/$(buildConfiguration)/net10.0/allure-results"
+                [ -d "$src" ] && cp -R "$src"/. "$out"/
+              done
+              cp allure-categories.json "$out/categories.json"
+              echo "Allure result files: $(ls "$out" | grep -c 'result.json')"
+            displayName: "Merge Allure Results"
             condition: always()
-            continueOnError: true
-            inputs:
-              targetPath: "API/bin/$(buildConfiguration)/net10.0/allure-results"
-              artifact: "allure-results-api"
 
           - task: PublishPipelineArtifact@1
-            displayName: "Upload Selenium Allure Results"
+            displayName: "Upload Allure Results"
             condition: always()
             continueOnError: true
             inputs:
-              targetPath: "UI/Web/bin/$(buildConfiguration)/net10.0/allure-results"
-              artifact: "allure-results-ui-web"
+              targetPath: "$(Build.ArtifactStagingDirectory)/allure-results"
+              artifact: "allure-results"

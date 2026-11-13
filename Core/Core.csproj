@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Elastic.Clients.Elasticsearch" />
+    <PackageReference Include="Allure.Net.Commons" />
   </ItemGroup>
 
   <ItemGroup>

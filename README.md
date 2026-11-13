@@ -12,15 +12,16 @@ A modular C# / .NET 10 test automation framework covering REST API, Web UI, and 
 ## 🚀 Features
 
 - **.NET 10** across all projects (`net10.0`, `LangVersion=latest`, nullable enabled)
+- **One test framework everywhere: xUnit + Allure** (`Allure.Xunit`) for the API, Selenium, Playwright and Mobile suites
 - **Two web UI stacks side by side**
-  - **Selenium + NUnit + Allure** (`UI/Web`) running against [saucedemo.com](https://www.saucedemo.com/) on Chrome, Firefox, and Edge
-  - **Playwright + xUnit** (`src/` + `tests/`) running against the [Playwright TodoMVC demo](https://demo.playwright.dev/todomvc), using async page objects, web-first assertions, and an Object Mother/Builder for test data
-- **Mobile tests** (`UI/Mobile`) with Appium 2 + NUnit: Android mobile web (Chrome/Firefox) against saucedemo.com, with iOS and native-app support in the driver bootstrap
-- **REST API tests** (`API`) with RestSharp + NUnit against [Restful Booker](https://restful-booker.herokuapp.com/)
+  - **Selenium + xUnit + Allure** (`UI/Web`) running against [saucedemo.com](https://www.saucedemo.com/) on Chrome, Firefox, and Edge
+  - **Playwright + xUnit + Allure** (`src/` + `tests/`) running against the [Playwright TodoMVC demo](https://demo.playwright.dev/todomvc), using async page objects, web-first assertions, and an Object Mother/Builder for test data
+- **Mobile tests** (`UI/Mobile`) with Appium 2 + xUnit: Android mobile web (Chrome/Firefox) against saucedemo.com, with iOS and native-app support in the driver bootstrap
+- **REST API tests** (`API`) with RestSharp + xUnit against [Restful Booker](https://restful-booker.herokuapp.com/)
 - **Page Object Model** in all UI suites
 - **Selenium Grid support**: set `GridUrl` in `UI/Web/config.json` to run against a remote grid instead of local drivers
 - **JSON test data** loaded by convention from each project's `test-data/` folder (`Core.Utilities.TestDataLoader`)
-- **Per-project configuration**: each NUnit project owns its `config.json` plus a strongly typed `ConfigSettings` class, loaded through `Core.Utilities.ConfigLoader`
+- **Per-project configuration**: each `Core`-based project (API, UI/Web, UI/Mobile) owns its `config.json` plus a strongly typed `ConfigSettings` class, loaded through `Core.Utilities.ConfigLoader`
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **Allure reporting**: per-test start/end/duration parameters, screenshots on failure, tag-based categories
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub: smoke tests on PRs, regression on `main`
@@ -34,7 +35,7 @@ A modular C# / .NET 10 test automation framework covering REST API, Web UI, and 
 ```plaintext
 TestAutomationProj/
 │
-├── Core/                              # Shared library for the NUnit (API + UI/Web) suites
+├── Core/                              # Shared library for the API, UI/Web and UI/Mobile suites (config, logging, TestRunner)
 │   ├── Models/                        # LoggingConfig, ElasticSection, ConsoleSection, LogMetadata
 │   └── Utilities/
 │       ├── Config/ConfigLoader.cs           # Loads <output>/config.json into a typed settings class
@@ -45,7 +46,7 @@ TestAutomationProj/
 │       │   └── Elastic/                     # Elasticsearch client, connectivity probe, logging + publisher
 │       └── Screenshots/                     # IScreenshotHelper + Core stub (UI/Web supplies the real one)
 │
-├── API/                               # API test suite (NUnit + RestSharp + Allure)
+├── API/                               # API test suite (xUnit + RestSharp + Allure)
 │   ├── Models/                        # Booking, BookingDates, Auth
 │   ├── Tests/                         # BaseApiTest + Get/Post/Put/Patch/Delete/HealthCheck tests
 │   ├── Utilities/                     # ApiClient, AuthHelper, ConfigSettings
@@ -54,7 +55,7 @@ TestAutomationProj/
 │   └── API.Tests.csproj
 │
 ├── UI/
-│   ├── Web/                           # Selenium web suite (NUnit + Allure)
+│   ├── Web/                           # Selenium web suite (xUnit + Allure)
 │   │   ├── Pages/                     # BasePage, LoginPage, InventoryPage, CartPage, Checkout* pages
 │   │   ├── Models/                    # User, Product, CheckoutInfo, *TestData
 │   │   ├── Tests/                     # BaseWebTest, SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
@@ -62,7 +63,7 @@ TestAutomationProj/
 │   │   ├── test-data/<TestClass>/*.json
 │   │   ├── config.json
 │   │   └── UI.Web.Tests.csproj
-│   ├── Mobile/                        # Appium mobile suite (NUnit + Allure)
+│   ├── Mobile/                        # Appium mobile suite (xUnit + Allure)
 │   │   ├── Drivers/Bootstrap.cs       # Builds AppiumOptions/driver for Android/iOS, Native/Web
 │   │   ├── Pages/                     # Native/Android/AndroidBasePage, Web/MobileWebBasePage
 │   │   ├── Tests/                     # BaseMobileTest + Samples/AndroidWeb smoke tests
@@ -138,27 +139,29 @@ For a guided walkthrough, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 # Restore & build everything
 dotnet build TestAutomationPlatform.slnx
 
-# API tests (NUnit)
+# API tests
 dotnet test API/API.Tests.csproj
 
-# Selenium web tests (NUnit)
+# Selenium web tests (all browsers; add --filter "DisplayName~chrome" for one browser)
 dotnet test UI/Web/UI.Web.Tests.csproj
 
 # Mobile web smoke tests (Appium server + Android emulator must be running)
 dotnet test UI/Mobile/UI.Mobile.Tests.csproj
 
-# Playwright web tests (xUnit)
+# Playwright web tests
 dotnet test tests/Automation.Tests/Automation.Tests.csproj
 
-# View Allure results (after a run)
-allure serve allure-results
+# View Allure results (after a run). Each project writes to its own
+# bin/<Configuration>/net10.0/allure-results; the run_all_tests_gen_report
+# scripts merge them into ./allure-results.
+allure serve API/bin/Debug/net10.0/allure-results
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### NUnit suites (API, UI/Web, UI/Mobile): per-project `config.json`
+### API, UI/Web, UI/Mobile: per-project `config.json`
 
 Each project copies its `config.json` and `test-data/**` to the build output. `ConfigLoader.Load<T>()` reads `config.json` from `AppContext.BaseDirectory`.
 
@@ -194,7 +197,7 @@ var baseUrl = cfg.BaseUrl;
 
 **UI/Mobile** (`UI/Mobile/config.json`) holds the Appium server URL, `platform` (`Android`/`iOS`), `appType` (`Web`/`Native`), `baseUrl`, plus `device`, `android`, `ios`, `behavior`, `logging`, and `testData` sections. See [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md) for every field.
 
-> In the Selenium suite the browser comes from each test's `[TestCase("chrome")]`, `[TestCase("firefox")]`, `[TestCase("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on in CI, i.e. when `TF_BUILD`, `GITHUB_ACTIONS`, or `CI` is `true`.
+> In the Selenium suite the browser comes from each test's `[InlineData("chrome")]`, `[InlineData("firefox")]`, `[InlineData("edge")]` argument. `BaseWebTest` reads `Headless`, `BaseUrl`, timeouts, and driver paths from config. The `Browser` value in config is not used for driver selection. Headless mode is forced on in CI, i.e. when `TF_BUILD`, `GITHUB_ACTIONS`, or `CI` is `true`.
 
 ### Playwright suite: `TestSettings`
 
@@ -227,7 +230,7 @@ The Playwright suite generates data instead of loading files. It uses `TodoItemM
 
 ## 🧾 Logging (Pluggable Providers)
 
-The NUnit suites read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
+The API, UI/Web and UI/Mobile suites read logging settings from `logging-config.json`. `LoggingConfig.Load()` finds this file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
 
 ```json
 {
@@ -266,7 +269,7 @@ Index names in use: `ui-web-logs-{date}` (UI/Web) and `test-logs-{date}` (API).
 
 ## 📣 Results Publishing
 
-`BaseWebTest` and `BaseApiTest` publish one `LogMetadata` record per test in `[TearDown]` through `ResultsPublisherFactory.Create()`. The record contains project, class, method, status, duration, failure reason, start/end time, run name, user, and browser. A publish failure is logged and never fails the test.
+`BaseApiTest`, `BaseWebTest` and `BaseMobileTest` publish one `LogMetadata` record per test through `ResultsPublisherFactory.Create()`, from `Core.Utilities.TestRunner` (see Test Infrastructure below). The record contains project, class, method, status, duration, failure reason, start/end time, run name, user, and browser. A publish failure is logged and never fails the test.
 
 - `Provider=elastic`: results are indexed into Elasticsearch
 - `Provider=console`: results are printed to the console
@@ -275,20 +278,24 @@ Index names in use: `ui-web-logs-{date}` (UI/Web) and `test-logs-{date}` (API).
 
 ## 📊 Allure Reporting
 
-- `Directory.Build.props` points `AllureResultsDirectory` (and the `ALLURE_*` environment variables) at a root-level `allure-results/` folder for all projects.
-- Both NUnit base classes add **Start Time**, **End Time**, and **Duration (s)** parameters to every test.
+- Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run. Each project writes results to its own `bin/<Configuration>/net10.0/allure-results/`. The `run_all_tests_gen_report` scripts merge them into a root `allure-results/`, and CI publishes a single merged `allure-results` artifact.
+- Allure attributes (`[AllureSuite]`, `[AllureTag]`, …) come from `Allure.Net.Commons.Attributes`.
+- `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every API, UI/Web and Mobile test.
 - `BaseWebTest` appends the browser to the Allure test name, e.g. `EndToEnd_Checkout_Success (chrome)`, and attaches a screenshot when a test fails. `BaseMobileTest` appends the platform and app type, e.g. `(Android Web)`.
 - `allure-categories.json` groups results into **UI Tests** and **API Tests** by the `ui` / `api` tags.
-- The Playwright (xUnit) suite doesn't integrate with Allure yet. It reports through TRX.
+- Playwright tests report to Allure with their suite, tags and pass/fail result. They don't attach screenshots on failure yet.
+
+> **Version pin:** the solution stays on **xUnit v2** with **`xunit.runner.visualstudio` 2.8.2** (see `Directory.Packages.props`). `Allure.Xunit` doesn't support xUnit v3. Test adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter, so you'd get no Allure results.
 
 ### Tags and categories in use
 
-Each test class carries `[AllureTag(...)]` (for Allure) and NUnit `[Category(...)]` (for `dotnet test --filter "Category=..."`, which CI uses).
+Each test class carries `[AllureTag(...)]` (for Allure) and xUnit `[Trait("Category", ...)]` (for `dotnet test --filter "Category=..."`, which CI uses). Selenium tests are `[Theory]`s with the browser as the first argument, so filter browsers with `DisplayName~chrome`.
 
-| Suite     | Allure tags | NUnit categories |
+| Suite     | Allure tags | `Category` traits |
 |-----------|-------------|------------------|
 | API       | `api`, `health`/`get`/`post`/`put`/`patch`/`delete`, `smoke`, `regression` | `smoke` (health check only), `regression` (all) |
 | UI/Web    | `ui`, `saucedemo`/`add-to-cart`/`cart`/`checkout-flow`/`login`/`negative`, `smoke`, `regression` | `smoke` (SauceDemo login only), `regression` (all) |
+| Playwright | `todo`, `ui`, `playwright`, `regression` | `regression` |
 | UI/Mobile | `mobile`, `web`, `android`, `smoke` | none yet |
 
 ---
@@ -299,10 +306,10 @@ Run the Windows scripts from the repository root. Each `scripts\windows\*.bat` s
 
 | Script                                   | What it does |
 |------------------------------------------|--------------|
-| `scripts\windows\run_all_tests_gen_report.bat` | Kills drivers, cleans, builds, runs API + UI/Web, stamps `run.timestamp`, and merges results into `allure-results/` |
+| `scripts\windows\run_all_tests_gen_report.bat` | Kills drivers, cleans, builds, runs API + UI/Web + Playwright, stamps `run.timestamp`, and merges results (plus `categories.json`) into `allure-results/` |
 | `scripts\windows\run_api_tests_gen_report.bat` | Runs the API suite only and copies results to `allure-results/` |
 | `scripts\windows\run_web_tests_gen_report.bat` | Runs the UI/Web suite only and copies results to `allure-results/` |
-| `scripts\windows\run_ui_web_all_browsers.bat`  | Runs UI/Web once per browser (chrome, firefox, edge), keeps per-browser result sets, then merges them |
+| `scripts\windows\run_ui_web_all_browsers.bat`  | Runs UI/Web once per browser (chrome, firefox, edge; `--filter DisplayName~<browser>`), keeps per-browser result sets, then merges them |
 | `scripts\windows\run_mobile_android_web.bat`   | Runs the Android mobile-web smoke tests (needs Appium + emulator running) |
 | `scripts\windows\kill_all_webdrivers.bat`      | Kills orphaned `chromedriver` / `geckodriver` / `msedgedriver` processes |
 | `scripts\windows\appium_env_check.ps1` / `appium_env_fix.ps1` | Diagnose / repair the Windows Appium + Android environment (Java, Android SDK, PATH) |
@@ -326,7 +333,7 @@ All suites run in a **single job** (`Tests`, `ubuntu-latest`):
 
 1. .NET 10 SDK, shallow checkout
 2. Build `ci.slnf` (Release). This is a solution filter with only the projects CI tests: API, Playwright, Selenium and their libraries. Mobile and Desktop are skipped.
-3. Run the **API** (NUnit), **Playwright** (xUnit) and **Selenium** (NUnit) suites. Selenium runs smoke on PRs and regression on pushes, **Chrome test cases only** (`Name~chrome` filter); Firefox and Edge run locally via `run_ui_web_all_browsers`.
+3. Run the **API**, **Playwright** and **Selenium** suites (all xUnit). Selenium runs smoke on PRs and regression on pushes, **Chrome test cases only** (`DisplayName~chrome` filter); Firefox and Edge run locally via `run_ui_web_all_browsers`.
 4. Publish TRX test results (failures fail the build) and the Allure results. Cobertura coverage is collected and published on `main`/`release/*` only.
 
 Why it's built this way:
@@ -334,7 +341,7 @@ Why it's built this way:
 - **One job:** the Azure DevOps org has a single parallel job, so separate jobs ran one after another. Each job also repeated agent start-up, checkout, SDK setup and the build.
 - **No Playwright browser download:** the pipeline sets `PLAYWRIGHT_CHANNEL=chrome`, so Playwright drives the Google Chrome that the hosted image already has.
 
-Allure results are published as pipeline artifacts (`allure-results-api`, `allure-results-ui-web`). To view them, download an artifact and run `allure serve <folder>`.
+The Allure results of all three suites are merged into one pipeline artifact, `allure-results`, which includes `categories.json`. To view them, download the artifact and run `allure serve <folder>`.
 
 The Desktop project isn't in CI because it has no tests yet; add a Windows job once it does. The Appium `UI/Mobile` suite isn't run in CI either: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
 
@@ -348,26 +355,47 @@ The Desktop project isn't in CI because it has no tests yet; add a Windows job o
 
 ## 🛠️ Test Infrastructure
 
-### `UI/Web/Tests/BaseWebTest.cs` (Selenium / NUnit)
+### `Core/Utilities/Testing/TestRunner.cs` (shared)
 
-- Creates a Chrome, Firefox, or Edge driver from the test-case argument (default: Firefox), with headless mode taken from config (forced on in CI)
+xUnit v2 has no setup/teardown hook that knows a test's name or whether it passed. So instead of NUnit-style `[SetUp]`/`[TearDown]`, each base class wraps every test body in `TestRunner.Run`/`RunAsync`, which:
+
+- logs the start, and on failure, the error
+- runs a failure hook (UI suites: attach a screenshot to Allure) and then rethrows, so the test still fails
+- always adds the Allure timing parameters, publishes the `LogMetadata` result, and runs cleanup (quit the driver)
+
+A test therefore looks like this:
+
+```csharp
+[Theory]
+[InlineData("chrome")]
+[InlineData("edge")]
+public void CanAddBackpackToCart(string browser) => Run(browser, () =>
+{
+    // test body: Driver, Logger, AllureApi.Step(...), Assert.*
+});
+```
+
+### `UI/Web/Tests/BaseWebTest.cs` (Selenium)
+
+- `Run(browser, body)` creates a Chrome, Firefox, or Edge driver for the theory's browser argument, with headless mode taken from config (forced on in CI)
 - Uses a `RemoteWebDriver` against `GridUrl` when one is set. Otherwise it uses a configured driver path, falling back to Selenium Manager.
 - Bypasses system proxies for the local WebDriver connection
 - Applies the page-load, script, and implicit-wait timeouts, maximizes the window, and navigates to `BaseUrl`
-- Records timing to Allure, logs, publishes the result, and takes a screenshot on failure
-- Always quits and disposes the driver
+- Appends the browser to the Allure test name and takes a screenshot on failure
+- Always quits the driver. `Dispose()` is a safety net.
+- Test classes run **sequentially** (`UI/Web/Properties/AssemblyInfo.cs` disables xUnit parallelization), matching `RunTestsInParallel: false` and the previous NUnit behaviour
 
-### `API/Tests/BaseApiTest.cs` (NUnit)
+### `API/Tests/BaseApiTest.cs`
 
-- Creates a fresh `ApiClient` per test and disposes it in teardown
-- Records timing to Allure, logs, and publishes the result
-- The assembly runs fixtures in parallel (`[assembly: Parallelizable(ParallelScope.Fixtures)]`)
+- The constructor creates a fresh `ApiClient` per test (xUnit creates a new class instance per test), and `Dispose()` disposes it
+- `RunAsync(async () => ...)` records timing to Allure, logs, and publishes the result
+- Test classes run in parallel (xUnit's default), as they did under NUnit
 
-### `UI/Mobile/Tests/BaseMobileTest.cs` (Appium / NUnit)
+### `UI/Mobile/Tests/BaseMobileTest.cs` (Appium)
 
-- Parses `platform` / `appType` from config, and `Drivers/Bootstrap.cs` builds the `AppiumOptions` and the Android or iOS driver
+- `Run(body)` parses `platform` / `appType` from config, and `Drivers/Bootstrap.cs` builds the `AppiumOptions` and the Android or iOS driver
 - For mobile web, navigates to `baseUrl`. For native apps, launches the configured app or package.
-- Records timing, logging, and result publishing the same way as the other NUnit bases
+- Records timing, logging, result publishing, and a failure screenshot through `TestRunner`, like the other bases
 - Pages inherit `MobileWebBasePage` or `AndroidBasePage`. `GestureHelper` and `WaitHelper` handle swipes, taps, and waits.
 
 ### `tests/Automation.Tests/Fixtures/PlaywrightFixture.cs` (Playwright / xUnit)
@@ -384,23 +412,23 @@ The Desktop project isn't in CI because it has no tests yet; add a Windows job o
 
 1. Add or extend a page object in `UI/Web/Pages/` (inherit `BasePage`).
 2. Add test data at `UI/Web/test-data/<TestClass>/<Scenario>.json` and a matching model in `UI/Web/Models/`.
-3. Create a test class that inherits `BaseWebTest`, decorated with `[AllureNUnit]`, `[AllureSuite]`, and `[AllureTag("ui", ...)]`, with one `[TestCase("<browser>")]` per browser.
+3. Create a test class that inherits `BaseWebTest`, decorated with `[AllureSuite]`, `[AllureTag("ui", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Make each test a `[Theory]` with one `[InlineData("<browser>")]` per browser, and wrap the body in `Run(browser, () => { ... })`.
 
 ### API
 
 1. Add models in `API/Models/` and data in `API/test-data/<TestClass>/`.
-2. Inherit `BaseApiTest` and use `_client` (`ApiClient`) and `AuthHelper` for authenticated calls.
+2. Inherit `BaseApiTest`, add `[AllureSuite]`, `[AllureTag("api", ...)]` and `[Trait("Category", ...)]`, and write each test as `[Fact] public Task X() => RunAsync(async () => { ... });`. Use `_client` (`ApiClient`) and `AuthHelper` for authenticated calls.
 
 ### Mobile
 
 1. Add a page in `UI/Mobile/Pages/Web/` or `UI/Mobile/Pages/Native/<Platform>/`, inheriting the matching base page.
-2. Create a test class that inherits `BaseMobileTest`, with `[AllureTag("mobile", ...)]` and, once CI runs mobile tests, a `[Category]`.
+2. Create a test class that inherits `BaseMobileTest`, with `[AllureTag("mobile", ...)]` and, once CI runs mobile tests, a `[Trait("Category", ...)]`. Write each test as `[Fact] public void X() => Run(() => { ... });`.
 
 ### Playwright
 
 1. Add a page object in `src/Automation.Pages/<Feature>/` (inherit `Automation.Pages.Common.BasePage`) and expose `ILocator`s for assertions.
 2. Add builders/mothers for test data in `src/Automation.Core/TestData/`.
-3. Add an xUnit class in `tests/Automation.Tests/<Feature>/` that implements `IClassFixture<PlaywrightFixture>, IAsyncLifetime`, and use `Assertions.Expect(...)` for auto-retrying assertions.
+3. Add an xUnit class in `tests/Automation.Tests/<Feature>/` that implements `IClassFixture<PlaywrightFixture>, IAsyncLifetime`, add `[AllureSuite]`/`[AllureTag]`, and use `Assertions.Expect(...)` for auto-retrying assertions.
 
 See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
@@ -409,7 +437,8 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 ## ⚠️ Known Issues / TODO
 
 - **Mobile config is machine-specific.** `UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
-- **Mobile tests aren't in CI.** They have no NUnit `[Category]`, and hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
+- **Mobile tests aren't in CI.** They have no `Category` trait, and hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
+- **`EndToEnd_Checkout_Success` is occasionally flaky on Edge locally.** A page-object element lookup (`#first-name`) can run before the checkout page has loaded. CI runs Chrome only.
 - **Playwright settings are hard-coded.** `TestSettings` doesn't read config files or environment variables yet.
 - **Desktop is a placeholder.** `UI/Desktop` has no tests yet and isn't part of the CI pipeline. It still builds as part of the solution.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.

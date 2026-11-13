@@ -1,26 +1,24 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using API.Utilities;
 using API.Models;
 using Core.Utilities;
 using Allure.Net.Commons;
-using Allure.NUnit;
-using Allure.NUnit.Attributes;
+using Allure.Net.Commons.Attributes;
+using Xunit;
+using Xunit.Sdk;
 
 namespace API.Tests
 {
-    [AllureNUnit]
     [AllureSuite("Booking Patch API")]
     [AllureTag("api", "patch", "regression")]
-    [Category("regression")]
-    [Parallelizable(ParallelScope.All)]
+    [Trait("Category", "regression")]
     public class BookingApiPatchTests : BaseApiTest
     {
 
 
-        [Test]
-        public async Task Patch_Firstname_Lastname_Then_Verify()
+        [Fact]
+        public Task Patch_Firstname_Lastname_Then_Verify() => RunAsync(async () =>
         {
             // 1. Create booking
             var original = TestDataLoader.Instance.Load<Booking>(
@@ -31,11 +29,11 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(postResp, Is.Not.Null);
-                    Assert.That(postResp.ContainsKey("bookingid"), "Post response missing id");
+                    Assert.NotNull(postResp);
+                    Assert.True(postResp.ContainsKey("bookingid"), "Post response missing id");
                     Logger.Info("PASSED: Assert booking created for patch test");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert booking created for patch test - {ex.Message}");
                     throw;
@@ -56,10 +54,10 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(patchResp, Is.Not.Null);
+                    Assert.NotNull(patchResp);
                     Logger.Info("PASSED: Assert patchResp is not null");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert patchResp is not null - {ex.Message}");
                     throw;
@@ -70,10 +68,10 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(patchResp.firstname?.Replace("\"", ""), Is.EqualTo(patchData["firstname"].ToString()));
+                    Assert.Equal(patchData["firstname"].ToString(), patchResp.firstname?.Replace("\"", ""));
                     Logger.Info("PASSED: Assert firstname was patched correctly");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert firstname was patched correctly - {ex.Message}");
                     throw;
@@ -83,10 +81,10 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(patchResp.lastname?.Replace("\"", ""), Is.EqualTo(patchData["lastname"].ToString()));
+                    Assert.Equal(patchData["lastname"].ToString(), patchResp.lastname?.Replace("\"", ""));
                     Logger.Info("PASSED: Assert lastname was patched correctly");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert lastname was patched correctly - {ex.Message}");
                     throw;
@@ -96,19 +94,19 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(patchResp.totalprice, Is.EqualTo(original.totalprice));
-                    Assert.That(patchResp.depositpaid, Is.EqualTo(original.depositpaid));
-                    Assert.That(patchResp.bookingdates.checkin, Is.EqualTo(original.bookingdates.checkin));
-                    Assert.That(patchResp.bookingdates.checkout, Is.EqualTo(original.bookingdates.checkout));
-                    Assert.That(patchResp.additionalneeds, Is.EqualTo(original.additionalneeds));
+                    Assert.Equal(original.totalprice, patchResp.totalprice);
+                    Assert.Equal(original.depositpaid, patchResp.depositpaid);
+                    Assert.Equal(original.bookingdates.checkin, patchResp.bookingdates.checkin);
+                    Assert.Equal(original.bookingdates.checkout, patchResp.bookingdates.checkout);
+                    Assert.Equal(original.additionalneeds, patchResp.additionalneeds);
                     Logger.Info("PASSED: Assert original fields are unchanged after patch");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert original fields are unchanged after patch - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }

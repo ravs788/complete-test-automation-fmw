@@ -1,24 +1,23 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using API.Utilities;
 using API.Models;
 using Allure.Net.Commons;
-using Allure.NUnit;
-using Allure.NUnit.Attributes;
+using Allure.Net.Commons.Attributes;
+using Xunit;
+using Xunit.Sdk;
 
 namespace API.Tests
 {
-    [AllureNUnit]
     [AllureSuite("Booking Post API")]
     [AllureTag("api", "post", "regression")]
-    [Category("regression")]
+    [Trait("Category", "regression")]
     public class BookingApiPostTests : BaseApiTest
     {
 
 
-        [Test]
-        public async Task Create_New_Booking_Should_Succeed()
+        [Fact]
+        public Task Create_New_Booking_Should_Succeed() => RunAsync(async () =>
         {
             var newBooking = Core.Utilities.TestDataLoader.Instance.Load<API.Models.Booking>(
                 "BookingApiPostTests/HappyPath.json"
@@ -30,16 +29,16 @@ namespace API.Tests
             {
                 try
                 {
-                    Assert.That(postResponse, Is.Not.Null, "Booking creation failed");
-                    Assert.That(postResponse.ContainsKey("bookingid"), "Response missing bookingid");
+                    Assert.NotNull(postResponse);
+                    Assert.True(postResponse.ContainsKey("bookingid"), "Response missing bookingid");
                     Logger.Info("PASSED: Assert booking creation response");
                 }
-                catch (AssertionException ex)
+                catch (XunitException ex)
                 {
                     Logger.Error($"FAILED: Assert booking creation response - {ex.Message}");
                     throw;
                 }
             });
-        }
+        });
     }
 }
