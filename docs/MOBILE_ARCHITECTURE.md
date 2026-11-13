@@ -58,9 +58,9 @@ This document is the single source of truth for the Mobile layer architecture, c
 ## Assumptions
 - .NET with the xUnit v2 test framework, like every other suite in the solution (all use xUnit + Allure).
 - Allure reporting continues.
-- Appium v2 and Selenium.Appium 5.x.
+- Appium v2 and the Appium .NET client (`Appium.WebDriver`, built on Selenium WebDriver).
 - Android support locally (Windows). iOS requires macOS or a cloud provider (optional).
-- Tests will be organized under `UI/Mobile/` in the same solution.
+- Tests are organized under `Tests/UI/Mobile/` (its own project, `UI.Mobile.Tests.csproj`) in the same solution; web UI and API tests use Playwright in `Tests/Tests.csproj`.
 
 ## Architecture Overview
 
@@ -86,18 +86,18 @@ This document is the single source of truth for the Mobile layer architecture, c
 - Utilities:
   - `WaitHelper`: Explicit waits with resilience
   - `GestureHelper`: W3C actions for swipe/scroll/tap/long-press
-  - `AssertHelper`: Optional, or reuse/generalize UI/Web’s
-  - Screenshots: Reuse Core `IScreenshotHelper` and/or add a mobile adapter
+  - Assertions: xUnit `Assert.*`
+  - Screenshots: `BaseMobileTest` attaches Appium’s `GetScreenshot()` to Allure on failure
 
 ### Driver Bootstrap Flow
-1. `BaseMobileTest` loads `UI/Mobile/config.json` (or environment-specific file) using `Core.Utilities.Config.ConfigLoader`.
+1. `BaseMobileTest` loads `Tests/UI/Mobile/config.json` (or environment-specific file) using `Core.Utilities.ConfigLoader`.
 2. `MobileOptionsBuilder` builds `AppiumOptions` from config (platform, appType).
 3. `MobileDriverFactory` uses options + server URL to create an `AndroidDriver` or `IOSDriver`.
 4. Test runs inside `Run(...)`. On failure, screenshot + logs go to Allure via Core services.
 5. `Run` always quits the session afterwards (`Dispose()` is a safety net).
 
 ## Project Structure
-Proposed layout within `UI/Mobile/`:
+Proposed layout within `Tests/UI/Mobile/`:
 
 - Pages/
   - Contracts/
@@ -121,7 +121,7 @@ Proposed layout within `UI/Mobile/`:
   - ConfigSettings.cs (mobile-specific config model; uses Core ConfigLoader)
   - WaitHelper.cs
   - GestureHelper.cs
-  - AssertHelper.cs (optional, or reuse Web)
+  - AssertHelper.cs (optional; xUnit Assert.* is usually enough)
   - AllureScreenshotHelper.cs (thin wrapper using Core services)
 - Tests/
   - BaseMobileTest.cs
@@ -140,7 +140,7 @@ Proposed layout within `UI/Mobile/`:
 ### NuGet Packages
 - Selenium.WebDriver 4.x
 - Selenium.Support 4.x (if needed)
-- Appium.WebDriver (Selenium.Appium) 5.x
+- Appium.WebDriver 8.x (the Appium .NET client)
 - xunit + xunit.runner.visualstudio 2.8.2 (aligned with the other suites; keep the adapter on 2.x so Allure works)
 - Allure: Allure.Xunit (attributes from `Allure.Net.Commons.Attributes`)
 
@@ -172,10 +172,10 @@ Proposed layout within `UI/Mobile/`:
   - Android fallbacks: `resource-id`, `UiSelector`
   - iOS fallbacks: predicate/class chain
 - Mobile Web:
-  - Reuse CSS/XPath strategies similar to UI/Web
+  - Reuse CSS/XPath strategies similar to the web page objects in `Pages/`
 
 ### Base Page Reuse
-- Reuse patterns from `UI/Web/Pages/BasePage.cs` where feasible:
+- Reuse patterns from the web page objects (`Pages/Common/BasePage.cs`) where feasible:
   - For Mobile Web, a similar base with IWebDriver works well.
   - For Native, AppiumDriver surface needs extensions/wrappers.
 
@@ -186,7 +186,7 @@ Proposed layout within `UI/Mobile/`:
 ## Configuration Model
 
 ### Files and Selection
-- Default: `UI/Mobile/config.json`
+- Default: `Tests/UI/Mobile/config.json`
 - Environment-specific variants:
   - `config.android.native.json`
   - `config.android.web.json`
@@ -234,7 +234,7 @@ Proposed layout within `UI/Mobile/`:
     "provider": "console"
   },
   "testData": {
-    "basePath": "UI/Mobile/test-data"
+    "basePath": "Tests/UI/Mobile/test-data"
   }
 }
 ```
@@ -242,7 +242,7 @@ Proposed layout within `UI/Mobile/`:
 ## Implementation Plan and Milestones
 
 - Milestone 1: Foundation and Skeleton
-  - Create folder structure under `UI/Mobile/`
+  - Create folder structure under `Tests/UI/Mobile/`
   - Add NuGet dependencies to `UI.Mobile.Tests.csproj`
   - Implement `ConfigSettings` (mobile model) and wire to Core `ConfigLoader`
   - Implement `MobilePlatform`, `MobileAppType`
@@ -257,13 +257,13 @@ Proposed layout within `UI/Mobile/`:
 - Milestone 2: Base Pages and Utilities
   - Implement `AndroidBasePage`, `MobileWebBasePage`
   - Implement `WaitHelper` and `GestureHelper`
-  - Reuse/extend UI/Web `AssertHelper` if applicable
+  - Use xUnit `Assert.*` (or a small mobile assertion helper if needed)
   - Mobile-friendly screenshot helper that uses Core’s services with driver capture
 
 - Milestone 3: Sample Tests and Data
   - Android Native sample (e.g., demo app flow)
   - Android Web sample (e.g., saucedemo mobile login flow)
-  - JSON test-data mirroring UI/Web patterns
+  - JSON test-data mirroring the `Tests/test-data` patterns
   - Batch scripts:
     - `scripts/windows/run_mobile_android_native.bat`
     - `scripts/windows/run_mobile_android_web.bat`
@@ -291,7 +291,7 @@ Proposed layout within `UI/Mobile/`:
   - Appium v2 (npm), `uiautomator2` driver
 - Start an emulator (or connect a real device)
 - Start Appium server
-- `dotnet test UI/Mobile/UI.Mobile.Tests.csproj` with desired config
+- `dotnet test Tests/UI/Mobile/UI.Mobile.Tests.csproj` with desired config
 - Publish Allure results
 
 ### iOS (macOS or Cloud)
@@ -305,8 +305,8 @@ Proposed layout within `UI/Mobile/`:
 ## Reuse from Core Layer
 - `Core/Utilities/Logging/*`
   - Use `ILoggingService` to log session start/stop, device info, steps
-- `Core/Utilities/Screenshots/*`
-  - Use `IScreenshotHelper`/`AllureScreenshotHelper` to attach PNGs from Appium’s `GetScreenshot()`
+- `Core/Testing/TestRunner`
+  - Runs the failure hook in which `BaseMobileTest` attaches Appium’s `GetScreenshot()` PNG to Allure
 - `Core/Utilities/TestData/*`
   - Use `TestDataLoader` for JSON-driven scenarios
 - `Core/Utilities/Config/*`
@@ -316,12 +316,12 @@ Proposed layout within `UI/Mobile/`:
 
 ## Deliverables
 - Code:
-  - `UI/Mobile/Drivers/*`: options builder, factory, optional session manager
-  - `UI/Mobile/Utilities/*`: waits, gestures, asserts (if needed), screenshots
-  - `UI/Mobile/Pages/*`: contracts + Android native + Mobile web; iOS placeholders
-  - `UI/Mobile/Tests/*`: base test + sample native and web tests
-  - `UI/Mobile/config*.json` variants
-  - `UI/Mobile/test-data/*`
+  - `Tests/UI/Mobile/Drivers/*`: options builder, factory, optional session manager
+  - `Tests/UI/Mobile/Utilities/*`: waits, gestures, asserts (if needed), screenshots
+  - `Tests/UI/Mobile/Pages/*`: contracts + Android native + Mobile web; iOS placeholders
+  - `Tests/UI/Mobile/Tests/*`: base test + sample native and web tests
+  - `Tests/UI/Mobile/config*.json` variants
+  - `Tests/UI/Mobile/test-data/*`
 - Scripts:
   - `scripts/windows/run_mobile_android_native.bat`
   - `scripts/windows/run_mobile_android_web.bat`
@@ -373,11 +373,11 @@ appium
 ```
 
 ### Run Tests
-- Ensure `UI/Mobile/config.android.native.json` (or `config.android.web.json`) is set correctly.
+- Ensure `Tests/UI/Mobile/config.android.native.json` (or `config.android.web.json`) is set correctly.
 - Optionally set `MOBILE_CONFIG_PATH` to point to a specific config.
 - Run:
 ```bash
-dotnet test UI/Mobile/UI.Mobile.Tests.csproj
+dotnet test Tests/UI/Mobile/UI.Mobile.Tests.csproj
 ```
 
 ## Next Steps

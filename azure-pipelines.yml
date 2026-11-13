@@ -5,16 +5,19 @@
 # This pipeline is connected to that repo through the Azure Pipelines GitHub app,
 # so pushes and PRs on GitHub trigger it and results appear as GitHub checks.
 #
-#   PR into main      -> API + Playwright (full), Selenium (smoke, Chrome)
-#   Push to main /    -> API + Playwright (full), Selenium (regression, Chrome),
-#   release/*            plus code coverage
+# All UI and API tests are Playwright-based and live in Tests/ (pages in Pages/, shared code in Core/):
+#
+#   PR into main      -> API + TodoMVC (all), SauceDemo (smoke), Chrome
+#   Push to main /    -> everything, Chrome, plus code coverage
+#   release/*
 #
 # Everything runs in ONE job on purpose: the org has a single parallel job, so
 # separate jobs ran back to back and each paid agent start-up, checkout, SDK
 # setup and build again. CI builds only the projects it tests (ci.slnf).
 #
-# All suites use xUnit + Allure.Xunit; their Allure results are merged into a
-# single "allure-results" artifact (download it and run `allure serve <dir>`).
+# Tests use xUnit + Allure.Xunit; the results are published as the
+# "allure-results" artifact (download it and run `allure serve <dir>`).
+# The Appium mobile suite (Tests/UI/Mobile) needs an Android emulator and isn't run here.
 # =============================================================================
 
 trigger:
@@ -33,16 +36,17 @@ variables:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   isPullRequest: $[eq(variables['Build.Reason'], 'PullRequest')]
-  # Playwright drives the Google Chrome preinstalled on the hosted image,
-  # so no Playwright browser download is needed.
-  PLAYWRIGHT_CHANNEL: "chrome"
+  # Playwright drives the Google Chrome preinstalled on the hosted image
+  # (read by ConfigurationProvider), so no Playwright browser download is needed.
+  BROWSER: "chrome"
   ENVIRONMENT: "CI"
-  # PR -> Selenium smoke, no coverage (faster); main/release -> regression + coverage
+  # PR -> everything except the non-smoke SauceDemo tests, no coverage (faster)
+  # main/release -> all tests + coverage
   ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
-    seleniumCategory: "smoke"
+    testFilterArgs: '--filter "FullyQualifiedName!~.SauceDemo.|Category=smoke"'
     coverageArgs: ""
   ${{ else }}:
-    seleniumCategory: "regression"
+    testFilterArgs: ""
     coverageArgs: '--collect "XPlat Code Coverage"'
 
 stages:
@@ -50,7 +54,7 @@ stages:
     displayName: "PR Validation and Quality Gate"
     jobs:
       - job: Tests
-        displayName: "API, Playwright and Selenium Suites (Linux)"
+        displayName: "Playwright UI and API Tests (Linux)"
         pool:
           vmImage: "ubuntu-latest"
         timeoutInMinutes: 30
@@ -68,20 +72,8 @@ stages:
           - script: dotnet build ci.slnf --configuration $(buildConfiguration)
             displayName: "Build CI Projects (Release)"
 
-          - script: dotnet test API/API.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=api_results.trx" $(coverageArgs)
-            displayName: "Run API Test Suite"
-
-          - script: dotnet test tests/Automation.Tests/Automation.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=web_results.trx" $(coverageArgs)
-            displayName: "Run Playwright Web Suite"
-            condition: succeededOrFailed()
-
-          # CI runs the Chrome test cases only (DisplayName~chrome); Firefox and Edge
-          # cases still run locally (scripts/*/run_ui_web_all_browsers).
-          # Selenium Manager downloads chromedriver. BaseWebTest forces headless
-          # mode because Azure sets TF_BUILD=True.
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=$(seleniumCategory)&DisplayName~chrome" --logger "trx;LogFileName=selenium_results.trx"
-            displayName: "Run Selenium Web Suite ($(seleniumCategory))"
-            condition: succeededOrFailed()
+          - script: dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
+            displayName: "Run Playwright UI + API Tests"
 
           - task: PublishTestResults@2
             displayName: "Publish Test Results"
@@ -90,7 +82,7 @@ stages:
               testResultsFormat: "VSTest"
               testResultsFiles: "**/*_results.trx"
               searchFolder: "$(System.DefaultWorkingDirectory)"
-              testRunTitle: "API + Playwright + Selenium"
+              testRunTitle: "Playwright UI + API"
               failTaskOnFailedTests: true
 
           - task: PublishCodeCoverageResults@2
@@ -99,17 +91,14 @@ stages:
             inputs:
               summaryFileLocation: "$(System.DefaultWorkingDirectory)/**/coverage.cobertura.xml"
 
-          # Allure result files have unique names, so the suites' folders merge into one.
           - script: |
               out="$(Build.ArtifactStagingDirectory)/allure-results"
               mkdir -p "$out"
-              for d in API tests/Automation.Tests UI/Web; do
-                src="$d/bin/$(buildConfiguration)/net10.0/allure-results"
-                [ -d "$src" ] && cp -R "$src"/. "$out"/
-              done
+              src="Tests/bin/$(buildConfiguration)/net10.0/allure-results"
+              [ -d "$src" ] && cp -R "$src"/. "$out"/
               cp allure-categories.json "$out/categories.json"
               echo "Allure result files: $(ls "$out" | grep -c 'result.json')"
-            displayName: "Merge Allure Results"
+            displayName: "Collect Allure Results"
             condition: always()
 
           - task: PublishPipelineArtifact@1

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-13: Playwright for UI and API; Core / Pages / Tests layout
+
+- **Selenium and RestSharp removed.**
+  - The SauceDemo web tests are rewritten on Playwright, using page objects in `Pages/SauceDemo/` and auto-retrying `Expect(...)` assertions.
+  - The Restful Booker API tests run on Playwright's `APIRequestContext` (`Core/Api/ApiClient`).
+- **New layout:**
+  - `Core/` is the shared library: config, browser factory, API client, logging, `TestRunner` and test-data models.
+  - `Pages/` holds the page objects.
+  - `Tests/` holds `Api/` and `UI/Web/` (the Playwright tests, one project), plus `UI/Mobile/` (Appium, its own project) and `Desktop/` (placeholder).
+  - `API/`, `UI/Web/`, `src/` and `tests/` are gone.
+- **Mobile stays on Appium.** Selenium remains only as Appium's dependency.
+- **Settings:** `Tests/testsettings.json` replaces the per-project `config.json` files and hard-coded Playwright settings, with `BROWSER` (chromium, chrome, msedge, firefox, webkit) and `HEADLESS` overrides. `PLAYWRIGHT_CHANNEL` is replaced by `BROWSER=chrome`.
+- **Allure:**
+  - UI tests carry the browser in their name and as a parameter.
+  - A failed Playwright `Expect` is reported as **failed** (not broken).
+  - A full-page screenshot is attached on failure, including for the TodoMVC tests.
+- **CI:** one `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`. PRs run API + TodoMVC + SauceDemo smoke (the same 10 tests as before); `main` runs everything.
+- **Scripts:** the `run_*_gen_report` scripts share `_run_playwright_tests`. `run_ui_web_all_browsers` loops over `BROWSERS` (default `chromium firefox webkit`).
+- **Removed as unused:** `Directory.Build.props`, root `package.json`/`package-lock.json`, `Core/Screenshots`, `kill_all_webdrivers`, `detect_net_version.sh`, `exclude_envprops.txt`, NUnit-era `AssertHelper`.
+
 ## 2026-11-13: xUnit + Allure for every suite
 
 - **NUnit removed.** The API, Selenium (UI/Web) and Mobile suites now use xUnit v2, like Playwright and Desktop.

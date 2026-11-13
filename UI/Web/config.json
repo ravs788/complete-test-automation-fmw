@@ -1,7 +1,0 @@
-{
-  "RunTestsInParallel": false,
-  "Browser": "chrome",
-  "Headless": false,
-  "PageLoadTimeoutSec": 90,
-  "BaseUrl": "https://www.saucedemo.com/"
-}

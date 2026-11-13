@@ -30,7 +30,7 @@ else
   echo "[WARN] adb was not found on PATH."
 fi
 
-dotnet test UI/Mobile/UI.Mobile.Tests.csproj \
+dotnet test Tests/UI/Mobile/UI.Mobile.Tests.csproj \
   -v minimal \
   --filter "FullyQualifiedName~UI.Mobile.Tests.Samples.AndroidWeb.SmokeMobileWebTests"
 EXIT_CODE=$?

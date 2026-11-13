@@ -1,19 +1,17 @@
 # Getting Started Guide
 
-This page walks through running the framework **locally** with extra tips, screenshots, and troubleshooting notes.  
-If you only need the quick 4-step version, see the “⚡ Quick Start” section in the root README.
+This page walks through running the framework **locally**, with tips and troubleshooting notes.
+If you only need the short version, see the "⚡ Quick Start" section in the root README.
 
 ---
 
-## 1  Clone & Restore
+## 1  Clone & Build
 
 ```bash
 git clone https://github.com/ravs788/complete-test-automation-fmw.git
 cd complete-test-automation-fmw
-dotnet restore
+dotnet build TestAutomationPlatform.slnx
 ```
-
-![Clone & restore](./images/getting_started/clone_and_restore.png)
 
 ---
 
@@ -22,11 +20,17 @@ dotnet restore
 | Requirement | Recommended Version | Check Command |
 |-------------|--------------------|---------------|
 | .NET SDK    | 10.0.*             | `dotnet --version` |
-| Java (for Allure) | 17+          | `java -version` |
-| Allure CLI  | 2.24+             | `allure --version` |
-| Browser Driver | ChromeDriver matching your Chrome | `chromedriver --version` |
+| PowerShell (to install Playwright browsers) | 7+ | `pwsh --version` |
+| Java (for the Allure CLI) | 17+ | `java -version` |
+| Allure CLI  | 2.24+              | `allure --version` |
 
-> **Tip:** If `chromedriver` is missing, place it on your `PATH` or set the `WEBDRIVER_CHROME_DRIVER` env var.
+Install Playwright's browsers once (after the build):
+
+```bash
+pwsh Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium   # or "install" for all browsers
+```
+
+> **Tip:** you can skip the download and use a browser you already have: `BROWSER=chrome` (Google Chrome) or `BROWSER=msedge` (Microsoft Edge).
 
 ---
 
@@ -37,47 +41,46 @@ scripts\windows\run_all_tests_gen_report.bat   # Windows
 scripts/unix/run_all_tests_gen_report.sh       # macOS/Linux
 ```
 
-On first run, dependencies will compile – expect 1-2 minutes.
+The script builds `Tests/Tests.csproj`, runs the web UI and API tests, and collects the Allure results into `./allure-results`. Use `run_api_tests_gen_report` or `run_web_tests_gen_report` for one area, and `run_ui_web_all_browsers` to run the web tests on Chromium, Firefox and WebKit.
 
-![Running tests](./images/getting_started/running_tests.png)
+To pick a browser or watch it run:
+
+```bash
+BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
+```
 
 ---
 
 ## 4  View the Report
 
-After the script completes:
-
 ```bash
-allure open allure-report
+allure serve allure-results
 ```
 
-> The report auto-opens in your browser on Windows.  
-> On macOS/Linux open `http://localhost:5050/` if it doesn’t launch.
-
-![Allure report](./images/getting_started/allure_report.png)
+This generates the report in a temporary folder and opens it in your browser.
 
 ---
 
 ## 5  Troubleshooting
 
-### “Cannot find Chrome binary”
+### "Executable doesn't exist" / browser not found
 
-Set the environment variable:
+Playwright's browsers aren't installed for the current Playwright version. Run the `playwright.ps1 install` command from step 2, or use `BROWSER=chrome`.
 
-```bash
-set CHROME_BINARY=C:\Program Files\Google\Chrome\Application\chrome.exe   # Windows
-export CHROME_BINARY=/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome   # macOS
-```
+### Firefox won't start on macOS ("Could not find profile folder")
 
-### “Elasticsearch connection refused”
+Reinstall Playwright's Firefox build with `pwsh Tests/bin/Debug/net10.0/playwright.ps1 install --force firefox`, or run with another browser.
 
-The framework falls back to **console logging** automatically – no action needed.  
-If you do want Elastic, update `logging-config.json` and ensure your cluster is reachable.
+### "Elasticsearch connection refused"
+
+The framework falls back to **console logging** automatically, so no action is needed.
+If you do want Elastic, update `logging-config.json` and make sure your cluster is reachable (`docker compose up -d` starts a local one).
 
 ---
 
 ## 6  Next Steps
 
-* Explore 👉 `UI/Web/Tests/SauceDemoTests.cs` and `API/Tests/BookingApiPostTests.cs`
+* Explore 👉 `Tests/UI/Web/SauceDemo/CheckoutFlowTests.cs`, `Pages/SauceDemo/` and `Tests/Api/BookingApiPostTests.cs`
 * Review the [Architecture doc](ARCHITECTURE.md) for design details.
-* Customize `config.json` in each project for your environment.
+* Adjust `Tests/testsettings.json` (URLs, browser, credentials) for your environment.
+* For mobile tests, follow [MOBILE_ARCHITECTURE.md](MOBILE_ARCHITECTURE.md) to set up Appium and an emulator.
