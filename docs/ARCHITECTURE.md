@@ -141,7 +141,7 @@ Each test gets fresh cookies and storage while the browser is launched once per 
 
 ### 4.2 API (`Tests/Api`)
 
-`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards; tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
+`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first deleting any booking created through `CreateBookingAsync`; tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
 
 ### 4.3 Mobile (`Tests/UI/Mobile`)
 

@@ -384,6 +384,7 @@ public Task CanAddBackpackToCart() => RunAsync(async () =>
 - Uses `ApiFixture`: one Playwright instance per class, no browser
 - Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
 - `GetAuthHeadersAsync()` gets a Restful Booker token and returns it as request headers (the `token` cookie), which tests pass to PUT, PATCH and DELETE. `ApiClient` itself knows nothing about any API's auth scheme: it just sends the headers it's given.
+- `CreateBookingAsync(booking)` POSTs a booking and records its ID; after the test, `DisposeAsync` deletes every recorded booking (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data
 - `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)
 
 ### `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs` (Appium)

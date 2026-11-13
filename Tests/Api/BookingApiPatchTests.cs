@@ -18,16 +18,15 @@ public class BookingApiPatchTests(ApiFixture fixture) : ApiTestBase(fixture)
     public Task Patch_Firstname_Lastname_Then_Verify() => RunAsync(async () =>
     {
         var original = BookingMother.Standard();
-        var created = await Client.PostAsync<CreatedBooking>("booking", original);
+        var created = await CreateBookingAsync(original);
         AllureApi.Step("Assert booking created for patch test", () =>
         {
-            Assert.NotNull(created);
             Assert.True(created.BookingId > 0, "Post response missing id");
         });
 
         var auth = await GetAuthHeadersAsync();
         var patch = new BookingPatch { FirstName = "Patched", LastName = "Name" };
-        var patched = await Client.PatchAsync<Booking>($"booking/{created!.BookingId}", patch, auth);
+        var patched = await Client.PatchAsync<Booking>($"booking/{created.BookingId}", patch, auth);
 
         AllureApi.Step("Assert patched fields changed and the other fields are unchanged", () =>
             Assert.Equal(patch.ApplyTo(original), patched));

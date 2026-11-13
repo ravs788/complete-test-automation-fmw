@@ -1,6 +1,5 @@
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
-using Core.Models.RestfulBooker;
 using Core.TestData.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
@@ -19,11 +18,10 @@ public class BookingApiPostTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var newBooking = BookingMother.Standard(); // unique last name, so the shared demo API never sees a duplicate
 
-        var created = await Client.PostAsync<CreatedBooking>("booking", newBooking);
+        var created = await CreateBookingAsync(newBooking);
 
         AllureApi.Step("Assert booking creation response", () =>
         {
-            Assert.NotNull(created);
             Assert.True(created.BookingId > 0, "Response missing bookingid");
             Assert.Equal(newBooking, created.Booking);
         });

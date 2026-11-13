@@ -31,14 +31,13 @@ public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var newBooking = BookingMother.Standard();
 
-        var created = await Client.PostAsync<CreatedBooking>("booking", newBooking);
+        var created = await CreateBookingAsync(newBooking);
         AllureApi.Step("Assert booking created for get-by-id test", () =>
         {
-            Assert.NotNull(created);
             Assert.True(created.BookingId > 0, "Post response does not include a bookingid");
         });
 
-        var booking = await Client.GetAsync<Booking>($"booking/{created!.BookingId}");
+        var booking = await Client.GetAsync<Booking>($"booking/{created.BookingId}");
         AllureApi.Step("Assert booking record retrieval and its fields", () =>
             Assert.Equal(newBooking, booking));
     });
