@@ -12,13 +12,13 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
 | R8 | P3 | Open | – | [Page methods don't return the next page](#r8) | Page objects |
-| R9 | P3 | Open | – | [CSS-class locators](#r9) | Page objects |
 | R10 | P3 | Open | – | [Mixed test method naming](#r10) | Conventions |
 | R12 | P3 | Open | – | [Logging index names differ by suite](#r12) | Logging |
 | R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
 | R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open | – | [Mobile suite not in CI](#r16) | CI |
 | R18 | P4 | Open | – | [No unit tests for the framework itself](#r18) | Quality |
+| R9 | P3 | Closed | 2026-11-14 · `beadaa5` | [CSS-class locators](#r9) | Page objects |
 | R20 | P3 | Closed | 2026-11-14 · `95440c4` | [No retry for transient navigation errors](#r20) | Reliability |
 | R4 | P2 | Closed | 2026-11-14 · `e053af8` | [No Playwright trace on failure](#r4) | Debugging |
 | R5 | P2 | Closed | 2026-11-14 · `c523e7b` | [API tests leave bookings behind](#r5) | Test hygiene |
@@ -111,7 +111,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r9"></a>
 ### R9. CSS-class locators
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `beadaa5`. BasePage.TestId(id) with a per-app attribute (SauceDemoPage: data-test; default data-testid), plus GetByRole / GetByPlaceholder. No CSS class or #id selectors remain in Pages/. All 8 UI tests pass.
 - **Where:** `Pages/SauceDemo/*` (`.title`, `.inventory_item`, `.cart_item`, …), `Pages/Todo/TodoPage.cs`.
 - **Problem:** styling classes change more often than behaviour, so these locators break easily. SauceDemo exposes `data-test` attributes.
 - **Fix:** prefer `GetByRole` / `GetByLabel` / `GetByTestId`, with `data-test` configured as the test-id attribute (`Playwright.Selectors.SetTestIdAttribute("data-test")`). Fall back to CSS only when there's no alternative.
