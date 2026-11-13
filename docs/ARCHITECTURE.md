@@ -30,24 +30,27 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ Tests/                                                                   │
-│   Tests.csproj (Playwright)                     UI/Mobile (Appium)       │
-│     Api/      → ApiTestBase  + ApiFixture         BaseMobileTest         │
-│     UI/Web/   → UiTestBase   + PlaywrightFixture  Drivers/Bootstrap      │
-│     test-data/, testsettings.json                 Pages/, config.json    │
-│                                                 Desktop (placeholder)    │
+│   Tests.csproj (Playwright)                   UI/Mobile (Tests.UI.Mobile)│
+│     Api/        → ApiTestBase + ApiFixture      Infrastructure/          │
+│     UI/Web/<App>/ → <App>TestBase : UiTestBase    MobileTestBase         │
+│                   + PlaywrightFixture           Configuration/ Driver/   │
+│     testsettings.json                           Pages/<App>/ <App>/      │
+│                                                 mobilesettings.json      │
+│                                               Desktop (placeholder)      │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ Pages/  (Pages.csproj)                                                   │
+│ Pages/  (Pages.csproj, Playwright)                                       │
 │   Common/BasePage · SauceDemo/LoginPage, InventoryPage, CartPage,        │
 │   Checkout* · Todo/TodoPage                                              │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Core/   (Core.csproj, shared by everything)                              │
-│   Api/            ApiClient (APIRequestContext), RestfulBooker models    │
-│   Configuration/  TestSettings + ConfigurationProvider · ConfigLoader    │
+│   Api/            ApiClient, ApiException · RestfulBooker/AuthClient     │
+│   Configuration/  TestSettings (+ sections) + ConfigurationProvider      │
 │   Driver/         PlaywrightDriverFactory                                │
-│   Testing/        TestRunner (logging, Allure timing, failure hook,      │
-│                   results publishing)                                    │
-│   Logging/        Console / Elastic providers · Models/LogMetadata       │
-│   TestData/       TestDataLoader · TodoItem Builder/Mother · SauceDemo/  │
+│   Logging/        factories, LogMetadata, LoggingConfig + Provider       │
+│                   Console/ · Elastic/ providers                          │
+│   Models/<App>/   data shapes (RestfulBooker, SauceDemo, Todo)           │
+│   TestData/       TestDataLoader · <App>/ Builders + Object Mothers      │
+│   Testing/        TestRunner + TestRunInfo                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -57,6 +60,14 @@ Dependency rules:
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
 - `Tests/UI/Mobile` and `Tests/Desktop` are separate projects that live inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`).
 - Selenium remains a package only because Appium's .NET client is built on it.
+- The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
+
+Conventions (the same in every project):
+
+- **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Core/Models/RestfulBooker`, `Core/TestData/Todo`, `Core/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`, `Tests.Desktop`). File-scoped namespaces, one type per file.
+- **Settings = record + cached provider**: `TestSettings`/`ConfigurationProvider`, `LoggingConfig`/`LoggingConfigProvider`, `MobileSettings`/`MobileSettingsProvider`.
+- **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
 ---
 
@@ -65,7 +76,8 @@ Dependency rules:
 ### 3.1 Configuration
 
 - **Playwright tests:** `ConfigurationProvider.Current` lazily loads `Tests/testsettings.json` from the output directory (thread-safe) and applies `BROWSER` / `HEADLESS` overrides. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
-- **Mobile:** `ConfigLoader.Load<T>()` deserializes `Tests/UI/Mobile/config.json` from the output directory.
+- **Logging:** `LoggingConfigProvider.Current` lazily loads `logging-config.json`, found by walking up from the run directory.
+- **Mobile:** `MobileSettingsProvider.Current` (in the mobile project) lazily loads `Tests/UI/Mobile/mobilesettings.json` from the output directory.
 
 ### 3.2 Browsers
 
@@ -73,12 +85,14 @@ Dependency rules:
 
 ### 3.3 API client
 
-`ApiClient` wraps a Playwright `IAPIRequestContext` (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw response for status assertions. Restful Booker's token is sent as the `token` cookie; `AuthClient.GetTokenAsync` fetches it.
+`ApiClient` wraps a Playwright `IAPIRequestContext` (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json (one set of options for requests and responses; `null` properties are left out) and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw response for status assertions. Restful Booker's token is sent as the `token` cookie; `AuthClient.GetTokenAsync` fetches it.
 
 ### 3.4 Test data
 
-- `TestDataLoader.Instance.Load<T>("<TestClass>/<Scenario>.json")` reads from `<output>/test-data/` (source: `Tests/test-data/`).
-- Models: `Core/TestData/SauceDemo/` and `Core/Api/RestfulBooker/`. TodoMVC uses `TodoItemBuilder` / `TodoItemMother` (GUID-based titles).
+- **Models** (all data shapes) are in `Core/Models/<App>/`: PascalCase properties mapped with `[JsonPropertyName]`, `sealed record`s.
+- **Builders + Object Mothers, for every app** in `Core/TestData/<App>/`: `<Entity>Builder` returns a valid object by default (with generated unique values where collisions matter) and `With…` methods for variations; `<Entity>Mother` names the common cases (`BookingMother.Standard()`, `UserMother.LockedOut()`, `ProductMother.Backpack()`, `TodoItemMother.Completed()`). Tests get their entities from these.
+- **`[Theory]` cases** come from a `[MemberData]` source built with the Builders/Mothers (e.g. `NegativeLoginTests.InvalidLogins()`), as plain values so xUnit v2 reports each case separately.
+- **JSON is the exception**, used for large scenario tables, data owned outside the code, captured payloads or per-environment data. `TestDataLoader.Instance.Load<T>("<App>/<TestClass>/<Scenario>.json")` reads from `<output>/test-data/` (source: `Tests/test-data/`). There is none at the moment.
 
 ### 3.5 Logging & results publishing
 
@@ -89,7 +103,7 @@ Dependency rules:
         ▼                              ▼
 LoggingServiceFactory          ResultsPublisherFactory
   │ reflection: ILoggingProviderFactory / IResultsPublisherFactory
-  │ 1. configured Provider  → 2. "console"  → 3. any other  → 4. inline console
+  │ 1. configured Provider  → 2. "console"  → 3. any other  → 4. console (direct)
   ▼                              ▼
 ILoggingService               IResultsPublisher
  ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
@@ -115,7 +129,7 @@ Per test      UiTestBase.InitializeAsync → new BrowserContext(BaseURL = app's 
               [Fact] public Task X() => RunAsync(async () => { ... })
                 └─ TestRunner.RunAsync(logger, "ui-web", class, [CallerMemberName], browser)
                      ├─ log [Start]; Allure name "<test> (<browser>)" + "browser" parameter
-                     ├─ body: page objects + TestDataLoader + AllureApi.Step + Assertions.Expect
+                     ├─ body: page objects + Mothers/Builders + AllureApi.Step + Assertions.Expect
                      ├─ PlaywrightException → Assert.Fail (Allure shows "failed", not "broken")
                      ├─ on failure: full-page screenshot → Allure → rethrow
                      └─ finally: Allure Start/End/Duration → log [Finish] → publish LogMetadata
@@ -132,16 +146,16 @@ Each test gets fresh cookies and storage while the browser is launched once per 
 ### 4.3 Mobile (`Tests/UI/Mobile`)
 
 ```text
-config.json (server, platform, appType, device, android, ios, behavior)
-   │  MobileOptionsBuilder.Parse → (Android|iOS, Web|Native)
+mobilesettings.json → MobileSettingsProvider.Current (Platform, AppType, Server, Device, Android, IOS, Behavior)
+   │  MobileOptionsBuilder.Parse → (Android|iOS, Web|Native) → Build → AppiumOptions
    ▼
-Drivers/Bootstrap.cs → AppiumOptions → AndroidDriver / IOSDriver  (Appium 2 server)
+MobileDriverFactory.CreateDriver → AndroidDriver / IOSDriver  (Appium 2 server)
    ▼
-BaseMobileTest.Run(body) → TestRunner: create driver → navigate (Web) / launch app (Native)
+MobileTestBase.Run(body) → TestRunner: create driver → navigate (Web) / launch app (Native)
                 → body → (failure: screenshot) → Allure timing → log → publish LogMetadata → quit
    ▼
-Pages: Web/MobileWebBasePage · Native/Android/AndroidBasePage
-Helpers: Interaction/Gestures/GestureHelper · Interaction/Waits/WaitHelper
+Pages: Common/MobileBasePage · <App>/…Page
+Helpers: Interactions/GestureHelper · Interactions/WaitHelper
 ```
 
 The full design, config reference, and local Appium/emulator setup are in [MOBILE_ARCHITECTURE.md](MOBILE_ARCHITECTURE.md).
@@ -170,10 +184,10 @@ Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests thr
 
 ## 6. Extending the Framework
 
-- **New web app or feature:** page objects in `Pages/<App>/`, data models in `Core/TestData/<App>/`, the app's URL in `testsettings.json` / `TestSettings`, and tests in `Tests/UI/Web/<App>/` inheriting `UiTestBase`.
-- **New API:** models (and a small client if needed) in `Core/Api/<Service>/`, data in `Tests/test-data/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
+- **New web app or feature:** page objects in `Pages/<App>/`, models in `Core/Models/<App>/`, a Builder + Mother per entity in `Core/TestData/<App>/`, the app's URL in `testsettings.json` / `TestSettings`, an `<App>TestBase : UiTestBase` and tests in `Tests/UI/Web/<App>/`.
+- **New API:** models in `Core/Models/<Service>/`, a Builder + Mother per entity in `Core/TestData/<Service>/`, service-specific helpers (e.g. auth) in `Core/Api/<Service>/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
-- **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/Web/` or `Pages/Native/<Platform>/`, and a test inheriting `BaseMobileTest`.
+- **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) and tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
 - **Desktop:** fill in `Tests/Desktop` with a base test class and page objects that follow the same pattern, and add a Windows job (`windows-latest`) to the pipeline to run it.
 
 Update this document whenever a layer, a dependency direction, or a CI flow changes.
@@ -181,7 +195,7 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 ### Roadmap
 
 - Move to xUnit v3 (and a current `xunit.runner.visualstudio`) once `Allure.Xunit` supports it.
-- Add mobile tests to CI, with `[Trait("Category", ...)]` attributes and an emulator job, and remove the machine-specific values from `Tests/UI/Mobile/config.json`.
+- Add mobile tests to CI (emulator job or device cloud).
 - Add native-app mobile samples (Android, then iOS).
 - Desktop UI suite (FlaUI / UIA).
 - Optionally record Playwright traces on failure and attach them to Allure.
@@ -201,3 +215,4 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 | 2026-11-13 | CI/CD consolidated on Azure Pipelines sourced from GitHub; GitHub Actions retired; Selenium smoke/regression added to the pipeline. |
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |
+| 2026-11-13 | Consistency pass: models in `Core/Models/<App>/`, a Builder + Object Mother per entity for every app in `Core/TestData/<App>/` (JSON test data removed; `TestDataLoader` kept for large tables); namespaces match folders (`Core.Utilities` removed); `LoggingConfigProvider`; `TodoTestBase`; uniform Allure labels; Mobile restructured (`Configuration/`, `Driver/`, `Pages/<App>/`, `Infrastructure/`, `mobilesettings.json`); projects renamed `Tests.UI.Mobile` / `Tests.Desktop`; LF line endings. |

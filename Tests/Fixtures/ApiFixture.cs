@@ -1,10 +1,7 @@
-namespace Tests.Fixtures;
-
 using Core.Configuration;
 using Microsoft.Playwright;
-using System.Threading.Tasks;
-using Xunit;
 
+namespace Tests.Fixtures;
 /// <summary>One Playwright instance per API test class; no browser is launched.</summary>
 public class ApiFixture : IAsyncLifetime
 {

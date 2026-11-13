@@ -1,8 +1,6 @@
-namespace Core.Driver;
-
 using Microsoft.Playwright;
-using System;
-using System.Threading.Tasks;
+
+namespace Core.Driver;
 
 public static class PlaywrightDriverFactory
 {

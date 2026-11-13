@@ -1,20 +1,20 @@
-namespace Tests.UI.Web.SauceDemo;
-
+using Core.Models.SauceDemo;
 using Pages.SauceDemo;
 using Tests.Fixtures;
 using Tests.Infrastructure;
-using System.Threading.Tasks;
+
+namespace Tests.UI.Web.SauceDemo;
 
 public abstract class SauceDemoTestBase(PlaywrightFixture fixture) : UiTestBase(fixture)
 {
     protected override string BaseUrl => Settings.SauceDemo.BaseUrl;
 
-    /// <summary>Opens the login page and signs in; returns the inventory page.</summary>
-    protected async Task<InventoryPage> LoginAsync(string username, string password)
+    /// <summary>Opens the login page and signs in as <paramref name="user"/>; returns the inventory page.</summary>
+    protected async Task<InventoryPage> LoginAsync(User user)
     {
         var login = new LoginPage(Page);
         await login.OpenAsync();
-        await login.LoginAsync(username, password);
+        await login.LoginAsync(user.Username, user.Password);
         return new InventoryPage(Page);
     }
 }

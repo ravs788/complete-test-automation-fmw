@@ -1,7 +1,7 @@
-namespace Pages.SauceDemo;
-
-using Pages.Common;
 using Microsoft.Playwright;
+using Pages.Common;
+
+namespace Pages.SauceDemo;
 
 public sealed class CheckoutCompletePage(IPage page) : BasePage(page)
 {

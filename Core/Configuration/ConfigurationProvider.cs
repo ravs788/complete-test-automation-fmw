@@ -1,10 +1,6 @@
-namespace Core.Configuration;
-
-using System;
-using System.IO;
 using System.Text.Json;
-using System.Threading;
 
+namespace Core.Configuration;
 /// <summary>
 /// Thread-safe, lazily loaded <see cref="TestSettings"/>:
 /// <c>testsettings.json</c> (test output directory) → environment overrides (BROWSER, HEADLESS).

@@ -1,18 +1,14 @@
-namespace Tests.Api;
-
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
-using Core.Api;
-using Core.Api.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
-using Core.Utilities;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Xunit;
 
-[AllureSuite("Booking Health Check API")]
-[AllureTag("api", "health", "smoke", "regression")]
+namespace Tests.Api;
+
+[AllureParentSuite("API")]
+[AllureSuite("Restful Booker")]
+[AllureSubSuite("Health check")]
+[AllureTag("api", "restful-booker", "health", "smoke", "regression")]
 [Trait("Category", "smoke")]
 [Trait("Category", "regression")]
 public class BookingApiHealthCheckTests(ApiFixture fixture) : ApiTestBase(fixture)

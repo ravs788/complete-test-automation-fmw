@@ -1,8 +1,7 @@
-namespace Pages.SauceDemo;
-
-using Pages.Common;
 using Microsoft.Playwright;
-using System.Threading.Tasks;
+using Pages.Common;
+
+namespace Pages.SauceDemo;
 
 public sealed class CartPage(IPage page) : BasePage(page)
 {

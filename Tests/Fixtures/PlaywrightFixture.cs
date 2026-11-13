@@ -1,12 +1,8 @@
-namespace Tests.Fixtures;
-
 using Core.Configuration;
 using Core.Driver;
 using Microsoft.Playwright;
-using System;
-using System.Threading.Tasks;
-using Xunit;
 
+namespace Tests.Fixtures;
 /// <summary>One browser per test class (IClassFixture); each test gets its own isolated context.</summary>
 public class PlaywrightFixture : IAsyncLifetime
 {

@@ -1,17 +1,21 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Playwright;
+
 namespace Core.Api;
 
-using Microsoft.Playwright;
-using System.Collections.Generic;
-using System.Text.Json;
-using System.Threading.Tasks;
-
 /// <summary>
-/// Thin JSON client over Playwright's <see cref="IAPIRequestContext"/> (replaces RestSharp).
+/// Thin JSON client over Playwright's <see cref="IAPIRequestContext"/>.
 /// Non-2xx responses throw <see cref="ApiException"/> carrying the status code.
 /// </summary>
 public sealed class ApiClient : IAsyncDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    // Used for request and response bodies, so models map to the API only through [JsonPropertyName].
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     private readonly IAPIRequestContext _request;
 
@@ -49,15 +53,17 @@ public sealed class ApiClient : IAsyncDisposable
     /// <summary>Sends a request without checking the status, for tests that assert on it directly.</summary>
     public async Task<IAPIResponse> SendRawAsync(string method, string endpoint, object? body = null, string? token = null)
     {
-        var options = new APIRequestContextOptions { Method = method };
+        var headers = new Dictionary<string, string>();
+        var options = new APIRequestContextOptions { Method = method, Headers = headers };
         if (body is not null)
         {
-            options.DataObject = body;
+            options.DataString = JsonSerializer.Serialize(body, body.GetType(), JsonOptions);
+            headers["Content-Type"] = "application/json";
         }
         if (!string.IsNullOrEmpty(token))
         {
             // Restful Booker authenticates write operations with a "token" cookie.
-            options.Headers = new Dictionary<string, string> { ["Cookie"] = $"token={token}" };
+            headers["Cookie"] = $"token={token}";
         }
         return await _request.FetchAsync(endpoint, options);
     }
@@ -78,10 +84,4 @@ public sealed class ApiClient : IAsyncDisposable
     }
 
     public async ValueTask DisposeAsync() => await _request.DisposeAsync();
-}
-
-public sealed class ApiException(string method, string endpoint, int statusCode, string statusText)
-    : Exception($"{method} {endpoint} failed: {statusCode} {statusText}")
-{
-    public int StatusCode { get; } = statusCode;
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-13: Consistent structure and conventions
+
+- **Models in one place, per app.** `Core/Models/RestfulBooker/`, `Core/Models/SauceDemo/`, `Core/Models/Todo/`, one type per file. Restful Booker models use PascalCase properties with `[JsonPropertyName]`, like SauceDemo. PATCH uses a `BookingPatch` model instead of a dictionary. The SauceDemo login data has the same `{ "user": … }` shape as the other SauceDemo files.
+- **Test data the same way for every app.** Each entity has a Builder and an Object Mother in `Core/TestData/<App>/`: `BookingBuilder`/`BookingMother`, `UserBuilder`/`UserMother`, `ProductBuilder`/`ProductMother`, `CheckoutInfoBuilder`/`CheckoutInfoMother`, `TodoItemBuilder`/`TodoItemMother` (`StandardItem()` → `Standard()`). Tests get entities from these. Bookings get a unique last name and future dates by default, replacing the manual `Ticks` suffix. `NegativeLoginTests` gets its cases from a `[MemberData]` source built from the builders. All JSON test data and the wrapper records (`LoginTestData`, `CartTestData`, `CheckoutTestData`, `NegativeLoginTestData`) were removed. `TestDataLoader` stays for large scenario tables or data owned outside the code. `SauceDemoTestBase.LoginAsync` takes a `User`.
+- **Namespaces match folders.** `Core.Utilities` is gone: `Core.Logging` (+ `.Console`, `.Elastic`), `Core.TestData`, `Core.Testing`, `Core.Configuration`. File-scoped namespaces and `using` placement are enforced in `.editorconfig`.
+- **Logging config:** `LoggingConfig` is a plain record, loaded once by `LoggingConfigProvider` (it was re-read from disk on every call). The logging models moved from `Core/Models` to `Core/Logging`.
+- **TodoMVC** got a `TodoTestBase` (like `SauceDemoTestBase`), and `TodoPage.OpenAsync()` (like `LoginPage.OpenAsync()`).
+- **Allure labels** are the same on every class: `ParentSuite` (layer) / `Suite` (app) / `SubSuite` (feature), and tags in a fixed order.
+- **Mobile** follows the same layout: `Configuration/` (`MobileSettings` + `MobileSettingsProvider`, `mobilesettings.json` replaces `config.json` and `Core`'s `ConfigLoader`), `Driver/`, `Interactions/`, `Pages/Common` + `Pages/<App>`, `Infrastructure/MobileTestBase`, tests in `<App>/`. The duplicated base pages and sample tests were merged. The machine-specific Chromedriver path was removed and the Appium port reset to the default 4723. The run scripts filter on `Category=smoke`.
+- **Projects** `UI.Mobile.Tests` / `UI.Desktop.Tests` renamed to `Tests.UI.Mobile` / `Tests.Desktop`, so every assembly name equals its root namespace.
+- **Line endings** normalized to LF (`.gitattributes`). `.bat` files keep CRLF.
+- **Docs:** `GETTING_STARTED.md` has per-OS setup (Windows, macOS, Linux) and a support matrix. `MOBILE_ARCHITECTURE.md` describes the actual mobile suite instead of a plan.
+
 ## 2026-11-13: Playwright for UI and API; Core / Pages / Tests layout
 
 - **Selenium and RestSharp removed.**
