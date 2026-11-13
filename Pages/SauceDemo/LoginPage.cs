@@ -1,15 +1,14 @@
 using Microsoft.Playwright;
-using Pages.Common;
 
 namespace Pages.SauceDemo;
 
-public sealed class LoginPage(IPage page) : BasePage(page)
+public sealed class LoginPage(IPage page) : SauceDemoPage(page)
 {
-    private ILocator Username => Page.Locator("#user-name");
-    private ILocator Password => Page.Locator("#password");
-    private ILocator LoginButton => Page.Locator("#login-button");
+    private ILocator Username => TestId("username");
+    private ILocator Password => TestId("password");
+    private ILocator LoginButton => TestId("login-button");
 
-    public ILocator ErrorMessage => Page.Locator("[data-test='error']");
+    public ILocator ErrorMessage => TestId("error");
 
     /// <summary>Opens the login page (the context's BaseURL).</summary>
     public async Task OpenAsync() => await GotoAsync("./");
