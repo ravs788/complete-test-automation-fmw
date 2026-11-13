@@ -42,7 +42,7 @@ Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 ## General
 
 - Follow .NET naming conventions and `.editorconfig`: file-scoped namespaces, `using`s above the namespace with `System.*` first, nothing already covered by implicit usings (`System`, `System.Linq`, `System.Threading.Tasks`, `Xunit` in test projects, …), LF line endings (`.gitattributes`; `.bat` files keep CRLF).
-- Run `dotnet format TestAutomationPlatform.slnx` before committing.
+- Run `dotnet format TestAutomationPlatform.slnx` before committing. The build reports style problems as warnings locally, and CI treats every warning as an error (`Directory.Build.props`). Set `CI=true` to build exactly like CI.
 - One type per file; the file name matches the type.
 - Keep classes small and single-purpose (SOLID, Page Object Model).
 - Run the relevant tests locally before opening a PR (`dotnet test Tests/Tests.csproj` or `scripts/*/run_*`).

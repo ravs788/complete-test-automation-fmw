@@ -84,6 +84,7 @@ TestAutomationProj/
 ├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
+├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
 ├── logging-config.json                # Global logging provider configuration
@@ -97,7 +98,7 @@ Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tes
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
-Code style for `.cs` files comes from `.editorconfig`: file-scoped namespaces that match the folder, `using`s above the namespace (`System` first, no ones already covered by implicit usings), LF line endings. `dotnet format` applies it.
+Code style for `.cs` files comes from `.editorconfig`: file-scoped namespaces that match the folder, `using`s above the namespace (`System` first, no ones already covered by implicit usings), LF line endings. `dotnet format` applies it, and the build enforces it (`EnforceCodeStyleInBuild` in `Directory.Build.props`). In CI (`TF_BUILD`/`CI` set) every warning, including style ones, fails the build.
 
 ---
 

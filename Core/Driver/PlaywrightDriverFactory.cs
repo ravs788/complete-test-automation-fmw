@@ -8,10 +8,12 @@ public static class PlaywrightDriverFactory
     /// Launches a browser on the given Playwright instance. The caller owns <paramref name="playwright"/>
     /// and must dispose it after closing the browser, otherwise its driver process keeps running.
     /// </summary>
+    /// <param name="playwright">The Playwright instance to launch the browser on (owned by the caller).</param>
     /// <param name="browserType">
     /// chromium (Playwright's bundled build), chrome / msedge (the installed Google Chrome / Microsoft Edge,
     /// no download needed), firefox, or webkit.
     /// </param>
+    /// <param name="headless">false to show the browser window.</param>
     public static async Task<IBrowser> CreateBrowserAsync(IPlaywright playwright, string browserType = "chromium", bool headless = true)
     {
         return browserType.ToLowerInvariant() switch

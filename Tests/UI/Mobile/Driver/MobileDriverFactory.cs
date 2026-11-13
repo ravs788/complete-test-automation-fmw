@@ -27,20 +27,19 @@ public static class MobileDriverFactory
             _ => new AndroidDriver(serverUri, options, initTimeout)
         };
 
+        logger.Info($"[Driver] Created {platform} {appType} session. SessionId={driver.SessionId}");
+
+        // Orientation is a best-effort hint: some devices and browsers don't support changing it.
         try
         {
-            logger.Info($"[Driver] Created {platform} {appType} session. SessionId={driver?.SessionId}");
-            // Orientation hint (best-effort)
-            if (string.Equals(config.Device.Orientation, "landscape", StringComparison.OrdinalIgnoreCase))
-            {
-                try { driver.Orientation = ScreenOrientation.Landscape; } catch { }
-            }
-            else
-            {
-                try { driver.Orientation = ScreenOrientation.Portrait; } catch { }
-            }
+            driver.Orientation = string.Equals(config.Device.Orientation, "landscape", StringComparison.OrdinalIgnoreCase)
+                ? ScreenOrientation.Landscape
+                : ScreenOrientation.Portrait;
         }
-        catch { }
+        catch (WebDriverException ex)
+        {
+            logger.Debug($"[Driver] Orientation not set: {ex.Message}");
+        }
 
         return driver;
     }
