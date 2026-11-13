@@ -263,7 +263,7 @@ Provider selection, implemented by `LoggingServiceFactory` and `ResultsPublisher
 2. If it can't, fall back to `console`.
 3. If console can't be created either, try any other discovered provider. As a last resort, use a built-in console logger.
 
-The `elastic` provider probes connectivity first, **once per URL per test run** (cached). If Elasticsearch is unreachable, logging falls back to the console and the run continues without further delay. Loggers (one per index) and the results publisher are also created once and reused.
+The `elastic` provider checks the server first, **once per URL per test run** (cached): `GET /` with the configured credentials must return 2xx from **Elasticsearch 8 or later** (not OpenSearch). If it doesn't (unreachable, wrong credentials, OpenSearch, too old), the run uses the console and prints **one** message with the reason, e.g. `[Logging] Provider 'elastic' not used: authentication failed (HTTP 401) …`. If the check passes but writes are rejected later (e.g. a user without write rights), the Elastic logger prints one message and continues on the console, and results publishing stops after its first failure. Loggers (one per index) and the results publisher are created once and reused. A user for an external cluster needs the `monitor` cluster privilege (for `GET /`) and write access to the `*-logs-*` and `search-*` indices.
 
 ```csharp
 var logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");

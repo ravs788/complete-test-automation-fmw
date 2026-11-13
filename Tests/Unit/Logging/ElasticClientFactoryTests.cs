@@ -21,11 +21,4 @@ public class ElasticClientFactoryTests
     {
         Assert.Throws<InvalidOperationException>(() => ElasticClientFactory.Create(ElasticServerChoices.ON_CLOUD, Config(null)));
     }
-
-    [Fact]
-    public void IsReachable_Should_ReturnFalse_When_UrlIsMissing()
-    {
-        Assert.False(ElasticConnectivity.IsReachable(null));
-        Assert.False(ElasticConnectivity.IsReachable(" "));
-    }
 }

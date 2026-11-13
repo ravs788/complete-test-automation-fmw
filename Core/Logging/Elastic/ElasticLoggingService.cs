@@ -14,6 +14,9 @@ public class ElasticLoggingService : ILoggingService
     private bool _enabled = true;
     private bool _disabledWarned = false;
 
+    // Where log lines go once Elastic can't be used, so nothing is lost.
+    private readonly Console.ConsoleLoggingService _fallback = new();
+
     /// <inheritdoc/>
     public void Configure(
         string indexFormat,
@@ -24,6 +27,7 @@ public class ElasticLoggingService : ILoggingService
         _indexFormat = string.IsNullOrWhiteSpace(indexFormat)
             ? "logs-default"
             : indexFormat;
+        _fallback.Configure(_indexFormat);
 
         // Prefer values provided in parameters; otherwise fall back to logging-config.json
         var cfg = LoggingConfigProvider.Current;
@@ -40,13 +44,12 @@ public class ElasticLoggingService : ILoggingService
         var serverChoice = ElasticClientFactory.CurrentProfile;
         _client = ElasticClientFactory.Create(serverChoice, cfg);
 
-        // Disable logging if the server is unreachable (the probe result is cached per URL for the run).
-        var probeUrl = ElasticClientFactory.ResolveUrl(serverChoice, cfg);
-        _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Elastic.Username, cfg.Elastic.Password);
-        if (!_enabled && !_disabledWarned)
+        // Disable logging if the server can't be used (the probe result is cached per URL for the run).
+        var probe = ElasticConnectivity.Check(ElasticClientFactory.ResolveUrl(serverChoice, cfg), cfg.Elastic.Username, cfg.Elastic.Password);
+        _enabled = probe.IsUsable;
+        if (!_enabled)
         {
-            System.Console.Error.WriteLine($"[ElasticLoggingService] Elastic unreachable at '{probeUrl}'. Logging disabled.");
-            _disabledWarned = true;
+            Disable(probe.Reason);
         }
     }
 
@@ -68,7 +71,10 @@ public class ElasticLoggingService : ILoggingService
             throw new InvalidOperationException("ElasticLoggingService is not configured. Call Configure() first.");
 
         if (!_enabled)
+        {
+            WriteToFallback(level, message, metadata);
             return;
+        }
 
         var entry = new ElasticLogEntry
         {
@@ -84,12 +90,35 @@ public class ElasticLoggingService : ILoggingService
             var response = _client.Index(entry, req => req.Index(indexName));
             if (!response.IsValidResponse)
             {
-                System.Console.Error.WriteLine($"[ElasticLoggingService] Indexing failed: {response.ElasticsearchServerError?.Error?.Reason}");
+                Disable($"indexing failed: {response.ElasticsearchServerError?.Error?.Reason ?? response.ApiCallDetails.OriginalException?.Message ?? response.ApiCallDetails.HttpStatusCode?.ToString() ?? "no response"}");
+                WriteToFallback(level, message, metadata);
             }
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            System.Console.Error.WriteLine($"[ElasticLoggingService] Exception while indexing log entry: {ex.Message}");
+            Disable($"exception while indexing: {ex.Message}");
+            WriteToFallback(level, message, metadata);
+        }
+    }
+
+    private void WriteToFallback(string level, string message, LogMetadata? metadata)
+    {
+        switch (level)
+        {
+            case "ERROR": _fallback.Error(message, metadata); break;
+            case "DEBUG": _fallback.Debug(message, metadata); break;
+            default: _fallback.Info(message, metadata); break;
+        }
+    }
+
+    /// <summary>Stops writing to Elastic after the first failure and says why, once, instead of failing on every line.</summary>
+    private void Disable(string? reason)
+    {
+        _enabled = false;
+        if (!_disabledWarned)
+        {
+            _disabledWarned = true;
+            System.Console.Error.WriteLine($"[ElasticLoggingService] Elastic logging disabled for '{_indexFormat}', logging to the console instead: {reason}");
         }
     }
 
