@@ -1,121 +1,209 @@
-# Modern C# Test Automation Framework Architecture
+# Modern C# Test Automation Framework: Architecture
 
 ## Overview
 
-This document describes the architecture of a modular, scalable test automation framework written in C#. The framework is designed to support API, Web UI (browser-based), and Desktop UI automation. Portability, ease of configuration, and compatibility with CI/CD systems like Azure DevOps are foundational goals. This document will be updated to reflect any major architectural changes.
+This framework is a modular C# / .NET 10 test automation platform that covers REST API, Web UI, and Android mobile-web testing. A Desktop project exists as a placeholder. It runs in Azure DevOps and GitHub Actions and reports through Allure, TRX, and an optional Elasticsearch sink.
+
+The repository contains **two parallel stacks**:
+
+| Stack | Projects | Runner | Driver/Client | Reporting | Status |
+|-------|----------|--------|---------------|-----------|--------|
+| **NUnit stack** | `Core`, `API`, `UI/Web`, `UI/Mobile` | NUnit 4 | RestSharp, Selenium 4 (local or Grid), Appium 2 | Allure + TRX + Console/Elastic results | Mature: full SauceDemo and Restful Booker suites; Android mobile-web samples |
+| **Playwright stack** | `src/Automation.Core`, `src/Automation.Pages`, `tests/Automation.Tests` | xUnit 2 | Microsoft.Playwright | TRX + Cobertura coverage | Newer: TodoMVC sample; the Azure DevOps web suite |
+
+The Playwright stack is the forward-looking web stack: it is async-first, isolates each test in its own browser context, and uses web-first assertions. The Selenium and Appium suites run in GitHub Actions and through the `bat/` and `sh/` scripts.
 
 ---
 
-## 1. Goals and Vision
+## 1. Goals
 
-- **Transportable:** Easily adapted and reused across diverse application types and environments with minimal setup.
-- **Maintainable:** Strong separation of concerns with an extensible, modular design.
-- **Comprehensive:** Unified support for API, browser, and desktop UI testing within one structure.
-- **Modern Reporting:** Integration with rich HTML and developer-friendly reporting tools.
-- **CI/CD Ready:** Out-of-the-box compatibility with Azure DevOps for seamless automation and reporting in pipelines.
-
----
-
-## 2. Architectural Principles
-
-- **SOLID Design:** Classes and interfaces are designed for single responsibility, open/closed extension, and easy testability.
-- **Clean Architecture:** Core abstractions are separated from technical details (driver code, external dependencies).
-- **Dependency Injection:** Test code and drivers are loosely coupled and configurable at runtime.
-- **Configuration-Driven:** All runtime specifics (servers, credentials, endpoints, driver options) are externalized.
+- **Transportable:** moves to new applications and environments with minimal setup.
+- **Maintainable:** clear layering (config → driver → pages → tests) and small, single-purpose classes.
+- **Comprehensive:** API, browser, and mobile automation today; a desktop slot is reserved.
+- **Observable:** Allure reports, TRX for CI dashboards, optional Elasticsearch for logs and trends.
+- **CI/CD ready:** first-class Azure DevOps pipeline, plus GitHub Actions workflows.
 
 ---
 
-## 3. Project & Folder Structure
+## 2. Layered View
 
-```
-/modern-test-framework/
-│
-├── src/
-│   ├── Core/                # Cross-cutting abstractions, interfaces, and shared models
-│   ├── API/
-│   │   ├── Drivers/         # Wrappers for HTTP clients (e.g., RestSharp, Flurl)
-│   │   ├── Tests/           # API test suites by domain
-│   │   └── Helpers/         # Utilities for requests, assertions, deserialization
-│   ├── UI/
-│   │   ├── Browser/
-│   │   │   ├── Drivers/     # Selenium/Playwright setups
-│   │   │   ├── Pages/       # Page Object Models
-│   │   │   └── Tests/       # Browser UI test suites
-│   │   ├── Desktop/
-│   │   │   ├── Drivers/     # WinAppDriver/FlaUI
-│   │   │   ├── Pages/       # Window/View models
-│   │   │   └── Tests/       # Desktop UI test suites
-│   │   ├── Mobile/
-│   │   │   ├── Drivers/     # Appium-based (cross-platform Android/iOS)
-│   │   │   ├── Pages/       # Screen/Page Models for mobile
-│   │   │   └── Tests/       # Mobile UI test suites
-│   ├── Reporting/           # Integrations for ExtentReports, Allure, etc.
-│   ├── Configs/             # Environment/config files (JSON, XML, ENV)
-│   └── Utils/               # Shared utilities, logging, custom assertions
-│
-├── pipelines/               # Azure DevOps YAMLs, helper scripts for CI/CD
-├── test-data/               # Data for data-driven testing (CSV/JSON/Excel)
-├── docs/                    # Technical/design documentation
-├── .gitignore
-├── README.md
-├── ARCHITECTURE.md
-└── modern-test-framework.sln
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                               Test Layer                                 │
+│  API/Tests      UI/Web/Tests     UI/Mobile/Tests   tests/Automation.Tests│
+│  BaseApiTest    BaseWebTest      BaseMobileTest    PlaywrightFixture     │
+├──────────────────────────────────────────────────────────────────────────┤
+│                      Page Objects / Clients                              │
+│  API/Utilities  UI/Web/Pages     UI/Mobile/Pages   src/Automation.Pages  │
+│  ApiClient,Auth (Selenium POM)   + Drivers/Bootstrap  BasePage, TodoPage │
+├──────────────────────────────────────────────────────────────────────────┤
+│                    Shared Infrastructure                                 │
+│  Core (NUnit stack)                     src/Automation.Core (Playwright) │
+│   • ConfigLoader / TestDataLoader        • TestSettings + Provider       │
+│   • Logging + Results (Console/Elastic)  • PlaywrightDriverFactory       │
+│   • IScreenshotHelper                    • TodoItem Builder / Mother     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Configuration & Data:  config.json (per project) · logging-config.json  │
+│                         test-data/<TestClass>/*.json · Directory.Build.props
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-Each major artifact (API, UI-Browser, UI-Desktop, UI-Mobile) is structured to allow for maximum code reuse and minimal coupling.
+Dependency rules:
+
+- `API`, `UI/Web`, and `UI/Mobile` depend on `Core`. `Core` has no dependency on test frameworks or Selenium. The only UI-related type in Core is the `IScreenshotHelper` interface plus a stub, and `UI/Web` supplies the real implementation.
+- `Automation.Pages` depends on `Automation.Core`. `Automation.Tests` depends on both.
+- The two stacks share no code.
 
 ---
 
-## 4. Technology Stack
+## 3. NUnit Stack
 
-- **.NET:** C# class libraries and test projects (.NET 6+ preferred)
-- **API:** RestSharp or Flurl.Http for REST endpoints
-- **Web UI:** Selenium WebDriver or Playwright for browser automation (driver wrappers abstracted for swap-ability)
-- **Desktop UI:** WinAppDriver, FlaUI, or TestStack.White (abstracted via common interfaces)
-- **Mobile UI:** Appium via Appium.WebDriver (industry standard for cross-platform mobile UI automation; supports Android/iOS emulators/devices). Alternatives: Xamarin.UITest, MAUI UITest (less common, more restricted).
-- **Test Runner:** NUnit (flexible and widely supported), with extensibility for xUnit/MSTest
-- **Reporting:** ExtentReports for rich HTML outputs; Allure for advanced pipeline visualization (optional)
-- **Dependency Injection:** Microsoft.Extensions.DependencyInjection or Autofac
-- **Configuration:** JSON, XML, or ENV file-driven
+### 3.1 Configuration
+
+- Each test project owns a `config.json` and a typed `ConfigSettings` class, and copies `config.json` to the output directory on build.
+- `Core.Utilities.ConfigLoader.Load<T>()` deserializes `AppContext.BaseDirectory/config.json`.
+- `Directory.Build.props` points every project's Allure output at the root `allure-results/` folder.
+
+### 3.2 Test data
+
+- `TestDataLoader.Instance.Load<T>("<TestClass>/<Scenario>.json")` reads from `<output>/test-data/`.
+- The data files live next to the project, under `test-data/<TestClass>/`, and are copied on build.
+
+### 3.3 Logging & results publishing
+
+```text
+            logging-config.json  (found by walking up to the *.sln folder)
+                       │
+        ┌──────────────┴───────────────┐
+        ▼                              ▼
+LoggingServiceFactory          ResultsPublisherFactory
+  │ reflection: ILoggingProviderFactory / IResultsPublisherFactory
+  │ 1. configured Provider  → 2. "console"  → 3. any other  → 4. inline console
+  ▼                              ▼
+ILoggingService               IResultsPublisher
+ ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
+ └─ ElasticLoggingService      └─ ElasticResultsPublisher
+        │ ElasticClientFactory(ELASTIC_SERVER profile)
+        │ ElasticConnectivity probe → disables itself if unreachable
+```
+
+- To add a provider, implement both factory interfaces in `Core`. The factories discover providers by reflection, so no registration code is needed.
+- Each test publishes one `LogMetadata` document (project, class, method, status, duration, reason, timing, browser, user) in `[TearDown]`. A publish failure never fails the test.
+
+### 3.4 Test lifecycle (UI/Web)
+
+```text
+[SetUp]  BaseWebTest
+  ├─ ConfigLoader.Load<ConfigSettings>()
+  ├─ browser = TestCase argument (chrome | firefox | edge; default firefox)
+  ├─ create WebDriver (headless from config) → maximize → GoTo(BaseUrl)
+  └─ rename Allure test "<name> (<browser>)"
+[Test]   page objects + TestDataLoader + AllureApi.Step assertions
+[TearDown]
+  ├─ Allure params: Start Time / End Time / Duration (s)
+  ├─ log outcome; publish LogMetadata
+  ├─ screenshot → Allure (on failure)
+  └─ Driver.Quit() / Dispose()
+```
+
+Driver creation: when `GridUrl` is set, `BaseWebTest` creates a `RemoteWebDriver`. Otherwise it uses a local driver from a configured path, or Selenium Manager when no path is set. It applies the configured timeouts, bypasses system proxies for the local WebDriver connection, and forces headless mode when `GITHUB_ACTIONS=true`.
+
+`BaseApiTest` follows the same pattern, without a driver: it creates a new `ApiClient` per test and disposes it in teardown. API fixtures run in parallel at assembly level.
+
+### 3.5 Mobile layer (UI/Mobile)
+
+```text
+config.json (server, platform, appType, device, android, ios, behavior)
+   │  MobileOptionsBuilder.Parse → (Android|iOS, Web|Native)
+   ▼
+Drivers/Bootstrap.cs → AppiumOptions → AndroidDriver / IOSDriver  (Appium 2 server)
+   ▼
+BaseMobileTest  [SetUp] create driver → navigate (Web) / launch app (Native)
+                [TearDown] Allure timing → log → publish LogMetadata → quit
+   ▼
+Pages: Web/MobileWebBasePage · Native/Android/AndroidBasePage
+Helpers: Interaction/Gestures/GestureHelper · Interaction/Waits/WaitHelper
+```
+
+The full design, config reference, and local Appium/emulator setup are in [UI/Mobile/Architecture.md](../UI/Mobile/Architecture.md).
 
 ---
 
-## 5. Modularity and Portability
+## 4. Playwright Stack
 
-- **Full Stack Coverage:** UI layer is now split into Browser, Desktop, and Mobile modules—all following the same pluggable Page Object and Driver patterns for consistency.
-- **Abstractions:** All automation interfaces (drivers, pages, services) are defined in Core and implemented in feature modules.
-- **Plug-and-Play:** Add new drivers or test types by implementing interfaces; no impact on unrelated modules.
-- **Configuration:** All environment, credential, and runtime values are externalized for maximum portability.
-- **Test Data:** Separated from test code, enabling easy reuse and data-driven scripting.
+### 4.1 Components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `TestSettings` (record) | Immutable settings: `BaseUrl`, `Browser`, `Headless`, `DefaultTimeoutMs` |
+| `ConfigurationProvider` | Thread-safe `Lazy<TestSettings>` singleton (`Current`) |
+| `PlaywrightDriverFactory` | `CreateBrowserAsync(type, headless)` for chromium/firefox/webkit; `CreateIsolatedContextAsync` |
+| `BasePage` | Primary-constructor base holding `IPage` |
+| `TodoPage` | Intent methods (`AddTodoAsync`, `CompleteTodoAsync`, …) plus exposed `ILocator`s for assertions |
+| `TodoItemBuilder` / `TodoItemMother` | GUID-backed test data that can't collide between tests |
+| `PlaywrightFixture` | `IClassFixture` + `IAsyncLifetime`: one browser per class, `CreateCleanPageAsync()` per test |
+
+### 4.2 Test lifecycle
+
+```text
+Class start   PlaywrightFixture.InitializeAsync → launch browser (Settings)
+Per test      TodoTests.InitializeAsync → new BrowserContext(BaseURL) → new Page(timeout)
+              Arrange (Mother) → Act (page intent) → Assert (Assertions.Expect, auto-retry)
+              TodoTests.DisposeAsync → context.CloseAsync()
+Class end     PlaywrightFixture.DisposeAsync → browser.CloseAsync()
+```
+
+Isolating each test in its own context gives it fresh cookies and storage while keeping only one browser launch per class.
 
 ---
 
-## 6. CI/CD and Reporting
+## 5. CI/CD
 
-- **Azure Pipelines Integration:** YAML-based pipelines to run tests, publish results, and upload HTML/Allure reports as pipeline artifacts.
-- **Test Results:** Test result adapters (NUnit XML, Allure) ensure all test outcomes are captured and visualized in Azure DevOps.
-- **Reporting:** ExtentReports and/or Allure are generated as part of the test run, accessible post-build.
+```text
+Azure DevOps (azure-pipelines.yml)                    GitHub Actions (.github/workflows)
+───────────────────────────────────                   ──────────────────────────────────
+Stage: BuildAndValidate                                pr-smoke.yml        ─┐
+ ├─ Job WebAndApiAutomation (ubuntu)                   main-regression.yml ─┴─► reusable-test-runner.yml
+ │   .NET 10 → build sln → build Playwright tests         (layer=api|ui, tag=smoke|regression; windows)
+ │   → playwright install chromium                     api-tests.yml / ui-tests.yml  (manual)
+ │   → test API (NUnit) + Playwright (xUnit)
+ │   → publish TRX (gate) + Cobertura coverage
+ └─ Job DesktopAutomation (windows)
+     .NET 10 → build UI.Desktop.Tests → publish TRX
+```
+
+Locally, the scripts in `bat/` (Windows) and `sh/` (macOS/Linux) run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
 
 ---
 
-## 7. Extending the Framework
+## 6. Extending the Framework
 
-- Add new automation technology by:
-  - Creating interface in `/Core`
-  - Implementing in `/API`, `/UI/Browser`, or `/UI/Desktop` as appropriate
-  - Wiring up with dependency injection in startup/config
-- Configuration should be updated with any new environment or driver requirements
-- Update this `ARCHITECTURE.md` when making major design changes
+- **New web feature (Playwright):** add a page in `src/Automation.Pages/<Feature>/`, builders/mothers in `src/Automation.Core/TestData/`, and tests in `tests/Automation.Tests/<Feature>/` using `PlaywrightFixture`.
+- **New web feature (Selenium):** add a page in `UI/Web/Pages/`, data in `UI/Web/test-data/<TestClass>/`, and a test class inheriting `BaseWebTest`.
+- **New API area:** add models and data under `API/`, and a test class inheriting `BaseApiTest`.
+- **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
+- **New mobile screen:** add a page under `UI/Mobile/Pages/Web/` or `Pages/Native/<Platform>/`, and a test inheriting `BaseMobileTest`.
+- **Desktop:** fill in `UI/Desktop/UI.Desktop.Tests` with a base test class and page objects that follow the same pattern, and add a test step to the pipeline.
+
+Update this document whenever a layer, a dependency direction, or a CI flow changes.
+
+---
+
+## 7. Roadmap
+
+- Make `TestSettings` read from `appsettings`/environment variables (e.g. `HEADLESS`, `BROWSER`, `BASE_URL`).
+- Add the Playwright projects to the solution, or migrate fully to `TestAutomationPlatform.slnx`.
+- Add Allure reporting to the xUnit/Playwright suite.
+- Add mobile tests to CI, with NUnit `[Category]` attributes and an emulator job, and remove the machine-specific values from `UI/Mobile/config.json`.
+- Add native-app mobile samples (Android, then iOS).
+- Desktop UI suite (FlaUI / UIA).
 
 ---
 
 ## 8. Revision History
 
-| Date       | Author        | Notes               |
-|------------|---------------|---------------------|
-| 2025-09-03 | Initial Draft | Baseline definition |
-| 2025-09-03 | Arch update   | Added Mobile UI layer; Appium integration and updated docs |
-
----
-
-This document is a starting point and will be maintained to reflect architectural refinements and significant design decisions.
+| Date       | Notes |
+|------------|-------|
+| 2025-09-03 | Initial draft; baseline definition |
+| 2025-09-03 | Added Mobile UI layer; Appium integration planned |
+| 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |
