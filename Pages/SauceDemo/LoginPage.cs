@@ -12,7 +12,7 @@ public sealed class LoginPage(IPage page) : BasePage(page)
     public ILocator ErrorMessage => Page.Locator("[data-test='error']");
 
     /// <summary>Opens the login page (the context's BaseURL).</summary>
-    public async Task OpenAsync() => await Page.GotoAsync("./");
+    public async Task OpenAsync() => await GotoAsync("./");
 
     public async Task LoginAsync(string username, string password)
     {

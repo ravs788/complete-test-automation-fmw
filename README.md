@@ -401,7 +401,7 @@ public Task CanAddBackpackToCart() => RunAsync(async () =>
 
 ### Web UI
 
-1. Add a page object in `Pages/<App>/` (inherit `Pages.Common.BasePage`), exposing `ILocator`s for assertions and async intent methods for actions.
+1. Add a page object in `Pages/<App>/` (inherit `Pages.Common.BasePage`), exposing `ILocator`s for assertions and async intent methods for actions. Entry pages open with `BasePage.GotoAsync("./")`, which retries a navigation that fails with a network error (`net::ERR_*`) up to twice.
 2. Add a model in `Core/Models/<App>/` and a Builder + Mother in `Core/TestData/<App>/`. Put `[Theory]` cases in a `[MemberData]` source built from them. Use JSON (`Tests/test-data/<App>/<TestClass>/<Scenario>.json` via `TestDataLoader`) only for large tables or data owned outside the code (see below) cases.
 3. For a new app, add its URL to `testsettings.json` / `TestSettings` and a `Tests/UI/Web/<App>/<App>TestBase.cs` that inherits `UiTestBase` and overrides `BaseUrl`.
 4. Add a test class in `Tests/UI/Web/<App>/` that inherits the app's test base (takes `PlaywrightFixture`) and carries `[AllureParentSuite("UI Web")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "<app>", "<feature>", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });` and assert with `Assertions.Expect(...)`.

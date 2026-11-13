@@ -13,7 +13,7 @@ public sealed class TodoPage(IPage page) : BasePage(page)
     public ILocator TodoCountElement => Page.Locator(".todo-count");
 
     /// <summary>Opens the todo app (the context's BaseURL).</summary>
-    public async Task OpenAsync() => await Page.GotoAsync("./");
+    public async Task OpenAsync() => await GotoAsync("./");
 
     public async Task AddTodoAsync(string title)
     {
