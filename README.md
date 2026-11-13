@@ -82,7 +82,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests, Tests/Unit
+├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -341,14 +341,14 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 
 1. Shallow checkout, .NET 10 SDK
-2. Build `ci.slnf` (Release): `Core`, `Pages`, `Tests` and `Tests/Unit`, with warnings as errors. Mobile is skipped.
+2. Build `ci.slnf` (Release): `Core`, `Pages`, `Tests`, `Tests/Unit` and `Tests/UI/Mobile` (compile check only), with warnings as errors.
 3. `dotnet test Tests/Unit/Tests.Unit.csproj`: the framework unit tests, first, so a broken `Core` fails fast.
 4. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
 5. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
 
 Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
 
-The Appium `Tests/UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
+The Appium `Tests/UI/Mobile` suite is **built** in CI, so compile errors are caught, but not **run**: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
 
 ### Connecting the pipeline (one-time)
 
@@ -427,7 +427,7 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ## ⚠️ Known Issues / TODO
 
-- **Mobile tests aren't in CI.** Hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
+- **Mobile tests are only compiled in CI.** Hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud (point `APPIUM_URL` at it).
 - **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 

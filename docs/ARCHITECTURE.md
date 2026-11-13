@@ -172,7 +172,7 @@ GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)
 
 Stage: BuildAndValidate
  └─ Job Tests (ubuntu; single job, since the org has one parallel job)
-      .NET 10 → build ci.slnf (Core, Pages, Tests, Tests/Unit; warnings as errors)
+      .NET 10 → build ci.slnf (Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
       → dotnet test Tests/Unit (framework unit tests, ~1 s)
       → dotnet test Tests/Tests.csproj, BROWSER=chrome (preinstalled Chrome, no download)
           PR           → --filter "FullyQualifiedName!~.SauceDemo.|Category=smoke"

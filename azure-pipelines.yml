@@ -17,7 +17,8 @@
 #
 # Tests use xUnit + Allure.Xunit; the results are published as the
 # "allure-results" artifact (download it and run `allure serve <dir>`).
-# The Appium mobile suite (Tests/UI/Mobile) needs an Android emulator and isn't run here.
+# The Appium mobile suite (Tests/UI/Mobile) is built here (compile check) but not run: it needs an
+# Android emulator or a device cloud, which hosted agents don't provide.
 # =============================================================================
 
 trigger:

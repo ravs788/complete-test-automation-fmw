@@ -3,7 +3,7 @@
 The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. It keeps its own pages (rather than using the top-level `Pages/` project) because `Pages` is built on Playwright and mobile pages use Appium types. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
-- **Not in CI:** hosted agents have no Android emulator. See the platform matrix in [GETTING_STARTED.md](GETTING_STARTED.md).
+- **CI:** the project is built in CI (compile check), but the tests aren't run, because hosted agents have no Android emulator. See the platform matrix in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ---
 
