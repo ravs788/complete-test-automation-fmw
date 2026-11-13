@@ -2,7 +2,6 @@ using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
 using Core.TestData.SauceDemo;
 using Microsoft.Playwright;
-using Pages.SauceDemo;
 using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
@@ -15,14 +14,13 @@ namespace Tests.UI.Web.SauceDemo;
 public class RemoveFromCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task CanRemoveBackpackFromCart() => RunAsync(async () =>
+    public Task Cart_Should_RemoveProduct_When_RemoveClicked() => RunAsync(async () =>
     {
         var product = ProductMother.Backpack();
 
         var inventory = await LoginAsync(UserMother.Standard());
         await inventory.AddToCartAsync(product.Name);
-        await inventory.OpenCartAsync();
-        var cart = new CartPage(Page);
+        var cart = await inventory.OpenCartAsync();
 
         await AllureApi.Step("Assert product added to cart", async () =>
             await Assertions.Expect(cart.Item(product.Name)).ToBeVisibleAsync());

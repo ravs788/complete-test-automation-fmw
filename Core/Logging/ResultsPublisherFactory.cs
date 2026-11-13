@@ -27,9 +27,17 @@ public static class ResultsPublisherFactory
             var selected = factories.FirstOrDefault(f =>
                 string.Equals(f.Name, provider, StringComparison.OrdinalIgnoreCase));
 
-            if (selected != null && selected.TryCreate(cfg, out var pub, out _))
+            if (selected == null)
+            {
+                ProviderFallback.Report(provider, "no such provider", "console");
+            }
+            else if (selected.TryCreate(cfg, out var pub, out var reason))
             {
                 return pub;
+            }
+            else
+            {
+                ProviderFallback.Report(provider, reason, "console");
             }
         }
 

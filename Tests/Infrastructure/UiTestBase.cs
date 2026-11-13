@@ -7,10 +7,12 @@ using Microsoft.Playwright;
 using Tests.Fixtures;
 
 namespace Tests.Infrastructure;
+
 /// <summary>
 /// Base for browser tests. Each test gets a fresh context and page (opened at <see cref="BaseUrl"/>);
-/// wrap the test body in <see cref="RunAsync"/> for logging, Allure timing, a full-page screenshot on
-/// failure and results publishing (via Core's <see cref="TestRunner"/>).
+/// wrap the test body in <see cref="RunAsync"/> for logging, Allure timing, a full-page screenshot and a
+/// Playwright trace on failure (see <see cref="TestSettings.Trace"/>) and results publishing (via Core's
+/// <see cref="TestRunner"/>).
 /// </summary>
 public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifetime
 {
@@ -29,7 +31,17 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
     /// <summary>Base URL of the application under test (the context's BaseURL).</summary>
     protected abstract string BaseUrl { get; }
 
-    public async Task InitializeAsync() => (Context, Page) = await Fixture.CreateCleanPageAsync(BaseUrl);
+    private bool Tracing => !string.Equals(Settings.Trace, TraceModes.Off, StringComparison.OrdinalIgnoreCase);
+    private bool _traceSaved;
+
+    public async Task InitializeAsync()
+    {
+        (Context, Page) = await Fixture.CreateCleanPageAsync(BaseUrl);
+        if (Tracing)
+        {
+            await Context.Tracing.StartAsync(new() { Screenshots = true, Snapshots = true, Sources = true });
+        }
+    }
 
     public async Task DisposeAsync()
     {
@@ -44,7 +56,7 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
             new TestRunInfo(Logger, "ui-web", GetType(), testName, Settings.Browser),
             body: async () =>
             {
-                // Show the browser in the Allure test name, e.g. "EndToEnd_Checkout_Success (chrome)", and keep
+                // Show the browser in the Allure test name, e.g. "Checkout_Should_CompleteOrder (chrome)", and keep
                 // runs on different browsers apart when their results are merged (run_ui_web_all_browsers).
                 AllureLifecycle.Instance.UpdateTestCase(tc =>
                 {
@@ -63,11 +75,44 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
                     Assert.Fail($"{ex.Message}{Environment.NewLine}{ex.StackTrace}");
                 }
             },
-            onFailureAsync: AttachScreenshotAsync);
+            onFailureAsync: AttachFailureArtifactsAsync,
+            cleanupAsync: AttachTraceIfAlwaysOnAsync);
 
-    private async Task AttachScreenshotAsync()
+    private async Task AttachFailureArtifactsAsync()
     {
         var png = await Page.ScreenshotAsync(new() { FullPage = true });
         AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+
+        if (Tracing)
+        {
+            await AttachTraceAsync();
+        }
+    }
+
+    private async Task AttachTraceIfAlwaysOnAsync()
+    {
+        if (!_traceSaved && string.Equals(Settings.Trace, TraceModes.On, StringComparison.OrdinalIgnoreCase))
+        {
+            await AttachTraceAsync();
+        }
+    }
+
+    /// <summary>
+    /// Stops tracing into a zip and attaches it to Allure. Allure's report opens it in the Playwright trace viewer;
+    /// it can also be opened with <c>pwsh playwright.ps1 show-trace &lt;file&gt;</c> or at https://trace.playwright.dev.
+    /// </summary>
+    private async Task AttachTraceAsync()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"trace_{Guid.NewGuid():N}.zip");
+        try
+        {
+            await Context.Tracing.StopAsync(new() { Path = path });
+            _traceSaved = true;
+            AllureApi.AddAttachment("Playwright trace", "application/vnd.allure.playwright-trace", await File.ReadAllBytesAsync(path), "zip");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

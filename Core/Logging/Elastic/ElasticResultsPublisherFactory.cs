@@ -16,9 +16,10 @@ public class ElasticResultsPublisherFactory : IResultsPublisherFactory
         var user = cfg.Elastic.Username;
         var pass = cfg.Elastic.Password;
 
-        if (!ElasticConnectivity.IsReachable(url, user, pass))
+        var probe = ElasticConnectivity.Check(url, user, pass);
+        if (!probe.IsUsable)
         {
-            reason = $"Elastic unreachable at {url}";
+            reason = probe.Reason;
             return false;
         }
 

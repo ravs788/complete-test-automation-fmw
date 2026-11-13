@@ -30,9 +30,17 @@ public static class LoggingServiceFactory
             var selected = factories.FirstOrDefault(f =>
                 string.Equals(f.Name, provider, StringComparison.OrdinalIgnoreCase));
 
-            if (selected != null && selected.TryCreate(cfg, indexFormat, out var svc, out _))
+            if (selected == null)
+            {
+                ProviderFallback.Report(provider, "no such provider", "console");
+            }
+            else if (selected.TryCreate(cfg, indexFormat, out var svc, out var reason))
             {
                 return svc;
+            }
+            else
+            {
+                ProviderFallback.Report(provider, reason, "console");
             }
         }
 

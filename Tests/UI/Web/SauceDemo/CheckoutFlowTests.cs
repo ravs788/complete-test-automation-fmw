@@ -3,7 +3,6 @@ using Allure.Net.Commons.Attributes;
 using Core.Models.SauceDemo;
 using Core.TestData.SauceDemo;
 using Microsoft.Playwright;
-using Pages.SauceDemo;
 using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
@@ -16,7 +15,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task EndToEnd_Checkout_Success() => RunAsync(async () =>
+    public Task Checkout_Should_CompleteOrder() => RunAsync(async () =>
     {
         Product[] products = [ProductMother.Backpack(), ProductMother.BikeLight()];
         var checkoutInfo = CheckoutInfoMother.Standard();
@@ -29,8 +28,7 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
         {
             await inventory.AddToCartAsync(product.Name);
         }
-        await inventory.OpenCartAsync();
-        var cart = new CartPage(Page);
+        var cart = await inventory.OpenCartAsync();
 
         await AllureApi.Step("Assert cart contains the selected products", async () =>
         {
@@ -38,21 +36,17 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
             await Assertions.Expect(cart.ItemNames).ToHaveTextAsync(products.Select(p => p.Name).ToArray());
         });
 
-        await cart.CheckoutAsync();
-        var information = new CheckoutInformationPage(Page);
+        var information = await cart.CheckoutAsync();
         await AllureApi.Step("Assert checkout information page loaded", async () =>
             await Assertions.Expect(information.Title).ToHaveTextAsync("Checkout: Your Information"));
 
-        await information.FillAndContinueAsync(
+        var overview = await information.FillAndContinueAsync(
             checkoutInfo.FirstName,
             checkoutInfo.LastName,
             checkoutInfo.PostalCode);
 
-        var overview = new CheckoutOverviewPage(Page);
         await Assertions.Expect(overview.Title).ToHaveTextAsync("Checkout: Overview");
-        await overview.FinishAsync();
-
-        var complete = new CheckoutCompletePage(Page);
+        var complete = await overview.FinishAsync();
         await AllureApi.Step("Assert order completion message displayed", async () =>
             await Assertions.Expect(complete.Header).ToContainTextAsync("thank you for your order", new() { IgnoreCase = true }));
     });

@@ -15,7 +15,7 @@ namespace Tests.Api;
 public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Get_All_Booking_Ids() => RunAsync(async () =>
+    public Task BookingIds_Should_BeListed() => RunAsync(async () =>
     {
         var bookingIds = await Client.GetAsync<List<BookingId>>("booking");
 
@@ -27,18 +27,17 @@ public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
     });
 
     [Fact]
-    public Task Get_Booking_By_Id() => RunAsync(async () =>
+    public Task Booking_Should_BeReturnedById() => RunAsync(async () =>
     {
         var newBooking = BookingMother.Standard();
 
-        var created = await Client.PostAsync<CreatedBooking>("booking", newBooking);
+        var created = await CreateBookingAsync(newBooking);
         AllureApi.Step("Assert booking created for get-by-id test", () =>
         {
-            Assert.NotNull(created);
             Assert.True(created.BookingId > 0, "Post response does not include a bookingid");
         });
 
-        var booking = await Client.GetAsync<Booking>($"booking/{created!.BookingId}");
+        var booking = await Client.GetAsync<Booking>($"booking/{created.BookingId}");
         AllureApi.Step("Assert booking record retrieval and its fields", () =>
             Assert.Equal(newBooking, booking));
     });

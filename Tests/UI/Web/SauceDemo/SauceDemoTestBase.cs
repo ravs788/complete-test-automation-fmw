@@ -14,7 +14,6 @@ public abstract class SauceDemoTestBase(PlaywrightFixture fixture) : UiTestBase(
     {
         var login = new LoginPage(Page);
         await login.OpenAsync();
-        await login.LoginAsync(user.Username, user.Password);
-        return new InventoryPage(Page);
+        return await login.LoginAsync(user.Username, user.Password);
     }
 }

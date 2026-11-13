@@ -15,7 +15,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class SauceDemoTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task Saucedemo_Login_ShouldShowInventory() => RunAsync(async () =>
+    public Task Login_Should_ShowInventory() => RunAsync(async () =>
     {
         var inventory = await LoginAsync(UserMother.Standard());
 

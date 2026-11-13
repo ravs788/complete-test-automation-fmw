@@ -13,7 +13,7 @@ namespace Tests.UI.Mobile.SauceDemo;
 public class SauceDemoTests : MobileTestBase
 {
     [Fact]
-    public void SauceDemo_LoginPage_ShouldLoad() => Run(() =>
+    public void LoginPage_Should_Load() => Run(() =>
     {
         // MobileTestBase has already opened BaseUrl (mobilesettings.json).
         var login = new LoginPage(Driver, Logger);

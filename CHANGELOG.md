@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-14: Review items R21–R23
+
+- **R21:** Elastic is only used when it can really be written to: `GET /` with the configured credentials must return 2xx from Elasticsearch 8+ (not OpenSearch). Otherwise one message explains why, and logging uses the console. If writes fail later, Elastic logging switches to the console once, and results publishing stops after one failure.
+- **R22:** removed the unused `Console.Enabled` setting.
+- **R23:** each test run clears the previous Allure results first; the pipeline copies results out after every `dotnet test`.
+
+## 2026-11-14: Review items R4–R20
+
+- **Debugging:** a Playwright trace is attached to Allure when a UI test fails (`Trace`: off | on-failure | on; `TRACE`) (R4). The first page load is retried on `net::ERR_*` network errors (R20).
+- **Test hygiene:** API tests delete the bookings they create (`ApiTestBase.CreateBookingAsync`) (R5).
+- **Configuration:** one `SettingsLoader` (Microsoft.Extensions.Configuration) for all settings files: JSON, then `TESTS_` / `LOGGING_` / `MOBILE_` environment variables, then aliases (R6).
+- **Build:** `Directory.Build.props` holds the shared settings; code style is enforced in the build; warnings are errors in CI (R7).
+- **Page objects:** navigation methods return the next page (R8); locators use test ids and roles instead of CSS classes (`BasePage.TestId`, `SauceDemoPage` uses `data-test`) (R9).
+- **Conventions:** all tests are named `Subject_Should_Outcome[_When_Condition]` (R10, resets Allure history once); the API log index is `api-logs-*` (R12, update Kibana views that used `test-logs-*`).
+- **API layer:** `ApiClient` takes per-request headers; Restful Booker builds its own auth (`AuthClient.GetAuthHeadersAsync`) (R11).
+- **CI:** nightly run of the web tests on Chromium, Firefox and WebKit (R13); an `allure-report` artifact with history and a single-file HTML (R14); framework unit tests run first (R18); the mobile project is compiled in CI (R16, partly done).
+- **Cleanup:** removed the empty `Tests/Desktop` (R15), the private-registry `.npmrc` (R17) and `ITestDataLoader` (R19).
+
 ## 2026-11-14: Review P1 fixes (R1–R3)
 
 - **R1, no credentials in the repo.** `logging-config.json` no longer contains an Elastic username or password. Credentials come from `ELASTIC_USERNAME` / `ELASTIC_PASSWORD`. New overrides: `LOGGING_PROVIDER`, `ELASTIC_URL`, `ELASTIC_CERT_FINGERPRINT`. The `ON_LOCALHOST_SECURE` profile used the *password* as the certificate fingerprint; it now has its own `Elastic.CertificateFingerprint` setting.

@@ -1,0 +1,24 @@
+<Project>
+  <!--
+    Settings shared by every project. Project files only add what's specific to them
+    (packages, references, test-project flags, content files).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+
+    <!-- Apply the .editorconfig code-style rules (namespaces, usings, ...) during the build, not only in dotnet format. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Needed for IDE0005 (unused usings) to be reported at build time; missing XML docs are not an error. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- CI (Azure Pipelines sets TF_BUILD) fails on any warning; local builds only report them. -->
+  <PropertyGroup Condition="'$(TF_BUILD)' == 'true' Or '$(CI)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

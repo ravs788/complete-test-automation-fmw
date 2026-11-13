@@ -1,18 +1,20 @@
 using Microsoft.Playwright;
-using Pages.Common;
 
 namespace Pages.SauceDemo;
 
-public sealed class CartPage(IPage page) : BasePage(page)
+public sealed class CartPage(IPage page) : SauceDemoPage(page)
 {
-    public ILocator Title => Page.Locator(".title");
-    public ILocator ItemNames => Page.Locator(".cart_item .inventory_item_name");
+    public ILocator ItemNames => TestId("inventory-item").Locator(TestId("inventory-item-name"));
 
     public ILocator Item(string productName) =>
-        Page.Locator(".cart_item").Filter(new() { Has = Page.Locator(".inventory_item_name", new() { HasTextString = productName }) });
+        TestId("inventory-item").Filter(new() { Has = TestId("inventory-item-name").Filter(new() { HasTextString = productName }) });
 
     public async Task RemoveAsync(string productName) =>
         await Item(productName).GetByRole(AriaRole.Button, new() { Name = "Remove" }).ClickAsync();
 
-    public async Task CheckoutAsync() => await Page.Locator("#checkout").ClickAsync();
+    public async Task<CheckoutInformationPage> CheckoutAsync()
+    {
+        await TestId("checkout").ClickAsync();
+        return new CheckoutInformationPage(Page);
+    }
 }

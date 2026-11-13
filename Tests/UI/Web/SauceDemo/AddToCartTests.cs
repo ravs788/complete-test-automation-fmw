@@ -2,7 +2,6 @@ using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
 using Core.TestData.SauceDemo;
 using Microsoft.Playwright;
-using Pages.SauceDemo;
 using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
@@ -15,7 +14,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class AddToCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task CanAddBackpackToCart() => RunAsync(async () =>
+    public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () =>
     {
         var product = ProductMother.Backpack();
 
@@ -24,8 +23,7 @@ public class AddToCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixtu
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
 
         await inventory.AddToCartAsync(product.Name);
-        await inventory.OpenCartAsync();
-        var cart = new CartPage(Page);
+        var cart = await inventory.OpenCartAsync();
 
         await AllureApi.Step("Assert cart page loaded", async () =>
             await Assertions.Expect(cart.Title).ToHaveTextAsync("Your Cart"));

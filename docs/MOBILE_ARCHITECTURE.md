@@ -3,7 +3,7 @@
 The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. It keeps its own pages (rather than using the top-level `Pages/` project) because `Pages` is built on Playwright and mobile pages use Appium types. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
-- **Not in CI:** hosted agents have no Android emulator. See the platform matrix in [GETTING_STARTED.md](GETTING_STARTED.md).
+- **CI:** the project is built in CI (compile check), but the tests aren't run, because hosted agents have no Android emulator. See the platform matrix in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ---
 
@@ -41,9 +41,9 @@ Tests/UI/Mobile/
 ## How a test runs
 
 ```text
-SauceDemoTests.SauceDemo_LoginPage_ShouldLoad()
+SauceDemoTests.LoginPage_Should_Load()
   └─ MobileTestBase.Run(body)  →  Core.Testing.TestRunner.Run(...)
-        1. MobileSettingsProvider.Current          (mobilesettings.json, loaded once)
+        1. MobileSettingsProvider.Current          (mobilesettings.json + MOBILE_* / APPIUM_URL / DEVICE_NAME, loaded once)
         2. MobileOptionsBuilder.Parse/Build        → (Android|iOS, Web|Native) → AppiumOptions
         3. MobileDriverFactory.CreateDriver        → AndroidDriver / IOSDriver (Appium server at Server.Url)
         4. Web: navigate to BaseUrl · Native: the app is launched from the capabilities
@@ -57,7 +57,7 @@ SauceDemoTests.SauceDemo_LoginPage_ShouldLoad()
 
 ## Configuration: `mobilesettings.json`
 
-The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Configuration/*.cs`.
+The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
 
 | Section | Keys | Notes |
 |---|---|---|
@@ -113,4 +113,3 @@ The scripts run `dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Ca
 
 - An emulator job in CI (self-hosted agent or a device cloud such as BrowserStack/Sauce Labs). Point `Server.Url` at the provider.
 - Native Android and iOS sample tests.
-- Environment overrides for `mobilesettings.json` (e.g. `APPIUM_URL`, `DEVICE_NAME`), like `BROWSER`/`HEADLESS` on the Playwright side.

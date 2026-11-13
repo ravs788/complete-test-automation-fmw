@@ -4,7 +4,9 @@
     "projects": [
       "Core/Core.csproj",
       "Pages/Pages.csproj",
-      "Tests/Tests.csproj"
+      "Tests/Tests.csproj",
+      "Tests/Unit/Tests.Unit.csproj",
+      "Tests/UI/Mobile/Tests.UI.Mobile.csproj"
     ]
   }
 }

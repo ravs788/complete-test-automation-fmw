@@ -15,19 +15,18 @@ namespace Tests.Api;
 public class BookingApiUpdateTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Update_Booking_Then_Verify() => RunAsync(async () =>
+    public Task UpdatedBooking_Should_ReplaceAllFields() => RunAsync(async () =>
     {
         var original = BookingMother.Standard();
-        var created = await Client.PostAsync<CreatedBooking>("booking", original);
+        var created = await CreateBookingAsync(original);
         AllureApi.Step("Assert original booking creation response", () =>
         {
-            Assert.NotNull(created);
             Assert.True(created.BookingId > 0, "Post response missing bookingid");
         });
 
-        var token = await GetAuthTokenAsync();
+        var auth = await GetAuthHeadersAsync();
         var updated = BookingMother.FullyChanged();
-        var updateResponse = await Client.PutAsync<Booking>($"booking/{created!.BookingId}", updated, token);
+        var updateResponse = await Client.PutAsync<Booking>($"booking/{created.BookingId}", updated, auth);
 
         AllureApi.Step("Assert updated booking fields via PUT", () =>
             Assert.Equal(updated, updateResponse));

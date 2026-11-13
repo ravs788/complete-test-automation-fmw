@@ -14,7 +14,7 @@ namespace Tests.Api;
 public class BookingApiHealthCheckTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task BookingApi_Ping_Should_Return_201() => RunAsync(async () =>
+    public Task Ping_Should_Return201() => RunAsync(async () =>
     {
         var response = await Client.SendRawAsync("GET", "ping");
 

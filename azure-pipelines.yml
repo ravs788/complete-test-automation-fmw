@@ -10,14 +10,20 @@
 #   PR into main      -> API + TodoMVC (all), SauceDemo (smoke), Chrome
 #   Push to main /    -> everything, Chrome, plus code coverage
 #   release/*
+#   Nightly (02:00    -> everything on Chrome, plus the web UI tests again on Playwright's
+#   UTC, main, only      Chromium, Firefox and WebKit
+#   if it changed)
 #
 # Everything runs in ONE job on purpose: the org has a single parallel job, so
 # separate jobs ran back to back and each paid agent start-up, checkout, SDK
 # setup and build again. CI builds only the projects it tests (ci.slnf).
 #
-# Tests use xUnit + Allure.Xunit; the results are published as the
-# "allure-results" artifact (download it and run `allure serve <dir>`).
-# The Appium mobile suite (Tests/UI/Mobile) needs an Android emulator and isn't run here.
+# Tests use xUnit + Allure.Xunit. Every run publishes two artifacts:
+#   allure-report  : the HTML report (allure-report.html is a single file you can open directly)
+#                    with history/trends carried over from the previous run on the same branch
+#   allure-results : the raw results (for `allure serve <dir>`)
+# The Appium mobile suite (Tests/UI/Mobile) is built here (compile check) but not run: it needs an
+# Android emulator or a device cloud, which hosted agents don't provide.
 # =============================================================================
 
 trigger:
@@ -31,11 +37,23 @@ pr:
     include:
       - main
 
+# Nightly cross-browser run (R13). always: false = skip the night if main didn't change.
+schedules:
+  - cron: "0 2 * * *"
+    displayName: "Nightly: web UI on Chromium, Firefox and WebKit"
+    branches:
+      include:
+        - main
+    always: false
+
 variables:
   buildConfiguration: "Release"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
   isPullRequest: $[eq(variables['Build.Reason'], 'PullRequest')]
+  isScheduled: $[eq(variables['Build.Reason'], 'Schedule')]
+  # Allure CLI used to build the HTML report (npm package allure-commandline; needs Java, which the image has).
+  allureVersion: "2.46.1"
   # Playwright drives the Google Chrome preinstalled on the hosted image
   # (read by ConfigurationProvider), so no Playwright browser download is needed.
   BROWSER: "chrome"
@@ -69,11 +87,40 @@ stages:
               version: "10.x"
 
           # build restores implicitly; one call is faster than restore + build
+          # Directory.Build.props treats warnings (incl. code style) as errors here, because TF_BUILD is set.
           - script: dotnet build ci.slnf --configuration $(buildConfiguration)
             displayName: "Build CI Projects (Release)"
 
-          - script: dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
+          # Framework unit tests first: they take about a second and fail fast on a broken Core.
+          - script: dotnet test Tests/Unit/Tests.Unit.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=unit_results.trx" $(coverageArgs)
+            displayName: "Run Framework Unit Tests"
+
+          # Each dotnet test run starts by clearing bin/.../allure-results (Core.Testing.AllureResults), so
+          # every run copies its results to the staging folder straight away.
+          - script: |
+              dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
+              rc=$?
+              mkdir -p "$(Build.ArtifactStagingDirectory)/allure-results"
+              cp -R "Tests/bin/$(buildConfiguration)/net10.0/allure-results/." "$(Build.ArtifactStagingDirectory)/allure-results/" 2>/dev/null || true
+              exit $rc
             displayName: "Run Playwright UI + API Tests"
+
+          # Nightly only: the web UI tests again on Playwright's own browsers (installed here).
+          - script: pwsh Tests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium firefox webkit
+            displayName: "Install Playwright Browsers (nightly)"
+            condition: and(succeededOrFailed(), eq(variables.isScheduled, true))
+
+          - script: |
+              rc=0
+              mkdir -p "$(Build.ArtifactStagingDirectory)/allure-results"
+              for b in chromium firefox webkit; do
+                BROWSER=$b dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build \
+                  --filter "FullyQualifiedName!~Tests.Api." --logger "trx;LogFileName=web_${b}_results.trx" || rc=1
+                cp -R "Tests/bin/$(buildConfiguration)/net10.0/allure-results/." "$(Build.ArtifactStagingDirectory)/allure-results/" 2>/dev/null || true
+              done
+              exit $rc
+            displayName: "Run Web UI Tests on Chromium, Firefox, WebKit (nightly)"
+            condition: and(succeededOrFailed(), eq(variables.isScheduled, true))
 
           - task: PublishTestResults@2
             displayName: "Publish Test Results"
@@ -82,7 +129,7 @@ stages:
               testResultsFormat: "VSTest"
               testResultsFiles: "**/*_results.trx"
               searchFolder: "$(System.DefaultWorkingDirectory)"
-              testRunTitle: "Playwright UI + API"
+              testRunTitle: "Unit + Playwright UI + API"
               failTaskOnFailedTests: true
 
           - task: PublishCodeCoverageResults@2
@@ -94,8 +141,6 @@ stages:
           - script: |
               out="$(Build.ArtifactStagingDirectory)/allure-results"
               mkdir -p "$out"
-              src="Tests/bin/$(buildConfiguration)/net10.0/allure-results"
-              [ -d "$src" ] && cp -R "$src"/. "$out"/
               cp allure-categories.json "$out/categories.json"
               echo "Allure result files: $(ls "$out" | grep -c 'result.json')"
             displayName: "Collect Allure Results"
@@ -108,3 +153,41 @@ stages:
             inputs:
               targetPath: "$(Build.ArtifactStagingDirectory)/allure-results"
               artifact: "allure-results"
+
+          # R14: HTML report with trends. Take history/ from the last report on this branch (missing on
+          # the first run or a new PR, which is fine), then generate the report and a single-file copy.
+          - task: DownloadPipelineArtifact@2
+            displayName: "Download Previous Allure History"
+            condition: always()
+            continueOnError: true
+            inputs:
+              buildType: "specific"
+              project: "$(System.TeamProjectId)"
+              definition: "$(System.DefinitionId)"
+              buildVersionToDownload: "latestFromBranch"
+              branchName: "$(Build.SourceBranch)"
+              allowFailedBuilds: true
+              artifactName: "allure-report"
+              itemPattern: "history/**"
+              targetPath: "$(Pipeline.Workspace)/allure-previous"
+
+          - script: |
+              results="$(Build.ArtifactStagingDirectory)/allure-results"
+              report="$(Build.ArtifactStagingDirectory)/allure-report"
+              single="$(Agent.TempDirectory)/allure-single"
+              previous="$(Pipeline.Workspace)/allure-previous/history"
+              if [ -d "$previous" ]; then cp -R "$previous" "$results/history"; echo "Using previous history"; fi
+              npx --yes allure-commandline@$(allureVersion) generate "$results" -o "$report" --clean
+              npx --yes allure-commandline@$(allureVersion) generate "$results" -o "$single" --single-file --clean
+              cp "$single/index.html" "$report/allure-report.html"
+            displayName: "Generate Allure Report"
+            condition: always()
+            continueOnError: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Allure Report"
+            condition: always()
+            continueOnError: true
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/allure-report"
+              artifact: "allure-report"
