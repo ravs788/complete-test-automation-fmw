@@ -94,6 +94,7 @@ TestAutomationProj/
 │   ├── GETTING_STARTED.md             # Step-by-step local setup + troubleshooting
 │   └── CONTRIBUTING.md                # Code-style rules
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
+├── .editorconfig                      # C# code style (indent, line endings, nullable warnings)
 ├── Directory.Build.props              # Shared Allure results directory for all projects
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
