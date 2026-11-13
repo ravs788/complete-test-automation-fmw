@@ -266,7 +266,7 @@ var logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
 logger.Info("message");
 ```
 
-Index names in use: `ui-web-logs-{date}` (web UI tests), `test-logs-{date}` (API tests) and `ui-mobile-logs-{date}` (Mobile).
+Index names follow `<project>-logs-{date}`: `api-logs-…` (API tests), `ui-web-logs-…` (web UI tests) and `ui-mobile-logs-…` (Mobile). Results go to `search-<project>` (`search-api`, `search-ui-web`, `search-ui-mobile`). Until 2026-11-14 the API index was `test-logs-…`, so update any Kibana data view or dashboard that used it.
 
 > Never commit Elasticsearch credentials. `logging-config.json` keeps them empty; use `ELASTIC_USERNAME` / `ELASTIC_PASSWORD`.
 
@@ -423,7 +423,6 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 ## ⚠️ Known Issues / TODO
 
 - **Mobile tests aren't in CI.** Hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
-- **Logging index names differ by suite** (`ui-web-logs-*`, `test-logs-*` for API, `ui-mobile-logs-*`). They were left unchanged so existing Elastic dashboards keep working.
 - **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 

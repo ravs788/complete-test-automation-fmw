@@ -19,7 +19,7 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
     protected ApiTestBase(ApiFixture fixture)
     {
         Fixture = fixture;
-        Logger = LoggingServiceFactory.CreateLogger("test-logs-{0:yyyy.MM.dd}");
+        Logger = LoggingServiceFactory.CreateLogger("api-logs-{0:yyyy.MM.dd}");
     }
 
     protected ApiFixture Fixture { get; }
