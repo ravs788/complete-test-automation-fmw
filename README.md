@@ -310,22 +310,21 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 
 ### Triggers
 
-| Event | API + Playwright | Selenium web | Desktop |
-|-------|------------------|--------------|---------|
-| PR into `main` | full suites | `Category=smoke` | build only |
-| Push to `main` or `release/*` | full suites | `Category=regression` | build only |
+| Event | API + Playwright | Selenium web |
+|-------|------------------|--------------|
+| PR into `main` | full suites | `Category=smoke`, Chrome |
+| Push to `main` or `release/*` | full suites | `Category=regression`, Chrome |
 
 ### Jobs (`azure-pipelines.yml`)
 
 | Job | Agent | Steps |
 |-----|-------|-------|
 | **ApiAndPlaywright** | `ubuntu-latest` | .NET 10 SDK → restore/build `TestAutomationPlatform.slnx` (Release) → install Playwright Chromium → run **API** (NUnit) and **Playwright** (xUnit) tests with TRX + code coverage → publish test results (failures fail the build), Cobertura coverage, and API Allure results |
-| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push) on Chrome, Firefox, and Edge (preinstalled on the agent; Selenium Manager fetches drivers) → publish test results and Selenium Allure results |
-| **DesktopAutomation** | `windows-latest` | .NET 10 SDK → build `UI/Desktop/UI.Desktop.Tests.csproj` (no tests yet) |
+| **SeleniumWeb** | `ubuntu-latest` | .NET 10 SDK → build `UI/Web` → run smoke (PR) or regression (push), **Chrome test cases only** (`Name~chrome` filter; Firefox/Edge run locally via `run_ui_web_all_browsers`) → publish test results and Selenium Allure results |
 
 Allure results are published as pipeline artifacts (`allure-results-api`, `allure-results-ui-web`). To view them, download an artifact and run `allure serve <folder>`.
 
-The Appium `UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
+The Desktop project isn't in CI because it has no tests yet; add a Windows job once it does. The Appium `UI/Mobile` suite isn't run in CI either: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
 
 ### Connecting the pipeline (one-time)
 
@@ -400,7 +399,7 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 - **Mobile config is machine-specific.** `UI/Mobile/config.json` has a hard-coded Windows `chromedriverExecutable` path and points to Appium on port `4725`. Adjust both for your machine.
 - **Mobile tests aren't in CI.** They have no NUnit `[Category]`, and hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
 - **Playwright settings are hard-coded.** `TestSettings` doesn't read config files or environment variables yet.
-- **The Desktop job has no test step.** `azure-pipelines.yml` builds `UI.Desktop.Tests` but never runs `dotnet test`, and the project contains no tests yet.
+- **Desktop is a placeholder.** `UI/Desktop` has no tests yet and isn't part of the CI pipeline. It still builds as part of the solution.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 - **`Core.csproj`** excludes `Utilities\SerilogLoggingService.cs`, which no longer exists. This is harmless but can be removed.
 

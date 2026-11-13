@@ -5,8 +5,8 @@
 # This pipeline is connected to that repo through the Azure Pipelines GitHub app,
 # so pushes and PRs on GitHub trigger it and results appear as GitHub checks.
 #
-#   PR into main      -> API + Playwright (full), Selenium (smoke), Desktop build
-#   Push to main /    -> API + Playwright (full), Selenium (regression), Desktop build
+#   PR into main      -> API + Playwright (full), Selenium (smoke, Chrome)
+#   Push to main /    -> API + Playwright (full), Selenium (regression, Chrome)
 #   release/*
 # =============================================================================
 
@@ -99,9 +99,10 @@ stages:
       # Job 2: Selenium web (NUnit) on Linux
       #   PR   -> Category=smoke
       #   push -> Category=regression
-      # Chrome, Firefox and Edge are preinstalled on ubuntu-latest;
-      # Selenium Manager downloads matching drivers. BaseWebTest forces
-      # headless mode because Azure sets TF_BUILD=True.
+      # CI runs the Chrome test cases only (Name~chrome); Firefox and Edge
+      # cases still run locally (scripts/*/run_ui_web_all_browsers).
+      # Selenium Manager downloads chromedriver. BaseWebTest forces headless
+      # mode because Azure sets TF_BUILD=True.
       # -------------------------------------------------------------
       - job: SeleniumWeb
         displayName: "Selenium Web Suite (Linux)"
@@ -118,11 +119,11 @@ stages:
           - script: dotnet build UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration)
             displayName: "Compile Selenium Web Suite"
 
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=smoke" --logger "trx;LogFileName=selenium_smoke_results.trx"
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=smoke&Name~chrome" --logger "trx;LogFileName=selenium_smoke_results.trx"
             displayName: "Run Selenium Smoke (PR)"
             condition: and(succeeded(), eq(variables.isPullRequest, true))
 
-          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=regression" --logger "trx;LogFileName=selenium_regression_results.trx"
+          - script: dotnet test UI/Web/UI.Web.Tests.csproj --configuration $(buildConfiguration) --no-build --filter "Category=regression&Name~chrome" --logger "trx;LogFileName=selenium_regression_results.trx"
             displayName: "Run Selenium Regression (main / release)"
             condition: and(succeeded(), eq(variables.isPullRequest, false))
 
@@ -143,22 +144,3 @@ stages:
             inputs:
               targetPath: "UI/Web/bin/$(buildConfiguration)/net10.0/allure-results"
               artifact: "allure-results-ui-web"
-
-      # -------------------------------------------------------------
-      # Job 3: Desktop UI (FlaUI / UIA) on Windows - build only until
-      # the project contains tests.
-      # -------------------------------------------------------------
-      - job: DesktopAutomation
-        displayName: "Desktop UI Suite (Windows, build only)"
-        pool:
-          vmImage: "windows-latest"
-        timeoutInMinutes: 15
-        steps:
-          - task: UseDotNet@2
-            displayName: "Setup .NET SDK 10.x"
-            inputs:
-              packageType: "sdk"
-              version: "10.x"
-
-          - script: dotnet build UI/Desktop/UI.Desktop.Tests.csproj --configuration $(buildConfiguration)
-            displayName: "Compile Desktop Suite"

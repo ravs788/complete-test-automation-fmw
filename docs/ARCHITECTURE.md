@@ -166,10 +166,8 @@ Stage: BuildAndValidate
  ├─ Job ApiAndPlaywright (ubuntu)
  │    .NET 10 → build slnx → playwright install chromium
  │    → test API (NUnit) + Playwright (xUnit) → TRX (gate) + Cobertura + Allure artifact
- ├─ Job SeleniumWeb (ubuntu; Chrome/Firefox/Edge preinstalled)
- │    PR → Category=smoke · main/release → Category=regression → TRX (gate) + Allure artifact
- └─ Job DesktopAutomation (windows)
-      .NET 10 → build UI.Desktop.Tests (no tests yet)
+ └─ Job SeleniumWeb (ubuntu; Chrome test cases only)
+      PR → Category=smoke · main/release → Category=regression → TRX (gate) + Allure artifact
 ```
 
 Locally, the scripts in `scripts/windows/` and `scripts/unix/` run the clean → build → test → Allure-merge cycle for the NUnit suites. `run_ui_web_all_browsers` produces one result set per browser and merges them, and `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local OpenSearch cluster with Dashboards for the Elastic logging provider.
@@ -183,7 +181,7 @@ Locally, the scripts in `scripts/windows/` and `scripts/unix/` run the clean →
 - **New API area:** add models and data under `API/`, and a test class inheriting `BaseApiTest`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
 - **New mobile screen:** add a page under `UI/Mobile/Pages/Web/` or `Pages/Native/<Platform>/`, and a test inheriting `BaseMobileTest`.
-- **Desktop:** fill in `UI/Desktop` with a base test class and page objects that follow the same pattern, and add a test step to the pipeline.
+- **Desktop:** fill in `UI/Desktop` with a base test class and page objects that follow the same pattern, and add a Windows job (`windows-latest`) to the pipeline to run it.
 
 Update this document whenever a layer, a dependency direction, or a CI flow changes.
 
@@ -206,6 +204,7 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 |------------|-------|
 | 2025-09-03 | Initial draft; baseline definition |
 | 2025-09-03 | Added Mobile UI layer; Appium integration planned |
+| 2026-11-13 | CI: Selenium runs Chrome cases only; Desktop job removed until the project has tests. |
 | 2026-11-13 | CI/CD consolidated on Azure Pipelines sourced from GitHub; GitHub Actions retired; Selenium smoke/regression added to the pipeline. |
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |
