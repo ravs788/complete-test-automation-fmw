@@ -15,7 +15,7 @@ namespace Tests.UI.Web.Todo;
 public class TodoTests(PlaywrightFixture fixture) : TodoTestBase(fixture)
 {
     [Fact]
-    public Task UserCanAddAndVerifyTodoItem() => RunAsync(async () =>
+    public Task TodoList_Should_ShowItem_When_ItemAdded() => RunAsync(async () =>
     {
         var item = TodoItemMother.Standard();
 
@@ -26,7 +26,7 @@ public class TodoTests(PlaywrightFixture fixture) : TodoTestBase(fixture)
     });
 
     [Fact]
-    public Task UserCanCompleteTodoItem() => RunAsync(async () =>
+    public Task TodoItem_Should_BeMarkedCompleted_When_Toggled() => RunAsync(async () =>
     {
         var item = TodoItemMother.Standard();
         var todoPage = await OpenWithItemAsync(item);

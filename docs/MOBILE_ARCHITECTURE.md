@@ -41,7 +41,7 @@ Tests/UI/Mobile/
 ## How a test runs
 
 ```text
-SauceDemoTests.SauceDemo_LoginPage_ShouldLoad()
+SauceDemoTests.LoginPage_Should_Load()
   └─ MobileTestBase.Run(body)  →  Core.Testing.TestRunner.Run(...)
         1. MobileSettingsProvider.Current          (mobilesettings.json + MOBILE_* / APPIUM_URL / DEVICE_NAME, loaded once)
         2. MobileOptionsBuilder.Parse/Build        → (Android|iOS, Web|Native) → AppiumOptions

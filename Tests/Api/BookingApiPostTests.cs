@@ -14,7 +14,7 @@ namespace Tests.Api;
 public class BookingApiPostTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Create_New_Booking_Should_Succeed() => RunAsync(async () =>
+    public Task NewBooking_Should_BeCreated() => RunAsync(async () =>
     {
         var newBooking = BookingMother.Standard(); // unique last name, so the shared demo API never sees a duplicate
 

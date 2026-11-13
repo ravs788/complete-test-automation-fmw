@@ -15,7 +15,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task EndToEnd_Checkout_Success() => RunAsync(async () =>
+    public Task Checkout_Should_CompleteOrder() => RunAsync(async () =>
     {
         Product[] products = [ProductMother.Backpack(), ProductMother.BikeLight()];
         var checkoutInfo = CheckoutInfoMother.Standard();

@@ -14,7 +14,7 @@ namespace Tests.Api;
 public class BookingApiDeleteTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Delete_Booking_Then_Verify_Should_Fail_To_Get() => RunAsync(async () =>
+    public Task DeletedBooking_Should_ReturnNotFound() => RunAsync(async () =>
     {
         var booking = BookingMother.Standard();
         var created = await CreateBookingAsync(booking);

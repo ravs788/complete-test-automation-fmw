@@ -14,7 +14,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class RemoveFromCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task CanRemoveBackpackFromCart() => RunAsync(async () =>
+    public Task Cart_Should_RemoveProduct_When_RemoveClicked() => RunAsync(async () =>
     {
         var product = ProductMother.Backpack();
 

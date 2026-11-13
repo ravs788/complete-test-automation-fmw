@@ -15,7 +15,7 @@ namespace Tests.Api;
 public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Get_All_Booking_Ids() => RunAsync(async () =>
+    public Task BookingIds_Should_BeListed() => RunAsync(async () =>
     {
         var bookingIds = await Client.GetAsync<List<BookingId>>("booking");
 
@@ -27,7 +27,7 @@ public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
     });
 
     [Fact]
-    public Task Get_Booking_By_Id() => RunAsync(async () =>
+    public Task Booking_Should_BeReturnedById() => RunAsync(async () =>
     {
         var newBooking = BookingMother.Standard();
 

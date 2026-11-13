@@ -15,7 +15,7 @@ namespace Tests.Api;
 public class BookingApiUpdateTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     [Fact]
-    public Task Update_Booking_Then_Verify() => RunAsync(async () =>
+    public Task UpdatedBooking_Should_ReplaceAllFields() => RunAsync(async () =>
     {
         var original = BookingMother.Standard();
         var created = await CreateBookingAsync(original);

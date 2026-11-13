@@ -56,7 +56,7 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
             new TestRunInfo(Logger, "ui-web", GetType(), testName, Settings.Browser),
             body: async () =>
             {
-                // Show the browser in the Allure test name, e.g. "EndToEnd_Checkout_Success (chrome)", and keep
+                // Show the browser in the Allure test name, e.g. "Checkout_Should_CompleteOrder (chrome)", and keep
                 // runs on different browsers apart when their results are merged (run_ui_web_all_browsers).
                 AllureLifecycle.Instance.UpdateTestCase(tc =>
                 {

@@ -14,7 +14,7 @@ namespace Tests.UI.Web.SauceDemo;
 public class AddToCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
-    public Task CanAddBackpackToCart() => RunAsync(async () =>
+    public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () =>
     {
         var product = ProductMother.Backpack();
 

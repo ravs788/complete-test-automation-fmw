@@ -49,7 +49,7 @@ public abstract class MobileTestBase : IDisposable
             Logger.Info($"[SetUp] Navigated to {Settings.BaseUrl} on {platform} {appType}");
         }
 
-        // Show the platform in the Allure test name, e.g. "SauceDemo_LoginPage_ShouldLoad (Android Web)".
+        // Show the platform in the Allure test name, e.g. "LoginPage_Should_Load (Android Web)".
         AllureLifecycle.Instance.UpdateTestCase(tc => tc.name = $"{tc.name} ({platform} {appType})");
     }
 

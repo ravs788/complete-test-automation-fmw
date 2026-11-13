@@ -286,7 +286,7 @@ Index names in use: `ui-web-logs-{date}` (web UI tests), `test-logs-{date}` (API
 - Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run, and writes to `bin/<Configuration>/net10.0/allure-results/`. The run scripts collect the results (plus `categories.json`) into `./allure-results`, and CI publishes them as the `allure-results` artifact.
 - Allure attributes come from `Allure.Net.Commons.Attributes`. Every test class has the same labels: `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`. Steps use `AllureApi.Step(...)`.
 - `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every test.
-- `UiTestBase` appends the browser to the test name, e.g. `EndToEnd_Checkout_Success (chrome)`, records it as a `browser` parameter (so per-browser runs stay separate when merged), and attaches a full-page screenshot and a **Playwright trace** when a test fails (Allure opens the trace in its built-in trace viewer: a step-by-step replay with DOM snapshots, network and console). `MobileTestBase` appends the platform and app type, e.g. `(Android Web)`.
+- `UiTestBase` appends the browser to the test name, e.g. `Checkout_Should_CompleteOrder (chrome)`, records it as a `browser` parameter (so per-browser runs stay separate when merged), and attaches a full-page screenshot and a **Playwright trace** when a test fails (Allure opens the trace in its built-in trace viewer: a step-by-step replay with DOM snapshots, network and console). `MobileTestBase` appends the platform and app type, e.g. `(Android Web)`.
 - A failed Playwright `Expect(...)` is reported as an xUnit assertion failure, so Allure shows it as **failed** rather than **broken**.
 - `allure-categories.json` groups results into **UI Tests** and **API Tests** by the `ui` / `api` tags.
 
@@ -367,7 +367,7 @@ A test therefore looks like this:
 
 ```csharp
 [Fact]
-public Task CanAddBackpackToCart() => RunAsync(async () =>
+public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () =>
 {
     // Page, Settings, Logger, AllureApi.Step(...), Assertions.Expect(...)
 });

@@ -29,7 +29,7 @@ public class NegativeLoginTests(PlaywrightFixture fixture) : SauceDemoTestBase(f
 
     [Theory]
     [MemberData(nameof(InvalidLogins))]
-    public Task NegativeLogin_ShouldShowProperError(string username, string password, string expectedError) => RunAsync(async () =>
+    public Task Login_Should_ShowError_When_CredentialsInvalid(string username, string password, string expectedError) => RunAsync(async () =>
     {
         var login = new LoginPage(Page);
 
