@@ -20,7 +20,7 @@ For the short version, see "Quick Start" in the root README.
 | Run scripts | `scripts/windows/*.bat` | `scripts/unix/*.sh` | `scripts/unix/*.sh` |
 | Appium environment check/fix scripts | ✅ `appium_env_*.ps1` | – (manual checks below) | – (manual checks below) |
 | Allure report (`allure serve`) | ✅ | ✅ | ✅ |
-| Local Elastic/OpenSearch logging (`docker compose`) | ✅ Docker Desktop | ✅ Docker Desktop / Colima | ✅ Docker Engine |
+| Local Elasticsearch + Kibana logging (`docker compose`) | ✅ Docker Desktop | ✅ Docker Desktop / Colima | ✅ Docker Engine |
 | CI (Azure Pipelines) | – | – | ✅ `ubuntu-latest`, Chrome |
 
 1. Playwright's browser builds officially support **Ubuntu 22.04/24.04 and Debian 12**. They often work on other distros, but missing system libraries are up to you. `--with-deps` installs those libraries only on Debian and Ubuntu, and only with `sudo`.
@@ -44,7 +44,7 @@ For the short version, see "Quick Start" in the root README.
 | Allure CLI | Viewing reports | 2.24+ (`allure --version`) |
 | Node.js + Appium 2 | Mobile only | Node 20+, `appium --version` |
 | Android SDK (platform-tools, emulator) | Mobile (Android) only | `adb version` |
-| Docker | Local Elastic/OpenSearch only (optional) | `docker --version` |
+| Docker | Local Elasticsearch + Kibana only (optional) | `docker --version` |
 
 You don't need PowerShell if you only use an installed Chrome or Edge (`BROWSER=chrome` / `msedge`), because nothing has to be downloaded. CI works this way.
 
@@ -206,7 +206,7 @@ This builds the report in a temporary folder and opens it in your browser. The r
 
 **Mobile: session can't be created.** Check that `adb devices` lists the device and that Appium listens on `Server.Url` in `Tests/UI/Mobile/mobilesettings.json` (default `http://127.0.0.1:4723/`). Check that `Device.DeviceName` matches the device too. Leave `Android.ChromedriverExecutable` empty so Appium downloads a matching Chromedriver.
 
-**"Elasticsearch connection refused".** No action needed: logging falls back to the console. To log to a cluster, start one (`docker compose up -d`) and set it in `logging-config.json`.
+**"Elasticsearch connection refused".** No action needed: logging falls back to the console. To log to a cluster, run `docker compose up -d` (Elasticsearch on `localhost:9200`, Kibana on `localhost:5601`, no password). For another cluster, set `ELASTIC_URL`, plus `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` if it needs them. Don't put credentials in `logging-config.json`.
 
 ---
 

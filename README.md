@@ -23,7 +23,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
-- **Local OpenSearch stack** (`docker-compose.yml`) for the Elastic logging provider
+- **Local Elasticsearch + Kibana stack** (`docker-compose.yml`) for the Elastic logging provider
 
 ---
 
@@ -88,7 +88,7 @@ TestAutomationProj/
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
 ├── logging-config.json                # Global logging provider configuration
-├── docker-compose.yml                 # 2-node OpenSearch + Dashboards (ports 9200 / 5601)
+├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
 └── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/UI/Mobile, Tests/Desktop
@@ -115,7 +115,7 @@ Code style for `.cs` files comes from `.editorconfig`: file-scoped namespaces th
   or use a browser you already have, with `BROWSER=chrome` or `BROWSER=msedge`. CI uses `chrome`.
 - Optional: the [Allure CLI](https://allurereport.org/docs/install/) for viewing reports
 - For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems.
-- Optional: Elasticsearch/OpenSearch for the `elastic` logging provider. `docker compose up -d` starts a local OpenSearch cluster on `http://localhost:9200`, with Dashboards on `http://localhost:5601`.
+- Optional: Elasticsearch 8 for the `elastic` logging provider. `docker compose up -d` starts a local single-node Elasticsearch on `http://localhost:9200` (security off, no password) and Kibana on `http://localhost:5601`. OpenSearch doesn't work: Elastic's 8.x client gets HTTP 406 on every write.
 
 Step-by-step setup for **Windows, macOS and Linux**, with what each platform can and can't run, is in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
@@ -214,15 +214,16 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-The Playwright tests (`Tests/`) and the Mobile suite read logging settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`.
+The Playwright tests (`Tests/`) and the Mobile suite read logging settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 
 ```json
 {
   "Provider": "elastic",
   "Elastic": {
     "Url": "http://localhost:9200",
-    "Username": "elastic",
-    "Password": "<your-password>"
+    "Username": "",
+    "Password": "",
+    "CertificateFingerprint": ""
   },
   "Console": {
     "Enabled": true
@@ -230,15 +231,21 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
 }
 ```
 
+| Setting | Environment override | Notes |
+|---|---|---|
+| `Provider` | `LOGGING_PROVIDER` | `elastic` or `console` |
+| `Elastic.Url` | `ELASTIC_URL` | |
+| `Elastic.Username` / `Elastic.Password` | `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` | **Only set these in the environment** (or a CI secret variable); keep them empty in the file. The local `docker compose` stack needs none. |
+| `Elastic.CertificateFingerprint` | `ELASTIC_CERT_FINGERPRINT` | CA fingerprint for `ON_LOCALHOST_SECURE`; when empty, the local self-signed certificate is accepted |
+| connection profile | `ELASTIC_SERVER` | `ON_CLOUD`, `ON_LOCALHOST_SECURE`, `ON_LOCALHOST_INSECURE` (default) |
+
 Provider selection, implemented by `LoggingServiceFactory` and `ResultsPublisherFactory`:
 
 1. Use the provider named in `Provider` (`elastic` or `console`) if it can be created.
 2. If it can't, fall back to `console`.
 3. If console can't be created either, try any other discovered provider. As a last resort, use a built-in console logger.
 
-The `elastic` provider probes connectivity first. If Elasticsearch is unreachable, it disables itself and prints a single warning, and the run continues.
-
-The `ELASTIC_SERVER` environment variable selects the Elastic connection profile: `ON_CLOUD`, `ON_LOCALHOST_SECURE`, or `ON_LOCALHOST_INSECURE` (the default).
+The `elastic` provider probes connectivity first, **once per URL per test run** (cached). If Elasticsearch is unreachable, logging falls back to the console and the run continues without further delay. Loggers (one per index) and the results publisher are also created once and reused.
 
 ```csharp
 var logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
@@ -247,7 +254,7 @@ logger.Info("message");
 
 Index names in use: `ui-web-logs-{date}` (web UI tests), `test-logs-{date}` (API tests) and `ui-mobile-logs-{date}` (Mobile).
 
-> Don't commit real Elasticsearch credentials. Keep a placeholder in `logging-config.json` and use local overrides.
+> Never commit Elasticsearch credentials. `logging-config.json` keeps them empty; use `ELASTIC_USERNAME` / `ELASTIC_PASSWORD`.
 
 ---
 

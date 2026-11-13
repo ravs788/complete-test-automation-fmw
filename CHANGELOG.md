@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-14: Review P1 fixes (R1–R3)
+
+- **R1, no credentials in the repo.** `logging-config.json` no longer contains an Elastic username or password. Credentials come from `ELASTIC_USERNAME` / `ELASTIC_PASSWORD`. New overrides: `LOGGING_PROVIDER`, `ELASTIC_URL`, `ELASTIC_CERT_FINGERPRINT`. The `ON_LOCALHOST_SECURE` profile used the *password* as the certificate fingerprint; it now has its own `Elastic.CertificateFingerprint` setting.
+- **R2, local stack matches the client.** `docker-compose.yml` runs Elasticsearch 8.15 + Kibana (single node, security off) instead of OpenSearch, which rejected every write from Elastic's 8.x client with HTTP 406 even though the reachability probe reported it as up.
+- **R3, one probe per run.** `ElasticConnectivity.IsReachable` caches its answer per URL; `LoggingServiceFactory` caches a logger per index and `ResultsPublisherFactory` one publisher. With an unreachable Elastic URL, the API suite went from 7.7 s to about 4 s wall-clock.
+- `ElasticClientFactory` rewritten: shared profile/URL resolution (`CurrentProfile`, `ResolveUrl`), and its two nullable warnings are gone.
+
 ## 2026-11-13: Consistent structure and conventions
 
 - **Models in one place, per app.** `Core/Models/RestfulBooker/`, `Core/Models/SauceDemo/`, `Core/Models/Todo/`, one type per file. Restful Booker models use PascalCase properties with `[JsonPropertyName]`, like SauceDemo. PATCH uses a `BookingPatch` model instead of a dictionary. The SauceDemo login data has the same `{ "user": … }` shape as the other SauceDemo files.

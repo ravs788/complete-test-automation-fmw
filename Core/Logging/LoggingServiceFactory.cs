@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Core.Logging;
 
 /// <summary>
@@ -6,11 +8,17 @@ namespace Core.Logging;
 /// </summary>
 public static class LoggingServiceFactory
 {
+    private static readonly ConcurrentDictionary<string, Lazy<ILoggingService>> _loggers = new();
+
     /// <summary>
-    /// Creates and configures an ILoggingService using the configured provider.
+    /// Returns the logger for <paramref name="indexFormat"/>, created on first use with the configured provider and
+    /// then reused for the rest of the test run (the services are thread-safe).
     /// Falls back to another available provider (preferably "console") if the chosen one is unavailable.
     /// </summary>
-    public static ILoggingService CreateLogger(string indexFormat)
+    public static ILoggingService CreateLogger(string indexFormat) =>
+        _loggers.GetOrAdd(indexFormat, format => new Lazy<ILoggingService>(() => Create(format))).Value;
+
+    private static ILoggingService Create(string indexFormat)
     {
         var cfg = LoggingConfigProvider.Current;
         var factories = DiscoverFactories();

@@ -37,24 +37,12 @@ public class ElasticLoggingService : ILoggingService
             }
         };
 
-        // Use insecure localhost profile by default; user can override via env-var
-        var serverChoice = Enum.TryParse(
-                Environment.GetEnvironmentVariable("ELASTIC_SERVER"),
-                ignoreCase: true,
-                out ElasticServerChoices parsed)
-            ? parsed
-            : ElasticServerChoices.ON_LOCALHOST_INSECURE;
-
+        var serverChoice = ElasticClientFactory.CurrentProfile;
         _client = ElasticClientFactory.Create(serverChoice, cfg);
 
-        // Probe connectivity and disable logging if server is unreachable
-        string? probeUrl = cfg.Elastic?.Url;
-        if (serverChoice == ElasticServerChoices.ON_LOCALHOST_SECURE && !string.IsNullOrWhiteSpace(probeUrl))
-        {
-            probeUrl = probeUrl.Replace("http://", "https://");
-        }
-
-        _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Elastic?.Username, cfg.Elastic?.Password);
+        // Disable logging if the server is unreachable (the probe result is cached per URL for the run).
+        var probeUrl = ElasticClientFactory.ResolveUrl(serverChoice, cfg);
+        _enabled = ElasticConnectivity.IsReachable(probeUrl, cfg.Elastic.Username, cfg.Elastic.Password);
         if (!_enabled && !_disabledWarned)
         {
             System.Console.Error.WriteLine($"[ElasticLoggingService] Elastic unreachable at '{probeUrl}'. Logging disabled.");

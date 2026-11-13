@@ -6,11 +6,16 @@ namespace Core.Logging;
 /// </summary>
 public static class ResultsPublisherFactory
 {
+    private static readonly Lazy<IResultsPublisher> _publisher = new(CreatePublisher, LazyThreadSafetyMode.ExecutionAndPublication);
+
     /// <summary>
-    /// Creates an IResultsPublisher using the configured provider.
-    /// Falls back to another available provider (preferably "console") if the chosen one is unavailable.
+    /// Returns the results publisher, created on first use with the configured provider and then reused for the
+    /// rest of the test run. Falls back to another available provider (preferably "console") if the chosen one is
+    /// unavailable.
     /// </summary>
-    public static IResultsPublisher Create()
+    public static IResultsPublisher Create() => _publisher.Value;
+
+    private static IResultsPublisher CreatePublisher()
     {
         var cfg = LoggingConfigProvider.Current;
         var factories = DiscoverFactories();
