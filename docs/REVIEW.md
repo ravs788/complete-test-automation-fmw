@@ -11,9 +11,9 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R13 | P3 | Open | – | [CI only runs Chrome](#r13) | CI |
-| R14 | P3 | Open | – | [Allure published as raw results only](#r14) | CI / reporting |
 | R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
+| R13 | P3 | Closed | 2026-11-14 · `7a8e003` | [CI only runs Chrome](#r13) | CI |
+| R14 | P3 | Closed | 2026-11-14 · `7a8e003` | [Allure published as raw results only](#r14) | CI / reporting |
 | R18 | P4 | Closed | 2026-11-14 · `536694d` | [No unit tests for the framework itself](#r18) | Quality |
 | R12 | P3 | Closed | 2026-11-14 · `5c0fa57` | [Logging index names differ by suite](#r12) | Logging |
 | R10 | P3 | Closed | 2026-11-14 · `0419662` | [Mixed test method naming](#r10) | Conventions |
@@ -143,7 +143,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r13"></a>
 ### R13. CI only runs Chrome
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `7a8e003`. Nightly schedule (02:00 UTC, main, only when it changed) runs the web UI tests on Playwright's Chromium, Firefox and WebKit; PRs stay on Chrome. The loop was run locally (Chromium and WebKit pass; Firefox can't start on macOS, a known local issue). **To confirm:** the first nightly run in Azure DevOps.
 - **Where:** `azure-pipelines.yml`.
 - **Problem:** the framework supports Chromium, Firefox and WebKit, but CI only ever runs `BROWSER=chrome`, so browser-specific breakage goes unnoticed.
 - **Fix:** add a scheduled nightly pipeline (or stage) that runs `scripts/unix/run_ui_web_all_browsers.sh` with Playwright's browsers installed. Keep PR runs on Chrome only, so they stay fast.
@@ -151,7 +151,7 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r14"></a>
 ### R14. Allure published as raw results only
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-14 · `7a8e003`. Every run publishes an allure-report artifact (Allure CLI 2.46.1) with trends from the previous report on the same branch, plus a single-file allure-report.html. Checked locally: two generations give 2 trend points. **To confirm:** the first pipeline run after merge.
 - **Where:** `azure-pipelines.yml` ("Collect Allure Results" / "Upload Allure Results").
 - **Problem:** to see the report you have to download the artifact and run `allure serve`, and there's no history to show trends.
 - **Fix:** generate the HTML report in the pipeline (`allure generate`) and publish it, e.g. as an artifact or with an Allure report extension. Carry the `history/` folder over from the previous run to get trend charts.
