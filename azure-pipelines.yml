@@ -95,7 +95,14 @@ stages:
           - script: dotnet test Tests/Unit/Tests.Unit.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=unit_results.trx" $(coverageArgs)
             displayName: "Run Framework Unit Tests"
 
-          - script: dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
+          # Each dotnet test run starts by clearing bin/.../allure-results (Core.Testing.AllureResults), so
+          # every run copies its results to the staging folder straight away.
+          - script: |
+              dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)
+              rc=$?
+              mkdir -p "$(Build.ArtifactStagingDirectory)/allure-results"
+              cp -R "Tests/bin/$(buildConfiguration)/net10.0/allure-results/." "$(Build.ArtifactStagingDirectory)/allure-results/" 2>/dev/null || true
+              exit $rc
             displayName: "Run Playwright UI + API Tests"
 
           # Nightly only: the web UI tests again on Playwright's own browsers (installed here).
@@ -105,9 +112,11 @@ stages:
 
           - script: |
               rc=0
+              mkdir -p "$(Build.ArtifactStagingDirectory)/allure-results"
               for b in chromium firefox webkit; do
                 BROWSER=$b dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build \
                   --filter "FullyQualifiedName!~Tests.Api." --logger "trx;LogFileName=web_${b}_results.trx" || rc=1
+                cp -R "Tests/bin/$(buildConfiguration)/net10.0/allure-results/." "$(Build.ArtifactStagingDirectory)/allure-results/" 2>/dev/null || true
               done
               exit $rc
             displayName: "Run Web UI Tests on Chromium, Firefox, WebKit (nightly)"
@@ -132,8 +141,6 @@ stages:
           - script: |
               out="$(Build.ArtifactStagingDirectory)/allure-results"
               mkdir -p "$out"
-              src="Tests/bin/$(buildConfiguration)/net10.0/allure-results"
-              [ -d "$src" ] && cp -R "$src"/. "$out"/
               cp allure-categories.json "$out/categories.json"
               echo "Allure result files: $(ls "$out" | grep -c 'result.json')"
             displayName: "Collect Allure Results"
