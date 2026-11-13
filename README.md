@@ -407,7 +407,6 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 ## ⚠️ Known Issues / TODO
 
 - **Mobile tests aren't in CI.** Hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud.
-- **`Tests/UI/Mobile/.npmrc`** points npm at a private registry with `strict-ssl=false`; outside that network, delete it (or override the registry) before `npm install`.
 - **Logging index names differ by suite** (`ui-web-logs-*`, `test-logs-*` for API, `ui-mobile-logs-*`). They were left unchanged so existing Elastic dashboards keep working.
 - **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
