@@ -9,7 +9,6 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 | API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
 | Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | Playwright (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
 | Mobile web | `Tests/UI/Mobile` | Appium 2 (Android; iOS/native in the bootstrap) | No (needs an emulator) |
-| Desktop | `Tests/Desktop` | – (placeholder) | No |
 
 Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.visualstudio` is pinned to 2.8.2 because adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter.
 
@@ -36,7 +35,6 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │                   + PlaywrightFixture           Configuration/ Driver/   │
 │     testsettings.json                           Pages/<App>/ <App>/      │
 │                                                 mobilesettings.json      │
-│                                               Desktop (placeholder)      │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Pages/  (Pages.csproj, Playwright)                                       │
 │   Common/BasePage · SauceDemo/LoginPage, InventoryPage, CartPage,        │
@@ -58,14 +56,14 @@ Dependency rules:
 
 - `Tests` → `Pages` → `Core`. `Tests/UI/Mobile` → `Core`. Nothing depends on `Tests`.
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
-- `Tests/UI/Mobile` and `Tests/Desktop` are separate projects that live inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`).
+- `Tests/UI/Mobile` is a separate project that lives inside the `Tests/` folder; `Tests.csproj` excludes it (`DefaultItemExcludes`).
 - Selenium remains a package only because Appium's .NET client is built on it.
 - The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
 
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Core/Models/RestfulBooker`, `Core/TestData/Todo`, `Core/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`, `Tests.Desktop`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**: `TestSettings`/`ConfigurationProvider`, `LoggingConfig`/`LoggingConfigProvider`, `MobileSettings`/`MobileSettingsProvider`.
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -189,7 +187,7 @@ Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests thr
 - **New API:** models in `Core/Models/<Service>/`, a Builder + Mother per entity in `Core/TestData/<Service>/`, service-specific helpers (e.g. auth) in `Core/Api/<Service>/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
 - **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) and tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
-- **Desktop:** fill in `Tests/Desktop` with a base test class and page objects that follow the same pattern, and add a Windows job (`windows-latest`) to the pipeline to run it.
+- **Desktop (later):** add a `Tests/Desktop` project with the same layout as Mobile (Configuration/, Driver/, Pages/<App>/, Infrastructure/DesktopTestBase, <App>/ tests) using FlaUI, and a Windows job (`windows-latest`) to run it.
 
 Update this document whenever a layer, a dependency direction, or a CI flow changes.
 

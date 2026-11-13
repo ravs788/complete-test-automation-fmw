@@ -17,7 +17,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
   - **REST API**: [Restful Booker](https://restful-booker.herokuapp.com/) through Playwright's `APIRequestContext` (no RestSharp)
 - **Mobile tests** (`Tests/UI/Mobile`) with Appium 2: Android mobile web against saucedemo.com, with iOS and native-app support in the driver bootstrap
 - **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
-- **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`, `Desktop/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
+- **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **Settings in `Tests/testsettings.json`**, with `BROWSER` / `HEADLESS` environment overrides
 - **Typed test data**: models in `Core/Models/<App>/`, a Builder + Object Mother per entity in `Core/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
@@ -72,7 +72,6 @@ TestAutomationProj/
 │   │       ├── SauceDemo/             # SauceDemoTests
 │   │       ├── mobilesettings.json    # Appium server, platform, device, android/ios, behavior
 │   │       └── package.json           # npm scripts: appium, appium-doctor, driver install
-│   ├── Desktop/                       # Placeholder (own project: Tests.Desktop.csproj, no tests yet)
 │   ├── Fixtures/                      # PlaywrightFixture (browser per class), ApiFixture
 │   ├── Infrastructure/                # UiTestBase, ApiTestBase
 │   └── testsettings.json              # Browser, headless, timeouts, app URLs, API credentials
@@ -91,10 +90,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/UI/Mobile, Tests/Desktop
+└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Desktop` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`, `Tests.Desktop`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
+Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` folder, which is a separate project. Every project's assembly name equals its root namespace (`Core`, `Pages`, `Tests`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -323,13 +322,13 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 
 1. Shallow checkout, .NET 10 SDK
-2. Build `ci.slnf` (Release): `Core`, `Pages` and `Tests`. Mobile and Desktop are skipped.
+2. Build `ci.slnf` (Release): `Core`, `Pages` and `Tests`. Mobile is skipped.
 3. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
 4. Publish TRX test results (failures fail the build), coverage (`main`/`release/*` only), and the `allure-results` artifact (with `categories.json`). To view it, download the artifact and run `allure serve <folder>`.
 
 Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
 
-The Appium `Tests/UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide. `Tests/Desktop` has no tests yet.
+The Appium `Tests/UI/Mobile` suite isn't run in CI: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
 
 ### Connecting the pipeline (one-time)
 
@@ -411,7 +410,6 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 - **`Tests/UI/Mobile/.npmrc`** points npm at a private registry with `strict-ssl=false`; outside that network, delete it (or override the registry) before `npm install`.
 - **Logging index names differ by suite** (`ui-web-logs-*`, `test-logs-*` for API, `ui-mobile-logs-*`). They were left unchanged so existing Elastic dashboards keep working.
 - **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
-- **Desktop is a placeholder.** `Tests/Desktop` has no tests yet and isn't part of the CI pipeline. It still builds as part of the solution.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 
 ---

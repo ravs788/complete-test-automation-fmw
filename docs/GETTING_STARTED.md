@@ -16,7 +16,7 @@ For the short version, see "Quick Start" in the root README.
 | Web UI on installed **Microsoft Edge** (`BROWSER=msedge`) | ✅ | ✅ | ✅ x64 only ³ |
 | Mobile web on **Android** (Appium, `Tests/UI/Mobile`) | ✅ | ✅ | ✅ ⁴ |
 | Mobile on **iOS** (Safari / native, XCUITest) | ❌ | ✅ ⁵ | ❌ |
-| Desktop UI (`Tests/Desktop`) | Placeholder, no tests yet ⁶ | ❌ | ❌ |
+| Desktop UI (not in the framework yet) | Possible later ⁶ | ❌ | ❌ |
 | Run scripts | `scripts/windows/*.bat` | `scripts/unix/*.sh` | `scripts/unix/*.sh` |
 | Appium environment check/fix scripts | ✅ `appium_env_*.ps1` | – (manual checks below) | – (manual checks below) |
 | Allure report (`allure serve`) | ✅ | ✅ | ✅ |
@@ -28,7 +28,7 @@ For the short version, see "Quick Start" in the root README.
 3. Google Chrome and Microsoft Edge have no Linux **arm64** builds. On arm64 Linux (e.g. a Raspberry Pi, or an ARM VM on an Apple Silicon Mac), use `chromium`, `firefox` or `webkit`.
 4. The Android emulator on Linux needs hardware acceleration (**KVM**). Inside a VM or container without nested virtualization, use a real device over `adb`.
 5. iOS automation needs **Xcode**, which only runs on macOS. The driver code supports iOS, but the repo has no iOS tests yet.
-6. A desktop suite (e.g. FlaUI / UI Automation) would be **Windows-only**. The project exists but has no code yet.
+6. There is no desktop suite yet. One would use FlaUI / UI Automation, which only works on **Windows**.
 
 **Headed vs headless.** Headless (the default) works everywhere. `HEADLESS=false` needs a display: on Linux servers or CI, either stay headless or run under `xvfb-run`.
 
@@ -141,7 +141,7 @@ BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
 - **Android:** install Android Studio and set `ANDROID_HOME=~/Library/Android/sdk`. Add `platform-tools` and `emulator` to `PATH`. Then run `npm i -g appium && appium driver install uiautomator2`, start an emulator and `appium`, and run `scripts/unix/run_mobile_android_web.sh`. On Apple Silicon, use an **arm64** system image for the emulator.
 - **iOS:** install Xcode and its command-line tools, then `appium driver install xcuitest`. Set `"Platform": "iOS"` (and `"AppType"`, `"IOS"`) in `Tests/UI/Mobile/mobilesettings.json`. There are no iOS tests in the repo yet, so you'd add them under `Tests/UI/Mobile/<App>/`.
 
-**Can't do on macOS:** desktop (Windows UI Automation) tests.
+**Can't do on macOS:** desktop (Windows UI Automation) tests, if a desktop suite is added.
 
 ---
 
@@ -182,7 +182,7 @@ xvfb-run -a env HEADLESS=false scripts/unix/run_web_tests_gen_report.sh   # head
 
 Install the Android SDK command-line tools and set `ANDROID_HOME`. Make sure KVM works (`ls /dev/kvm`; add your user to the `kvm` group). Then run `npm i -g appium && appium driver install uiautomator2`, start the emulator and Appium, and run `scripts/unix/run_mobile_android_web.sh`.
 
-**Can't do on Linux:** iOS tests, desktop tests, and Chrome/Edge on arm64.
+**Can't do on Linux:** iOS tests, Chrome/Edge on arm64 (and desktop tests, if a desktop suite is added).
 
 ---
 

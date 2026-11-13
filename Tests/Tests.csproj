@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- Tests/UI/Mobile (Appium) and Tests/Desktop are separate projects inside this folder; don't compile them here. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);UI/Mobile/**;Desktop/**</DefaultItemExcludes>
+    <!-- Tests/UI/Mobile (Appium) is a separate project inside this folder; don't compile it here. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);UI/Mobile/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
