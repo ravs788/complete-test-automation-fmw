@@ -41,12 +41,14 @@ namespace Core.Utilities
 
         private static string FindRootPath()
         {
+            // Walk up from the test run directory until logging-config.json is found
+            // (it lives at the repository root, next to the solution file).
             string currentDir = Directory.GetCurrentDirectory();
-            while (!Directory.EnumerateFiles(currentDir, "*.sln").Any())
+            while (!File.Exists(Path.Combine(currentDir, "logging-config.json")))
             {
                 var parent = Directory.GetParent(currentDir);
                 if (parent == null || parent.FullName == currentDir) // reached the root
-                    throw new FileNotFoundException("Solution file not found in any parent directory");
+                    throw new FileNotFoundException("logging-config.json not found in any parent directory");
                 currentDir = parent.FullName;
             }
             return currentDir;

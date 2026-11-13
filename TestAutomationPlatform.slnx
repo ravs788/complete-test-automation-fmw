@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/API/">
+    <Project Path="API/API.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Automation.Core/Automation.Core.csproj" />
+    <Project Path="src/Automation.Pages/Automation.Pages.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Automation.Tests/Automation.Tests.csproj" />
+  </Folder>
+  <Folder Name="/UI/" />
+  <Folder Name="/UI/Desktop/">
+    <Project Path="UI/Desktop/UI.Desktop.Tests.csproj" />
+  </Folder>
+  <Folder Name="/UI/Mobile/">
+    <Project Path="UI/Mobile/UI.Mobile.Tests.csproj" />
+  </Folder>
+  <Folder Name="/UI/Web/">
+    <Project Path="UI/Web/UI.Web.Tests.csproj" />
+  </Folder>
+  <Project Path="Core/Core.csproj" />
+</Solution>

@@ -1,7 +1,7 @@
 # Getting Started Guide
 
 This page walks through running the framework **locally** with extra tips, screenshots, and troubleshooting notes.  
-If you only need the quick 4-step version, see the “🚀 Getting Started in 5 Minutes” section in the root README.
+If you only need the quick 4-step version, see the “⚡ Quick Start” section in the root README.
 
 ---
 
@@ -21,7 +21,7 @@ dotnet restore
 
 | Requirement | Recommended Version | Check Command |
 |-------------|--------------------|---------------|
-| .NET SDK    | 9.0.*              | `dotnet --version` |
+| .NET SDK    | 10.0.*             | `dotnet --version` |
 | Java (for Allure) | 17+          | `java -version` |
 | Allure CLI  | 2.24+             | `allure --version` |
 | Browser Driver | ChromeDriver matching your Chrome | `chromedriver --version` |
@@ -33,8 +33,8 @@ dotnet restore
 ## 3  Run Everything
 
 ```bash
-bat\run_all_tests_gen_report.bat          # Windows
-sh/run_all_tests_gen_report.sh            # macOS/Linux
+scripts\windows\run_all_tests_gen_report.bat   # Windows
+scripts/unix/run_all_tests_gen_report.sh       # macOS/Linux
 ```
 
 On first run, dependencies will compile – expect 1-2 minutes.
