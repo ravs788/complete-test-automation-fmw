@@ -13,12 +13,12 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-
 |---|---|---|---|---|---|
 | R25 | P2 | Implemented (Windows verification pending) | – | [Report scripts can succeed after a failed build](#r25) | Run scripts |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R26 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Mobile setup disables proxies process-wide](#r26) | Mobile / networking |
-| R24 | P1 | Closed | 2026-11-16 · working tree (commit pending) | [Elastic probe bypasses TLS verification](#r24) | Security |
-| R27 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Screenshot failure prevents trace capture](#r27) | Diagnostics |
-| R28 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [API update tests do not verify persistence](#r28) | Tests / API |
-| R29 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Shared mobile settings pin a specific emulator](#r29) | Mobile / configuration |
-| R30 | P3 | Closed | 2026-11-16 · working tree (commit pending) | [Mobile troubleshooting omits explicit UDID selection](#r30) | Documentation |
+| R24 | P1 | Closed | 2026-11-16 · `5cdb42c` | [Elastic probe bypasses TLS verification](#r24) | Security |
+| R26 | P2 | Closed | 2026-11-16 · `5cdb42c` | [Mobile setup disables proxies process-wide](#r26) | Mobile / networking |
+| R27 | P2 | Closed | 2026-11-16 · `5cdb42c` | [Screenshot failure prevents trace capture](#r27) | Diagnostics |
+| R28 | P2 | Closed | 2026-11-16 · `5cdb42c` | [API update tests do not verify persistence](#r28) | Tests / API |
+| R29 | P2 | Closed | 2026-11-16 · `5cdb42c` | [Shared mobile settings pin a specific emulator](#r29) | Mobile / configuration |
+| R30 | P3 | Closed | 2026-11-16 · `5cdb42c` | [Mobile troubleshooting omits explicit UDID selection](#r30) | Documentation |
 | R23 | P4 | Closed | 2026-11-14 · `03cf510` | [Allure results pile up across local runs](#r23) | Reporting |
 | R22 | P4 | Closed | 2026-11-14 · `e8ba96d` | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R21 | P3 | Closed | 2026-11-14 · `0f492d8` | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
@@ -53,7 +53,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-
 | Closed after fixes and verification | R24, R26–R30 | 6 |
 | Closed in earlier reviews | R1–R15, R17–R23 | 22 |
 
-Fixes are in the working tree on `fix/review-p1-p2`; no fix commit or PR has been created. R25 passed on Unix; a scheduled/manual hosted Windows verification job is now configured and awaits its first execution. R16 now has a hosted macOS mobile job and awaits its first successful Azure execution; R30 is closed: the troubleshooting guide now explains explicit UDID selection and stale override cleanup.
+Fixes and hosted CI jobs are committed in `5cdb42c` on `fix/review-p1-p2`; no PR has been created. R25 passed on Unix; a scheduled/manual hosted Windows verification job is now configured and awaits its first execution. R16 now has a hosted macOS mobile job and awaits its first successful Azure execution; R30 is closed: the troubleshooting guide now explains explicit UDID selection and stale override cleanup.
 
 **Agent-executed validation:** The user explicitly allowed shell and native .NET verification for this run. Framework unit tests passed: **37 passed, 0 failed, 0 skipped**, including the three TLS regression cases. Targeted checks passed for Unix build failure handling (R25), controlled local/remote Appium proxy routing without global mutations (R26), headed Chrome screenshot failure with valid trace attachment and original exception preservation (R27), and default/explicit UDID serialization (R29). The dedicated browser was closed in fixture cleanup. The earlier full build passed with 0 warnings/errors.
 
@@ -84,7 +84,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r24"></a>
 ### R24. Elastic probe bypasses TLS verification
 
-- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Implementation:** The probe now uses ElasticClientFactory and the actual Elastic transport for TLS and authentication. Provider callers pass their profile and fingerprint, and the probe cache separates connection/security configurations. The no-fingerprint development bypass is restricted to loopback URLs. Added ElasticTlsTests for accepted and rejected certificates and whether credentials reach the HTTP server; compiled and passed in the subsequent agent-executed unit test run.
 - **Where:** Core/Logging/Elastic/ElasticConnectivity.cs:85 (`Probe`), and the logging/results provider factories.
 - **Problem:** The probe accepts any server certificate and sends Basic authentication credentials when configured. Unlike the actual Elastic client, the probe does not apply the selected profile or certificate fingerprint. For a remote HTTPS endpoint, an intercepted connection could expose credentials before the client validates the server certificate.
@@ -122,7 +122,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r25"></a>
 ### R25. Report scripts can succeed after a failed build
 
-- **Status:** Implemented (Windows verification pending), 2026-11-16. Unix verification passed; changes are uncommitted.
+- **Status:** Implemented (Windows verification pending), 2026-11-16. Unix verification passed; implementation and the Windows CI check are committed in `5cdb42c`.
 - **Implementation:** Both shared helpers now return the failed build exit code before invoking dotnet test --no-build. Unix syntax and runtime failure-path checks passed. The WindowsHelperVerification job now runs the isolated PowerShell verification on a hosted windows-2025 agent for scheduled/manual builds; its first execution remains pending.
 - **Where:** scripts/unix/_run_playwright_tests.sh:36 and scripts/windows/_run_playwright_tests.bat:30.
 - **Problem:** Both helpers record the build exit code but continue with dotnet test --no-build and return the test exit code. If previously compiled tests are available, they can pass even when the current source fails to build, producing a misleading successful run.
@@ -132,7 +132,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r26"></a>
 ### R26. Mobile setup disables proxies process-wide
 
-- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Implementation:** Appium now uses a per-session HttpCommandExecutor. Only loopback sessions receive a direct proxy; remote sessions retain default proxy behavior. No proxy environment variables or process-wide HTTP defaults are modified. Executor is disposed if session creation fails. Compiled and verified with controlled local/remote Appium responders.
 - **Where:** Tests/UI/Mobile/Driver/MobileDriverFactory.cs:49 (`DisableProxyForLocalAppium`).
 - **Problem:** Every session clears proxy environment variables and replaces global proxy defaults, regardless of Server.Url. A remote Appium server or logging endpoint that requires a corporate proxy can become unreachable; unrelated HTTP clients in the process also inherit the change.
@@ -142,7 +142,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r27"></a>
 ### R27. Screenshot failure prevents trace capture
 
-- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Implementation:** Trace capture is attempted in a finally block around screenshot capture/attachment, so screenshot failure cannot skip trace capture. TestRunner still preserves the original test failure. Compiled and verified with an injected screenshot failure in headed Chrome.
 - **Where:** Tests/Infrastructure/UiTestBase.cs:83 (`AttachFailureArtifactsAsync`).
 - **Problem:** Screenshot capture and attachment happen before trace capture. If either throws, the failure hook exits before saving the trace. Under the default on-failure mode, AttachTraceIfAlwaysOnAsync does not retry, losing diagnostic evidence even when tracing remains usable. This is a distinct failure-path gap in the trace support added for R4; R4 remains closed.
@@ -152,7 +152,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r28"></a>
 ### R28. API update tests do not verify persistence
 
-- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Implementation:** PUT and PATCH tests now GET the created booking after the write and compare the persisted record against the expected update, including unchanged PATCH fields. Compiled; subsequent test run reported passing by the user.
 - **Where:** Tests/Api/BookingApiUpdateTests.cs:29 and Tests/Api/BookingApiPatchTests.cs:29.
 - **Problem:** The PUT and PATCH tests assert only the write-response body. An endpoint that echoes the expected payload without persisting the update would pass, despite the tests claiming that booking fields were replaced or patched.
@@ -162,10 +162,10 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r29"></a>
 ### R29. Shared mobile settings pin a specific emulator
 
-- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Implementation:** Restored the shared Device.Udid default to an empty string, preserving local device selection through MOBILE_Device__Udid. This restores the tracked baseline for mobilesettings.json; the prior typed-property changes in MobileOptionsBuilder are preserved. Configuration binding and capability serialization verification passed.
 - **Where:** Tests/UI/Mobile/mobilesettings.json:15; Tests/UI/Mobile/Configuration/MobileSettingsProvider.cs; Tests/UI/Mobile/Driver/MobileOptionsBuilder.cs:29.
-- **Original problem (now corrected in the working tree):** Device.Udid was set to emulator-5554. DEVICE_NAME overrides only Device.DeviceName, so selecting another emulator or physical device through that alias still leaves the explicit UDID targeting emulator-5554.
+- **Original problem (corrected; shared default confirmed at `5cdb42c`):** Device.Udid was set to emulator-5554. DEVICE_NAME overrides only Device.DeviceName, so selecting another emulator or physical device through that alias still leaves the explicit UDID targeting emulator-5554.
 - **Fix:** Keep the shared UDID default empty and select a specific local device using MOBILE_Device__Udid.
 - **Verification:** Passed against current mobilesettings.json and SettingsLoader environment binding: default capabilities omitted both udid/appium:udid; setting MOBILE_Device__Udid=verification-device-1234 produced that exact appium:udid value in actual AppiumOptions capabilities. Environment override was restored afterward. See r29.json.
 
@@ -208,7 +208,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r30"></a>
 ### R30. Mobile troubleshooting omits explicit UDID selection
 
-- **Status:** Closed, 2026-11-16, working tree on `fix/review-p1-p2`; commit reference pending.
+- **Status:** Closed, 2026-11-16, committed in `5cdb42c` on `fix/review-p1-p2`.
 - **Where:** `docs/GETTING_STARTED.md` (mobile troubleshooting), `docs/MOBILE_ARCHITECTURE.md` (device configuration).
 - **Original problem:** Troubleshooting described DeviceName but did not explain independent UDID selection or how to clear stale overrides.
 - **Implementation:** Added macOS/Linux and Windows PowerShell commands for selecting the serial from `adb devices -l`, checking device readiness, and clearing the environment override. Explained that removing an environment override restores the JSON value, so stale JSON UDIDs must also be cleared. Documented that DEVICE_NAME changes DeviceName only, and cross-referenced R29's empty shared default.
@@ -281,7 +281,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r16"></a>
 ### R16. Mobile suite not in CI
 
-- **Status:** Implemented (CI verification pending), 2026-11-16, working tree on `fix/review-p1-p2`; no hosted run has been executed by the agent.
+- **Status:** Implemented (CI verification pending), 2026-11-16, committed in `5cdb42c` on `fix/review-p1-p2`; no hosted run has been executed by the agent.
 - **Where:** `azure-pipelines.yml` (`MobileSmoke`) and `scripts/unix/run_mobile_ci.sh`.
 - **Original problem:** CI compiled the mobile project but never executed its tests. Hosted Ubuntu lacks Android emulator hardware acceleration; hosted macOS supports this workflow, so self-hosting or a device cloud is not required for the initial smoke job.
 - **Implementation:** A separate `macOS-15` job runs on Schedule/Manual builds. It installs pinned Node.js 22.23.2, Appium 2.19.0 and UiAutomator2 4.2.9, creates an Android 14 emulator, waits for Android and Appium with bounded deadlines, sets the device through `MOBILE_*`, and runs the mobile smoke project. TRX is checked for actual execution and all-passing results. Always-run publishing retains TRX, raw Allure and diagnostics in `mobile-results`; the helper traps exits to stop its owned processes. Linux PR/push checks retain mobile compilation.
