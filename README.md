@@ -72,7 +72,7 @@ TestAutomationProj/
 │   │       ├── SauceDemo/             # SauceDemoTests
 │   │       ├── mobilesettings.json    # Appium server, platform, device, android/ios, behavior
 │   │       └── package.json           # npm scripts: appium, appium-doctor, driver install
-│   ├── Unit/                          # Framework unit tests (own project: Tests.Unit.csproj; no browser, no network)
+│   ├── Unit/                          # Framework unit tests (own project: Tests.Unit.csproj; no browser or external services; TLS checks use loopback)
 │   ├── Fixtures/                      # PlaywrightFixture (browser per class), ApiFixture
 │   ├── Infrastructure/                # UiTestBase, ApiTestBase
 │   └── testsettings.json              # Browser, headless, timeouts, app URLs, API credentials
@@ -128,7 +128,7 @@ Step-by-step setup for **Windows, macOS and Linux**, with what each platform can
 # Restore & build everything
 dotnet build TestAutomationPlatform.slnx
 
-# Framework unit tests (about a second, no browser or network)
+# Framework unit tests (no browser or external services; TLS checks use loopback)
 dotnet test Tests/Unit/Tests.Unit.csproj
 
 # All Playwright tests (web UI + API)
@@ -251,7 +251,7 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
 | `Provider` | `LOGGING_PROVIDER` | `elastic` or `console` (any other key works with the `LOGGING_` prefix too, e.g. `LOGGING_Elastic__Url`) |
 | `Elastic.Url` | `ELASTIC_URL` | |
 | `Elastic.Username` / `Elastic.Password` | `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` | **Only set these in the environment** (or a CI secret variable); keep them empty in the file. The local `docker compose` stack needs none. |
-| `Elastic.CertificateFingerprint` | `ELASTIC_CERT_FINGERPRINT` | CA fingerprint for `ON_LOCALHOST_SECURE`; when empty, the local self-signed certificate is accepted |
+| `Elastic.CertificateFingerprint` | `ELASTIC_CERT_FINGERPRINT` | CA fingerprint for `ON_LOCALHOST_SECURE`; when empty, a self-signed certificate is accepted only for loopback URLs in that profile |
 | connection profile | `ELASTIC_SERVER` | `ON_CLOUD`, `ON_LOCALHOST_SECURE`, `ON_LOCALHOST_INSECURE` (default) |
 
 Provider selection, implemented by `LoggingServiceFactory` and `ResultsPublisherFactory`:
@@ -332,11 +332,12 @@ Code lives on **GitHub**; **Azure DevOps Pipelines** is the only CI/CD. The pipe
 |-------|-----------|
 | PR into `main` | Unit tests; API + TodoMVC (all), SauceDemo `smoke` on Chrome (`--filter "FullyQualifiedName!~.SauceDemo.\|Category=smoke"`) |
 | Push to `main` or `release/*` | Unit tests; everything on Chrome, plus code coverage |
-| Nightly, 02:00 UTC (`main`, only if it changed) | As a push to `main`, plus the web UI tests again on Playwright's **Chromium, Firefox and WebKit** |
+| Nightly, 02:00 UTC (`main`, only if it changed) | As a push to `main`, plus web UI on **Chromium, Firefox and WebKit**, and Android mobile smoke on macOS, plus Windows helper verification |
+| Manual run | Linux unit/web/API tests, Android mobile smoke on macOS, and Windows helper verification |
 
-### Job (`azure-pipelines.yml`)
+### Jobs (`azure-pipelines.yml`)
 
-Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
+The **Linux job** (`Tests`, `ubuntu-latest`) runs:
 
 1. Shallow checkout, .NET 10 SDK
 2. Build `ci.slnf` (Release): `Core`, `Pages`, `Tests`, `Tests/Unit` and `Tests/UI/Mobile` (compile check only), with warnings as errors.
@@ -346,9 +347,13 @@ Everything runs in a **single job** (`Tests`, `ubuntu-latest`):
 6. Publish TRX test results (failures fail the build) and coverage (`main`/`release/*` only).
 7. Allure: publish the raw `allure-results`, then build the **`allure-report`** artifact with the Allure CLI (version pinned in `allureVersion`). The report includes trends: the previous report's `history/` on the same branch is fed into each new one. Download the artifact and open **`allure-report.html`** (a single self-contained file), or serve the folder.
 
-Why one job: the Azure DevOps org has a single parallel job, so separate jobs ran one after another, each repeating agent start-up, checkout, SDK setup and the build.
+Web/API and framework checks share the Linux job to avoid repeating setup. The mobile job needs macOS for Android emulator acceleration. With one parallel slot, the jobs queue rather than run simultaneously.
 
-The Appium `Tests/UI/Mobile` suite is **built** in CI, so compile errors are caught, but not **run**: it needs an Android emulator, which Microsoft-hosted Linux agents don't provide.
+The **mobile job** (`MobileSmoke`, `macOS-15`) runs on scheduled and manual builds. It installs Node.js 22.23.2, Appium 2.19.0 and UiAutomator2 4.2.9, creates an Android 14 Google APIs emulator with Chrome, waits for boot/Appium readiness, and runs `Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Category=smoke"`. Empty discovery, skipped tests, setup errors, and test failures fail the job. Appium's matching Chromedriver download is enabled only on its loopback-bound server.
+
+The `mobile-results` artifact contains TRX, raw Allure results, tool versions, and emulator/Appium/logcat diagnostics. Cleanup runs when the helper exits, including on failure. This artifact is separate from the Linux Allure HTML report. Pipeline configuration is implemented; R16 remains pending until an actual hosted mobile run passes and publishes its results.
+
+A third job, **WindowsHelperVerification** (`windows-2025`), runs on scheduled/manual builds. It uses a temporary copy of the Windows helper and a controlled executable that returns build exit code 37. It verifies that old binaries cannot lead to a successful test run after build failure. JSON evidence and the helper log are published as `windows-helper-verification`. No developer Windows machine is needed; R25 awaits the first passing hosted Windows run.
 
 ### Connecting the pipeline (one-time)
 

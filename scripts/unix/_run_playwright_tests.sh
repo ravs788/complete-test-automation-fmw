@@ -34,6 +34,10 @@ rm -rf "$RESULTS_DIR" "$ROOT_RESULTS_DIR"
 echo "Building $PROJECT..."
 "$DOTNET_CMD" build "$PROJECT"
 BUILD_EXIT=$?
+if [[ "$BUILD_EXIT" -ne 0 ]]; then
+  echo "[ERROR] Build failed; tests were not started."
+  exit "$BUILD_EXIT"
+fi
 
 FILTER_ARGS=()
 if [[ -n "$FILTER" ]]; then

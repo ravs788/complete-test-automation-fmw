@@ -12,18 +12,20 @@
 #   release/*
 #   Nightly (02:00    -> everything on Chrome, plus the web UI tests again on Playwright's
 #   UTC, main, only      Chromium, Firefox and WebKit
-#   if it changed)
+#   if it changed)     + Android mobile smoke on hosted macOS
+#   Manual           -> Linux tests + Android mobile smoke + Windows helper verification
 #
-# Everything runs in ONE job on purpose: the org has a single parallel job, so
-# separate jobs ran back to back and each paid agent start-up, checkout, SDK
-# setup and build again. CI builds only the projects it tests (ci.slnf).
+# Web/API and framework tests share one Linux job. A separate hosted macOS job runs
+# Android smoke tests for scheduled/manual builds; a Windows job verifies the batch helper.
+# With one parallel slot these jobs queue.
+# CI builds all projects through ci.slnf; the macOS job builds its own mobile dependency tree.
 #
 # Tests use xUnit + Allure.Xunit. Every run publishes two artifacts:
 #   allure-report  : the HTML report (allure-report.html is a single file you can open directly)
 #                    with history/trends carried over from the previous run on the same branch
 #   allure-results : the raw results (for `allure serve <dir>`)
-# The Appium mobile suite (Tests/UI/Mobile) is built here (compile check) but not run: it needs an
-# Android emulator or a device cloud, which hosted agents don't provide.
+# The mobile job publishes mobile-results separately, including TRX, raw Allure results,
+# Appium/emulator/logcat logs. Its first hosted execution must pass before R16 can close.
 # =============================================================================
 
 trigger:
@@ -40,7 +42,7 @@ pr:
 # Nightly cross-browser run (R13). always: false = skip the night if main didn't change.
 schedules:
   - cron: "0 2 * * *"
-    displayName: "Nightly: web UI on Chromium, Firefox and WebKit"
+    displayName: "Nightly: cross-browser web UI and Android smoke"
     branches:
       include:
         - main
@@ -191,3 +193,87 @@ stages:
             inputs:
               targetPath: "$(Build.ArtifactStagingDirectory)/allure-report"
               artifact: "allure-report"
+
+      - job: MobileSmoke
+        displayName: "Android 14 Chrome Smoke (macOS)"
+        dependsOn: []
+        condition: and(not(canceled()), in(variables['Build.Reason'], 'Schedule', 'Manual'))
+        pool:
+          vmImage: "macOS-15"
+        timeoutInMinutes: 35
+        cancelTimeoutInMinutes: 5
+        variables:
+          # UiAutomator2 4.x supports Appium 2; avoid installing an incompatible latest driver.
+          appiumVersion: "2.19.0"
+          uiautomator2Version: "4.2.9"
+          mobileResults: "$(Build.ArtifactStagingDirectory)/mobile-results"
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - bash: mkdir -p "$(mobileResults)/logs" "$(mobileResults)/trx" "$(mobileResults)/allure-results"
+            displayName: "Initialize Mobile Artifacts"
+
+          - task: UseDotNet@2
+            displayName: "Setup .NET SDK 10.x (mobile)"
+            inputs:
+              packageType: "sdk"
+              version: "10.x"
+
+          - task: NodeTool@0
+            displayName: "Setup Node.js (mobile)"
+            inputs:
+              versionSpec: "22.23.2"
+
+          - bash: bash scripts/unix/run_mobile_ci.sh
+            displayName: "Boot Android, Start Appium, Run Smoke Tests"
+            env:
+              BUILD_CONFIGURATION: $(buildConfiguration)
+              APPIUM_VERSION: $(appiumVersion)
+              UIAUTOMATOR2_VERSION: $(uiautomator2Version)
+              MOBILE_CI_RESULTS: $(mobileResults)
+
+          - task: PublishTestResults@2
+            displayName: "Publish Mobile Test Results"
+            condition: always()
+            inputs:
+              testResultsFormat: "VSTest"
+              testResultsFiles: "**/mobile_results.trx"
+              searchFolder: "$(mobileResults)/trx"
+              testRunTitle: "Android 14 Chrome Smoke"
+              failTaskOnFailedTests: true
+              failTaskOnMissingResultsFile: true
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Mobile Results and Diagnostics"
+            condition: always()
+            inputs:
+              targetPath: "$(mobileResults)"
+              artifact: "mobile-results"
+
+
+      - job: WindowsHelperVerification
+        displayName: "Verify Windows Build-Failure Handling"
+        dependsOn: []
+        condition: and(not(canceled()), in(variables['Build.Reason'], 'Schedule', 'Manual'))
+        pool:
+          vmImage: "windows-2025"
+        timeoutInMinutes: 10
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: PowerShell@2
+            displayName: "Verify Failed Build Never Starts Tests"
+            inputs:
+              targetType: "filePath"
+              filePath: "scripts/windows/verify_build_failure.ps1"
+              arguments: '-ResultsDirectory "$(Build.ArtifactStagingDirectory)/windows-helper-verification"'
+              pwsh: false
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Upload Windows Helper Verification"
+            condition: always()
+            inputs:
+              targetPath: "$(Build.ArtifactStagingDirectory)/windows-helper-verification"
+              artifact: "windows-helper-verification"

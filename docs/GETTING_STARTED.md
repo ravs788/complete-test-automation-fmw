@@ -21,7 +21,7 @@ For the short version, see "Quick Start" in the root README.
 | Appium environment check/fix scripts | ✅ `appium_env_*.ps1` | – (manual checks below) | – (manual checks below) |
 | Allure report (`allure serve`) | ✅ | ✅ | ✅ |
 | Local Elasticsearch + Kibana logging (`docker compose`) | ✅ Docker Desktop | ✅ Docker Desktop / Colima | ✅ Docker Engine |
-| CI (Azure Pipelines) | – | – | ✅ `ubuntu-latest`, Chrome |
+| CI (Azure Pipelines) | – | Android smoke on `macOS-15` (scheduled/manual; first run pending) | ✅ `ubuntu-latest`, Chrome |
 
 1. Playwright's browser builds officially support **Ubuntu 22.04/24.04 and Debian 12**. They often work on other distros, but missing system libraries are up to you. `--with-deps` installs those libraries only on Debian and Ubuntu, and only with `sudo`.
 2. WebKit needs a recent macOS release. Playwright drops older macOS versions over time, so if WebKit fails to launch, update macOS or use another browser.
@@ -204,7 +204,29 @@ This builds the report in a temporary folder and opens it in your browser. The r
 
 **Linux: "Host system is missing dependencies".** Re-run the install with `--with-deps`, or on a non-Debian distro install the listed libraries yourself.
 
-**Mobile: session can't be created.** Check that `adb devices` lists the device and that Appium listens on `Server.Url` in `Tests/UI/Mobile/mobilesettings.json` (default `http://127.0.0.1:4723/`). Check that `Device.DeviceName` matches the device too. Leave `Android.ChromedriverExecutable` empty so Appium downloads a matching Chromedriver.
+**Mobile: session can't be created.** Confirm that `adb devices -l` lists the intended Android device with state `device` (not `offline` or `unauthorized`), and that Appium listens on `Server.Url` (default `http://127.0.0.1:4723/`). An installed AVD must be started and finish booting before it can be used.
+
+To select a specific Android device, set `MOBILE_Device__Udid` to its exact serial from `adb devices -l`. `DEVICE_NAME` only sets `Device.DeviceName`; it does not override a nonempty `Device.Udid`. Match `Device.PlatformVersion` to the selected device as well.
+
+macOS/Linux (replace the example serial):
+
+```bash
+adb devices -l
+MOBILE_Device__Udid=emulator-5556 dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Category=smoke"
+# Clear a previously exported override when it is no longer needed:
+unset MOBILE_Device__Udid
+```
+
+Windows PowerShell:
+
+```powershell
+adb devices -l
+$env:MOBILE_Device__Udid = "emulator-5556"
+dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Category=smoke"
+Remove-Item Env:MOBILE_Device__Udid -ErrorAction SilentlyContinue
+```
+
+Environment values override JSON. Removing the environment override restores the value from `Tests/UI/Mobile/mobilesettings.json`, so also clear any stale `Device.Udid` there to `""`. The shared default is empty (R29), allowing Appium to choose a matching available device; use an explicit UDID when more than one is connected. See the [mobile configuration reference](MOBILE_ARCHITECTURE.md) for the settings and aliases.
 
 **"Elasticsearch connection refused".** No action needed: logging falls back to the console. To log to a cluster, run `docker compose up -d` (Elasticsearch on `localhost:9200`, Kibana on `localhost:5601`, no password). For another cluster, set `ELASTIC_URL`, plus `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` if it needs them. Don't put credentials in `logging-config.json`.
 

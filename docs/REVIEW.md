@@ -1,17 +1,24 @@
 # Framework Review
 
-Findings from the 2026-11-14 review, done alongside the consistency pass (see CHANGELOG). Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
+Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
 
 **How this list is maintained**
 
 - IDs (`R1`, `R2`, …) never change, so re-sorting doesn't renumber anything. New findings get the next free ID.
-- When an item is fixed, set **Status** to `Closed` and fill in **Closed in** with the date and the commit (or PR) that fixed it.
-- **Sort order:** open items first, highest priority on top. Then closed items, most recently closed first. Items closed in the same commit: highest priority first. Ties within a priority: by ID.
+- Use **Implemented (verification pending)** when the fix is present but runtime verification is outstanding. Once verified, set **Status** to `Closed` and fill in **Closed in** with the date and the commit (or PR) that fixed it. Do not invent a commit reference for working-tree changes.
+- **Sort order:** unresolved items (Open or Implemented with verification pending) first, highest priority on top. Then closed items, most recently closed first. Items closed in the same commit: highest priority first. Ties within a priority: by ID.
 - The table below is the sorted view. The detail sections after it stay grouped by priority, so links don't move.
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R16 | P3 | Open (partly done) | – | [Mobile suite not in CI](#r16) | CI |
+| R25 | P2 | Implemented (Windows verification pending) | – | [Report scripts can succeed after a failed build](#r25) | Run scripts |
+| R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
+| R26 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Mobile setup disables proxies process-wide](#r26) | Mobile / networking |
+| R24 | P1 | Closed | 2026-11-16 · working tree (commit pending) | [Elastic probe bypasses TLS verification](#r24) | Security |
+| R27 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Screenshot failure prevents trace capture](#r27) | Diagnostics |
+| R28 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [API update tests do not verify persistence](#r28) | Tests / API |
+| R29 | P2 | Closed | 2026-11-16 · working tree (commit pending) | [Shared mobile settings pin a specific emulator](#r29) | Mobile / configuration |
+| R30 | P3 | Closed | 2026-11-16 · working tree (commit pending) | [Mobile troubleshooting omits explicit UDID selection](#r30) | Documentation |
 | R23 | P4 | Closed | 2026-11-14 · `03cf510` | [Allure results pile up across local runs](#r23) | Reporting |
 | R22 | P4 | Closed | 2026-11-14 · `e8ba96d` | [`Console.Enabled` in `logging-config.json` does nothing](#r22) | Logging / config |
 | R21 | P3 | Closed | 2026-11-14 · `0f492d8` | [Elastic probe treats 4xx as "up", so a misconfigured cluster fails every write](#r21) | Logging |
@@ -37,7 +44,52 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 
 ---
 
+## Current state — 2026-11-16
+
+| State | Findings | Count |
+|---|---|---|
+| Implemented; Windows verification pending | R25 | 1 |
+| Implemented; hosted CI verification pending | R16 | 1 |
+| Closed after fixes and verification | R24, R26–R30 | 6 |
+| Closed in earlier reviews | R1–R15, R17–R23 | 22 |
+
+Fixes are in the working tree on `fix/review-p1-p2`; no fix commit or PR has been created. R25 passed on Unix; a scheduled/manual hosted Windows verification job is now configured and awaits its first execution. R16 now has a hosted macOS mobile job and awaits its first successful Azure execution; R30 is closed: the troubleshooting guide now explains explicit UDID selection and stale override cleanup.
+
+**Agent-executed validation:** The user explicitly allowed shell and native .NET verification for this run. Framework unit tests passed: **37 passed, 0 failed, 0 skipped**, including the three TLS regression cases. Targeted checks passed for Unix build failure handling (R25), controlled local/remote Appium proxy routing without global mutations (R26), headed Chrome screenshot failure with valid trace attachment and original exception preservation (R27), and default/explicit UDID serialization (R29). The dedicated browser was closed in fixture cleanup. The earlier full build passed with 0 warnings/errors.
+
+**Evidence:** [Verification summary](../artifacts/review-verification-2026-11-16/summary.json), [unit TRX](../artifacts/review-verification-2026-11-16/verification-unit.trx), and [R27 trace ZIP](../artifacts/review-verification-2026-11-16/r27-trace.zip). These are generated local artifacts in the ignored `artifacts/` directory, not committed files. The isolated harness and scenario JSON evidence are saved alongside them.
+
+**Verification boundary:** Windows script execution was unavailable on this Mac. Proxy checks used controlled HTTP responders that implement Appium session/orientation/quit responses, not a live device cloud. UDID checks verified configuration and serialized capabilities, not two physical devices. API PUT/PATCH execution for R28 remains supported by the user's earlier all-tests-passed report; it was not repeated in this run. No measured coverage was collected.
+
+**Harness setup:** The first native test attempt was blocked by sandbox socket restrictions; the authorized retry outside the sandbox passed. The first browser harness attempt had missing Allure metadata; after adding the required fullName, the rerun passed. Neither setup failure was a product assertion failure.
+
+## Coverage state — 2026-11-16
+
+A TRX report now records 37 passing framework tests, and targeted harness evidence is available above. No Cobertura, OpenCover, or LCOV data was collected, so measured line/branch coverage remains unavailable. Passing results apply only to the stated execution scope.
+
+| Area | Current implementation / evidence | Remaining gap | Tracking |
+|---|---|---|---|
+| Mobile capability construction | Current configuration and actual Appium capabilities checked with empty and explicit UDID | Optional broader matrix for Android/iOS, web/native, and Firefox | R29 (closed) and follow-up test work |
+| Failure artifacts | Headed Chrome check forced screenshot failure, validated the attached trace ZIP, and preserved the original error | No remaining verification for this finding | R27 (closed) |
+| Elastic transport security | Probe now reuses client TLS policy; ElasticTlsTests adds three cases for cloud rejection, matching fingerprint, and mismatched fingerprint | Agent ran all three TLS regression cases as part of 37 passing unit tests; loopback bypass boundaries remain optional additional coverage | R24 (closed) |
+| API updates | PUT/PATCH tests now GET and compare the persisted record after writing | User reports all tests passed; an echo-only mutation check remains optional additional coverage | R28 (closed) |
+| Mobile CI | Hosted macOS Android smoke job configured for scheduled/manual runs; Linux compilation retained | First actual Azure execution, smoke result discovery and artifact publication | R16 (CI verification pending) |
+
+**Original review checks:** Source/configuration tracing and 14 local documentation file-link checks across six Markdown files (none missing). External links and anchors in those documentation files were not checked. Per-finding verification steps below remain outstanding unless marked completed or supported by the user-reported test run above.
+
+---
+
 ## P1: Fix soon
+
+<a id="r24"></a>
+### R24. Elastic probe bypasses TLS verification
+
+- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Implementation:** The probe now uses ElasticClientFactory and the actual Elastic transport for TLS and authentication. Provider callers pass their profile and fingerprint, and the probe cache separates connection/security configurations. The no-fingerprint development bypass is restricted to loopback URLs. Added ElasticTlsTests for accepted and rejected certificates and whether credentials reach the HTTP server; compiled and passed in the subsequent agent-executed unit test run.
+- **Where:** Core/Logging/Elastic/ElasticConnectivity.cs:85 (`Probe`), and the logging/results provider factories.
+- **Problem:** The probe accepts any server certificate and sends Basic authentication credentials when configured. Unlike the actual Elastic client, the probe does not apply the selected profile or certificate fingerprint. For a remote HTTPS endpoint, an intercepted connection could expose credentials before the client validates the server certificate.
+- **Fix:** Use the same certificate validation policy for the probe and client, including fingerprint validation when configured. Restrict any explicitly enabled development bypass to its intended profile.
+- **Verification:** Agent ran `dotnet test Tests/Unit/Tests.Unit.csproj --no-restore --logger "trx;LogFileName=verification-unit.trx"`: 37 passed, 0 failed, 0 skipped, including all three ElasticTlsTests cases. See the saved TRX above.
 
 <a id="r1"></a>
 ### R1. Elastic password committed in `logging-config.json`
@@ -66,6 +118,56 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 ---
 
 ## P2: Should do
+
+<a id="r25"></a>
+### R25. Report scripts can succeed after a failed build
+
+- **Status:** Implemented (Windows verification pending), 2026-11-16. Unix verification passed; changes are uncommitted.
+- **Implementation:** Both shared helpers now return the failed build exit code before invoking dotnet test --no-build. Unix syntax and runtime failure-path checks passed. The WindowsHelperVerification job now runs the isolated PowerShell verification on a hosted windows-2025 agent for scheduled/manual builds; its first execution remains pending.
+- **Where:** scripts/unix/_run_playwright_tests.sh:36 and scripts/windows/_run_playwright_tests.bat:30.
+- **Problem:** Both helpers record the build exit code but continue with dotnet test --no-build and return the test exit code. If previously compiled tests are available, they can pass even when the current source fails to build, producing a misleading successful run.
+- **Fix:** Exit with the build failure before starting tests. Preserve failure status for required result-copy steps as appropriate.
+- **Verification:** Unix check passed in an isolated temporary repository with a stale Tests.dll and a controlled dotnet command returning build exit 37: helper returned 37 and never invoked the test command. Windows execution remains pending on the hosted agent. No developer-owned Windows machine is required; the pipeline publishes JSON evidence and helper output as windows-helper-verification.
+
+<a id="r26"></a>
+### R26. Mobile setup disables proxies process-wide
+
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Implementation:** Appium now uses a per-session HttpCommandExecutor. Only loopback sessions receive a direct proxy; remote sessions retain default proxy behavior. No proxy environment variables or process-wide HTTP defaults are modified. Executor is disposed if session creation fails. Compiled and verified with controlled local/remote Appium responders.
+- **Where:** Tests/UI/Mobile/Driver/MobileDriverFactory.cs:49 (`DisableProxyForLocalAppium`).
+- **Problem:** Every session clears proxy environment variables and replaces global proxy defaults, regardless of Server.Url. A remote Appium server or logging endpoint that requires a corporate proxy can become unreachable; unrelated HTTP clients in the process also inherit the change.
+- **Fix:** Scope proxy bypass to the local Appium connection. Preserve proxy configuration for remote Appium URLs and other clients.
+- **Verification:** Passed using the actual MobileDriverFactory and two controlled HTTP responders: local session/orientation/quit requests reached Appium directly; remote requests for appium.verification.invalid went through the configured proxy. All proxy environment variables and both global HTTP proxy objects remained unchanged. See r26.json in the local evidence directory.
+
+<a id="r27"></a>
+### R27. Screenshot failure prevents trace capture
+
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Implementation:** Trace capture is attempted in a finally block around screenshot capture/attachment, so screenshot failure cannot skip trace capture. TestRunner still preserves the original test failure. Compiled and verified with an injected screenshot failure in headed Chrome.
+- **Where:** Tests/Infrastructure/UiTestBase.cs:83 (`AttachFailureArtifactsAsync`).
+- **Problem:** Screenshot capture and attachment happen before trace capture. If either throws, the failure hook exits before saving the trace. Under the default on-failure mode, AttachTraceIfAlwaysOnAsync does not retry, losing diagnostic evidence even when tracing remains usable. This is a distinct failure-path gap in the trace support added for R4; R4 remains closed.
+- **Fix:** Attempt screenshot and trace capture independently while preserving the original test failure.
+- **Verification:** Passed with a real headed Chrome context and an Allure test case. Closed the page before the deliberately failing test body, forcing screenshot capture to fail. A valid 8,244-byte trace ZIP with six entries was attached, the original exception object was preserved, and browser/context cleanup completed. See r27.json and r27-trace.zip.
+
+<a id="r28"></a>
+### R28. API update tests do not verify persistence
+
+- **Status:** Closed, 2026-11-16, based on the user-reported passing test run. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Implementation:** PUT and PATCH tests now GET the created booking after the write and compare the persisted record against the expected update, including unchanged PATCH fields. Compiled; subsequent test run reported passing by the user.
+- **Where:** Tests/Api/BookingApiUpdateTests.cs:29 and Tests/Api/BookingApiPatchTests.cs:29.
+- **Problem:** The PUT and PATCH tests assert only the write-response body. An endpoint that echoes the expected payload without persisting the update would pass, despite the tests claiming that booking fields were replaced or patched.
+- **Fix:** After each successful write, GET the created booking by ID and assert the persisted fields, including unchanged fields for PATCH.
+- **Verification:** User reports all tests passed after these fixes, covering the added TLS cases and updated API persistence assertions. The agent did not rerun the suite; no command, counts, browser/device matrix, or test artifacts were supplied.
+
+<a id="r29"></a>
+### R29. Shared mobile settings pin a specific emulator
+
+- **Status:** Closed, 2026-11-16, after agent-executed targeted verification. Fix is in the working tree on `fix/review-p1-p2`; commit reference pending.
+- **Implementation:** Restored the shared Device.Udid default to an empty string, preserving local device selection through MOBILE_Device__Udid. This restores the tracked baseline for mobilesettings.json; the prior typed-property changes in MobileOptionsBuilder are preserved. Configuration binding and capability serialization verification passed.
+- **Where:** Tests/UI/Mobile/mobilesettings.json:15; Tests/UI/Mobile/Configuration/MobileSettingsProvider.cs; Tests/UI/Mobile/Driver/MobileOptionsBuilder.cs:29.
+- **Original problem (now corrected in the working tree):** Device.Udid was set to emulator-5554. DEVICE_NAME overrides only Device.DeviceName, so selecting another emulator or physical device through that alias still leaves the explicit UDID targeting emulator-5554.
+- **Fix:** Keep the shared UDID default empty and select a specific local device using MOBILE_Device__Udid.
+- **Verification:** Passed against current mobilesettings.json and SettingsLoader environment binding: default capabilities omitted both udid/appium:udid; setting MOBILE_Device__Udid=verification-device-1234 produced that exact appium:udid value in actual AppiumOptions capabilities. Environment override was restored afterward. See r29.json.
 
 <a id="r4"></a>
 ### R4. No Playwright trace on failure
@@ -102,6 +204,15 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 ---
 
 ## P3: Good practice
+
+<a id="r30"></a>
+### R30. Mobile troubleshooting omits explicit UDID selection
+
+- **Status:** Closed, 2026-11-16, working tree on `fix/review-p1-p2`; commit reference pending.
+- **Where:** `docs/GETTING_STARTED.md` (mobile troubleshooting), `docs/MOBILE_ARCHITECTURE.md` (device configuration).
+- **Original problem:** Troubleshooting described DeviceName but did not explain independent UDID selection or how to clear stale overrides.
+- **Implementation:** Added macOS/Linux and Windows PowerShell commands for selecting the serial from `adb devices -l`, checking device readiness, and clearing the environment override. Explained that removing an environment override restores the JSON value, so stale JSON UDIDs must also be cleared. Documented that DEVICE_NAME changes DeviceName only, and cross-referenced R29's empty shared default.
+- **Verification:** Checked the instructions against SettingsLoader precedence, MobileSettingsProvider aliases, and MobileOptionsBuilder's nonempty-UDID capability handling. R29's agent-executed capability check already verified omission of the default UDID and exact serialization of a different device serial. Documentation file links and whitespace checks passed; no additional product test run was required.
 
 <a id="r8"></a>
 ### R8. Page methods don't return the next page
@@ -170,10 +281,12 @@ Findings from the 2026-11-14 review, done alongside the consistency pass (see CH
 <a id="r16"></a>
 ### R16. Mobile suite not in CI
 
-- **Status:** Open, partly done. In `46ed506` (2026-11-14) the project was added to `ci.slnf`, so CI now catches compile errors. **Still open:** actually running the tests needs a self-hosted agent with an emulator or a device-cloud account (owner decision); then point `APPIUM_URL` / `MOBILE_*` at it.
-- **Where:** `azure-pipelines.yml`, `Tests/UI/Mobile`.
-- **Problem:** hosted agents have no Android emulator, so the Appium suite never runs automatically and can quietly break.
-- **Fix:** add a self-hosted agent with an emulator, or use a device cloud (BrowserStack / Sauce Labs) by pointing `Server.Url` at the provider. In the meantime, at least build `Tests.UI.Mobile.csproj` in CI (add it to `ci.slnf`) so compile errors are caught.
+- **Status:** Implemented (CI verification pending), 2026-11-16, working tree on `fix/review-p1-p2`; no hosted run has been executed by the agent.
+- **Where:** `azure-pipelines.yml` (`MobileSmoke`) and `scripts/unix/run_mobile_ci.sh`.
+- **Original problem:** CI compiled the mobile project but never executed its tests. Hosted Ubuntu lacks Android emulator hardware acceleration; hosted macOS supports this workflow, so self-hosting or a device cloud is not required for the initial smoke job.
+- **Implementation:** A separate `macOS-15` job runs on Schedule/Manual builds. It installs pinned Node.js 22.23.2, Appium 2.19.0 and UiAutomator2 4.2.9, creates an Android 14 emulator, waits for Android and Appium with bounded deadlines, sets the device through `MOBILE_*`, and runs the mobile smoke project. TRX is checked for actual execution and all-passing results. Always-run publishing retains TRX, raw Allure and diagnostics in `mobile-results`; the helper traps exits to stop its owned processes. Linux PR/push checks retain mobile compilation.
+- **Verification:** Local validation passed: YAML parsing, mobile job gating/publishing checks, and shell syntax. Four isolated helper scenarios (success, zero tests, test failure, build failure) passed with controlled tool doubles; cleanup stopped all owned processes and removed temporary work. Evidence: `artifacts/mobile-ci-validation/control-flow.json` (generated, ignored). This validates helper control flow, not a real emulator or Azure execution. An actual Azure hosted run remains pending. Close only after a scheduled/manual run executes the smoke test, reports success, publishes mobile results/diagnostics, and completes cleanup.
+- **Reference:** [Microsoft's Android emulator guidance](https://learn.microsoft.com/en-us/azure/devops/pipelines/ecosystems/android?view=azure-devops#test-on-the-android-emulator).
 
 <a id="r20"></a>
 ### R20. No retry for transient navigation errors

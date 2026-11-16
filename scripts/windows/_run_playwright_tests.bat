@@ -28,6 +28,10 @@ if exist allure-results rmdir /S /Q allure-results
 echo Building %PROJECT%...
 %DOTNET_CMD% build "%PROJECT%"
 set BUILD_EXIT=%ERRORLEVEL%
+if not "%BUILD_EXIT%"=="0" (
+    echo [ERROR] Build failed; tests were not started.
+    exit /b %BUILD_EXIT%
+)
 
 echo Running %LABEL% tests...
 if "%FILTER%"=="" (

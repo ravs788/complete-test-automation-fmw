@@ -3,7 +3,7 @@
 The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. It keeps its own pages (rather than using the top-level `Pages/` project) because `Pages` is built on Playwright and mobile pages use Appium types. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
-- **CI:** the project is built in CI (compile check), but the tests aren't run, because hosted agents have no Android emulator. See the platform matrix in [GETTING_STARTED.md](GETTING_STARTED.md).
+- **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; its first hosted execution is pending. Results and diagnostics are published as `mobile-results`. See [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ---
 
@@ -63,7 +63,7 @@ The file is copied to the output directory. Property names match the C# records.
 |---|---|---|
 | (root) | `Platform`, `AppType`, `BaseUrl` | `Android` / `iOS`; `Web` / `Native`; `BaseUrl` is opened for Web |
 | `Server` | `Url`, `CommandTimeoutSec`, `NewCommandTimeoutSec` | Default Appium URL `http://127.0.0.1:4723/` |
-| `Device` | `DeviceName`, `PlatformVersion`, `Udid`, `Orientation` | `DeviceName` should match `adb devices` (e.g. `emulator-5554`) |
+| `Device` | `DeviceName`, `PlatformVersion`, `Udid`, `Orientation` | `Udid` selects an Android serial from `adb devices -l`; override it with `MOBILE_Device__Udid`. `DEVICE_NAME` changes only `DeviceName`, not `Udid`. The shared UDID default is empty |
 | `Android` | `AutomationName`, `App`, `AppPackage`, `AppActivity`, `BrowserName`, `ChromedriverExecutable`, `ChromedriverExecutableDir`, `ChromedriverArgs`, `GeckodriverExecutable`, `FirefoxPackage`, `FirefoxActivity` | Leave both Chromedriver settings empty to let Appium download a matching Chromedriver |
 | `IOS` | `AutomationName`, `App`, `BundleId`, `BrowserName` | Needs macOS + Xcode |
 | `Behavior` | `NoReset`, `FullReset`, `AcceptAlertsAutomatically` | |
@@ -71,6 +71,8 @@ The file is copied to the output directory. Property names match the C# records.
 Logging is configured in the repository-wide `logging-config.json`, like the other suites.
 
 ---
+
+For device selection commands and clearing stale overrides, see [mobile troubleshooting](GETTING_STARTED.md).
 
 ## Adding tests
 
@@ -111,5 +113,5 @@ The scripts run `dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --filter "Ca
 
 ## Next steps
 
-- An emulator job in CI (self-hosted agent or a device cloud such as BrowserStack/Sauce Labs). Point `Server.Url` at the provider.
+- Confirm the first hosted macOS Android smoke run, then consider a broader device/browser matrix.
 - Native Android and iOS sample tests.

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Fast unit tests for the framework itself (Core): no browser, no network. -->
+  <!-- Framework tests (Core): no browser or external services; transport checks use isolated loopback fixtures. -->
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

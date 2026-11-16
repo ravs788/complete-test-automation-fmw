@@ -12,7 +12,7 @@ public sealed record ElasticSection
 
     /// <summary>
     /// SHA-256 fingerprint of the server's CA certificate, used by the <c>ON_LOCALHOST_SECURE</c> profile
-    /// (printed by Elasticsearch on first start). When empty, any certificate is accepted (local development only).
+    /// (printed by Elasticsearch on first start). When empty, untrusted certificates are accepted only for loopback URLs in that development profile.
     /// </summary>
     public string? CertificateFingerprint { get; init; }
 }

@@ -30,5 +30,9 @@ public class BookingApiPatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         AllureApi.Step("Assert patched fields changed and the other fields are unchanged", () =>
             Assert.Equal(patch.ApplyTo(original), patched));
+
+        var persisted = await Client.GetAsync<Booking>($"booking/{created.BookingId}");
+        AllureApi.Step("Assert booking changes were persisted", () =>
+            Assert.Equal(patch.ApplyTo(original), persisted));
     });
 }
