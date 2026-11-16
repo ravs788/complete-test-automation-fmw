@@ -80,12 +80,18 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
 
     private async Task AttachFailureArtifactsAsync()
     {
-        var png = await Page.ScreenshotAsync(new() { FullPage = true });
-        AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
-
-        if (Tracing)
+        try
         {
-            await AttachTraceAsync();
+            var png = await Page.ScreenshotAsync(new() { FullPage = true });
+            AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+        }
+        finally
+        {
+            // A screenshot failure must not prevent saving an otherwise usable trace.
+            if (Tracing)
+            {
+                await AttachTraceAsync();
+            }
         }
     }
 

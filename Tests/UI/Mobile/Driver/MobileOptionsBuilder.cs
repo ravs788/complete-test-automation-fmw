@@ -24,7 +24,7 @@ public static class MobileOptionsBuilder
         if (!string.IsNullOrWhiteSpace(cfg.Device.DeviceName))
             opts.DeviceName = cfg.Device.DeviceName;
         if (!string.IsNullOrWhiteSpace(cfg.Device.PlatformVersion))
-            opts.AddAdditionalAppiumOption("platformVersion", cfg.Device.PlatformVersion);
+            opts.PlatformVersion = cfg.Device.PlatformVersion;
         if (!string.IsNullOrWhiteSpace(cfg.Device.Udid))
             opts.AddAdditionalAppiumOption("udid", cfg.Device.Udid);
 
@@ -39,7 +39,7 @@ public static class MobileOptionsBuilder
             if (appType == MobileAppType.Native)
             {
                 if (!string.IsNullOrWhiteSpace(cfg.Android.App))
-                    opts.AddAdditionalAppiumOption("app", cfg.Android.App);
+                    opts.App = cfg.Android.App;
                 if (!string.IsNullOrWhiteSpace(cfg.Android.AppPackage))
                     opts.AddAdditionalAppiumOption("appPackage", cfg.Android.AppPackage);
                 if (!string.IsNullOrWhiteSpace(cfg.Android.AppActivity))
@@ -51,7 +51,7 @@ public static class MobileOptionsBuilder
                 if (string.Equals(browserName, "Firefox", StringComparison.OrdinalIgnoreCase))
                 {
                     // Firefox on Android via Geckodriver
-                    opts.AddAdditionalAppiumOption("browserName", "Firefox");
+                    opts.BrowserName = "Firefox";
 
                     // Optional: direct path to a local geckodriver binary to avoid downloads
                     if (!string.IsNullOrWhiteSpace(cfg.Android.GeckodriverExecutable))
@@ -82,7 +82,7 @@ public static class MobileOptionsBuilder
                 else
                 {
                     // Chrome/other chromium-based browsers
-                    opts.AddAdditionalAppiumOption("browserName", browserName);
+                    opts.BrowserName = browserName;
 
                     // Pass options directly to ChromeDriver to suppress first-run/welcome and sync screens
                     opts.AddAdditionalAppiumOption("goog:chromeOptions", new Dictionary<string, object>
@@ -128,13 +128,13 @@ public static class MobileOptionsBuilder
             if (appType == MobileAppType.Native)
             {
                 if (!string.IsNullOrWhiteSpace(cfg.IOS.App))
-                    opts.AddAdditionalAppiumOption("app", cfg.IOS.App);
+                    opts.App = cfg.IOS.App;
                 if (!string.IsNullOrWhiteSpace(cfg.IOS.BundleId))
                     opts.AddAdditionalAppiumOption("bundleId", cfg.IOS.BundleId);
             }
             else
             {
-                opts.AddAdditionalAppiumOption("browserName", string.IsNullOrWhiteSpace(cfg.IOS.BrowserName) ? "Safari" : cfg.IOS.BrowserName);
+                opts.BrowserName = string.IsNullOrWhiteSpace(cfg.IOS.BrowserName) ? "Safari" : cfg.IOS.BrowserName;
             }
         }
 

@@ -30,5 +30,9 @@ public class BookingApiUpdateTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         AllureApi.Step("Assert updated booking fields via PUT", () =>
             Assert.Equal(updated, updateResponse));
+
+        var persisted = await Client.GetAsync<Booking>($"booking/{created.BookingId}");
+        AllureApi.Step("Assert booking changes were persisted", () =>
+            Assert.Equal(updated, persisted));
     });
 }

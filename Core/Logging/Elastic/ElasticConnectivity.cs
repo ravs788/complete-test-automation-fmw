@@ -1,32 +1,36 @@
 using System.Collections.Concurrent;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
+using Elastic.Transport;
+using HttpMethod = Elastic.Transport.HttpMethod;
 
 namespace Core.Logging.Elastic;
 
 /// <summary>
-/// Checks, once per URL per test run, that the server at the configured URL is an Elasticsearch the client can
+/// Checks, once per connection configuration per test run, that the server at the configured URL is an Elasticsearch the client can
 /// write to: it answers <c>GET /</c> with 2xx using the configured credentials, reports a version, is 8.x or later,
 /// and is not OpenSearch. Anything else makes the framework fall back to the console with the reason.
 /// </summary>
 public static class ElasticConnectivity
 {
-    private static readonly ConcurrentDictionary<string, Lazy<ElasticProbeResult>> _results = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<ProbeKey, Lazy<ElasticProbeResult>> _results = new();
+
+    private sealed record ProbeKey(string Url, string? Username, string? Password, ElasticServerChoices Profile, string? Fingerprint, TimeSpan? Timeout);
 
     /// <summary>True when <see cref="Check"/> finds the server usable.</summary>
     public static bool IsUsable(string? elasticUrl, string? username = null, string? password = null, TimeSpan? timeout = null) =>
         Check(elasticUrl, username, password, timeout).IsUsable;
 
-    /// <summary>Probes the server (cached per URL for the rest of the run) and explains why it can't be used.</summary>
-    public static ElasticProbeResult Check(string? elasticUrl, string? username = null, string? password = null, TimeSpan? timeout = null)
+    /// <summary>Probes the server (cached per connection configuration for the rest of the run) and explains why it can't be used.</summary>
+    public static ElasticProbeResult Check(string? elasticUrl, string? username = null, string? password = null, TimeSpan? timeout = null,
+        ElasticServerChoices profile = ElasticServerChoices.ON_CLOUD, string? certificateFingerprint = null)
     {
         if (string.IsNullOrWhiteSpace(elasticUrl))
         {
             return ElasticProbeResult.NotUsable("no Elastic URL is configured");
         }
 
-        return _results.GetOrAdd(elasticUrl, url => new Lazy<ElasticProbeResult>(() => Probe(url, username, password, timeout))).Value;
+        var key = new ProbeKey(elasticUrl, username, password, profile, certificateFingerprint, timeout);
+        return _results.GetOrAdd(key, connection => new Lazy<ElasticProbeResult>(() => Probe(connection))).Value;
     }
 
     /// <summary>Decides from the answer to <c>GET /</c> whether the server can be used. Pure, so it can be unit tested.</summary>
@@ -75,35 +79,29 @@ public static class ElasticConnectivity
             : ElasticProbeResult.NotUsable($"Elasticsearch {number} is too old; the client needs 8.x or later");
     }
 
-    private static ElasticProbeResult Probe(string elasticUrl, string? username, string? password, TimeSpan? timeout)
+    private static ElasticProbeResult Probe(ProbeKey connection)
     {
         try
         {
-            using var handler = new HttpClientHandler
+            var config = new LoggingConfig
             {
-                // Allow self-signed certs for local/dev scenarios. Secure profiles can harden this.
-                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                Elastic = new ElasticSection
+                {
+                    Url = connection.Url,
+                    Username = connection.Username,
+                    Password = connection.Password,
+                    CertificateFingerprint = connection.Fingerprint
+                }
             };
-
-            using var http = new HttpClient(handler)
-            {
-                Timeout = timeout ?? TimeSpan.FromMilliseconds(750)
-            };
-
-            using var req = new HttpRequestMessage(HttpMethod.Get, elasticUrl);
-            if (!string.IsNullOrEmpty(username))
-            {
-                var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password ?? string.Empty}"));
-                req.Headers.Authorization = new AuthenticationHeaderValue("Basic", token);
-            }
-
-            using var resp = http.Send(req);
-            using var reader = new StreamReader(resp.Content.ReadAsStream());
-            return Evaluate((int)resp.StatusCode, reader.ReadToEnd());
+            // Reuse the actual client's trust policy, fingerprint handling and authentication.
+            var client = ElasticClientFactory.Create(connection.Profile, config,
+                connection.Timeout ?? TimeSpan.FromMilliseconds(750));
+            var response = client.Transport.Request<StringResponse>(HttpMethod.GET, "/");
+            return Evaluate(response.ApiCallDetails.HttpStatusCode ?? 0, response.Body);
         }
         catch (Exception ex)
         {
-            return ElasticProbeResult.NotUsable($"unreachable at {elasticUrl} ({ex.GetType().Name}: {ex.Message})");
+            return ElasticProbeResult.NotUsable($"unreachable at {connection.Url} ({ex.GetType().Name}: {ex.Message})");
         }
     }
 }

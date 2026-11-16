@@ -16,7 +16,8 @@ public class ElasticResultsPublisherFactory : IResultsPublisherFactory
         var user = cfg.Elastic.Username;
         var pass = cfg.Elastic.Password;
 
-        var probe = ElasticConnectivity.Check(url, user, pass);
+        var probe = ElasticConnectivity.Check(url, user, pass,
+            profile: ElasticClientFactory.CurrentProfile, certificateFingerprint: cfg.Elastic.CertificateFingerprint);
         if (!probe.IsUsable)
         {
             reason = probe.Reason;

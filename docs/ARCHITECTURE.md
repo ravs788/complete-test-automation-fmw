@@ -8,7 +8,7 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 |------|----------|---------------|-------|
 | API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
 | Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | Playwright (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
-| Mobile web | `Tests/UI/Mobile` | Appium 2 (Android; iOS/native in the bootstrap) | No (needs an emulator) |
+| Mobile web | `Tests/UI/Mobile` | Appium 2 (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; first CI run pending |
 
 Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.visualstudio` is pinned to 2.8.2 because adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter.
 
@@ -108,10 +108,10 @@ ILoggingService               IResultsPublisher
  ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
  └─ ElasticLoggingService      └─ ElasticResultsPublisher
         │ ElasticClientFactory(ELASTIC_SERVER profile)
-        │ ElasticConnectivity probe (cached per URL for the run) → console fallback if unreachable
+        │ ElasticConnectivity probe (cached per connection configuration for the run) → console fallback if unreachable
 ```
 
-- Loggers are cached per index format and the publisher once per run; the reachability probe is cached per URL.
+- Loggers are cached per index format and the publisher once per run; the reachability probe is cached per URL, credentials, TLS profile/fingerprint, and timeout.
 - To add a provider, implement both factory interfaces in `Core`. The factories discover providers by reflection, so no registration code is needed.
 - Each test publishes one `LogMetadata` document (project, class, method, status, duration, reason, timing, browser, user) from `TestRunner`. A publish failure never fails the test.
 
@@ -171,7 +171,7 @@ Categories are xUnit traits (`[Trait("Category", "smoke")]`), so `dotnet test --
 GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)  ──status checks──►  GitHub PR
 
 Stage: BuildAndValidate
- └─ Job Tests (ubuntu; single job, since the org has one parallel job)
+ ├─ Job Tests (ubuntu; web/API and framework checks)
       .NET 10 → build ci.slnf (Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
       → dotnet test Tests/Unit (framework unit tests, ~1 s)
       → dotnet test Tests/Tests.csproj, BROWSER=chrome (preinstalled Chrome, no download)
@@ -181,6 +181,12 @@ Stage: BuildAndValidate
       → TRX (gate) + allure-results artifact
       → previous allure-report/history (same branch) + results → Allure CLI → allure-report artifact
         (HTML with trends + single-file allure-report.html)
+ ├─ Job MobileSmoke (macOS-15; schedule/manual only)
+      .NET 10 + pinned Node/Appium/UiAutomator2 → Android 14 emulator + Chrome
+      → bounded boot/Appium readiness checks → mobile smoke tests (empty runs fail)
+      → TRX + raw Allure + diagnostics in mobile-results → owned-process cleanup
+ └─ Job WindowsHelperVerification (windows-2025; schedule/manual only)
+      → isolated batch helper build-failure check → JSON/log artifact
 ```
 
 Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests through a shared `_run_playwright_tests` helper and collect the Allure results into `./allure-results`. `run_ui_web_all_browsers` runs the web tests once per browser and merges the results; `run_mobile_android_web` runs the mobile smoke tests. `docker-compose.yml` starts a local Elasticsearch 8 + Kibana (no auth) for the Elastic logging provider.
@@ -200,7 +206,7 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 ### Roadmap
 
 - Move to xUnit v3 (and a current `xunit.runner.visualstudio`) once `Allure.Xunit` supports it.
-- Add mobile tests to CI (emulator job or device cloud).
+- Verify the first hosted macOS mobile smoke run and close R16 once results are published.
 - Add native-app mobile samples (Android, then iOS).
 - Desktop UI suite (FlaUI / UIA).
 

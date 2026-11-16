@@ -25,7 +25,7 @@ public static class ElasticClientFactory
     /// <summary>
     /// Creates a configured <see cref="ElasticsearchClient"/>. The client is thread-safe and meant to be reused.
     /// </summary>
-    public static ElasticsearchClient Create(ElasticServerChoices serverChoice, LoggingConfig config)
+    public static ElasticsearchClient Create(ElasticServerChoices serverChoice, LoggingConfig config, TimeSpan? requestTimeout = null)
     {
         var elastic = config.Elastic;
         var settings = serverChoice switch
@@ -33,10 +33,16 @@ public static class ElasticClientFactory
             ElasticServerChoices.ON_CLOUD => new ElasticsearchClientSettings(new Uri(
                 elastic.Url ?? throw new InvalidOperationException("Elastic.Url (or ELASTIC_URL) is required for ON_CLOUD."))),
             ElasticServerChoices.ON_LOCALHOST_SECURE => WithCertificateCheck(
-                new ElasticsearchClientSettings(new Uri(ResolveUrl(serverChoice, config)!)), elastic.CertificateFingerprint),
+                new ElasticsearchClientSettings(new Uri(ResolveUrl(serverChoice, config)!)), elastic.CertificateFingerprint,
+                new Uri(ResolveUrl(serverChoice, config)!).IsLoopback),
             ElasticServerChoices.ON_LOCALHOST_INSECURE => new ElasticsearchClientSettings(new Uri(elastic.Url ?? "http://localhost:9200")),
             _ => throw new ArgumentOutOfRangeException(nameof(serverChoice), serverChoice, null)
         };
+
+        if (requestTimeout is not null)
+        {
+            settings = settings.RequestTimeout(requestTimeout.Value).MaximumRetries(0);
+        }
 
         if (!string.IsNullOrEmpty(elastic.Username))
         {
@@ -46,9 +52,14 @@ public static class ElasticClientFactory
         return new ElasticsearchClient(settings);
     }
 
-    private static ElasticsearchClientSettings WithCertificateCheck(ElasticsearchClientSettings settings, string? fingerprint) =>
-        string.IsNullOrWhiteSpace(fingerprint)
-            // No fingerprint configured: accept the local self-signed certificate (development only).
-            ? settings.ServerCertificateValidationCallback((_, _, _, _) => true)
-            : settings.CertificateFingerprint(fingerprint);
+    private static ElasticsearchClientSettings WithCertificateCheck(ElasticsearchClientSettings settings, string? fingerprint, bool isLoopback)
+    {
+        if (!string.IsNullOrWhiteSpace(fingerprint))
+        {
+            return settings.CertificateFingerprint(fingerprint);
+        }
+
+        // Only the secure loopback development profile may accept an untrusted certificate.
+        return isLoopback ? settings.ServerCertificateValidationCallback((_, _, _, _) => true) : settings;
+    }
 }

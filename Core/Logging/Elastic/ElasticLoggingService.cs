@@ -44,8 +44,9 @@ public class ElasticLoggingService : ILoggingService
         var serverChoice = ElasticClientFactory.CurrentProfile;
         _client = ElasticClientFactory.Create(serverChoice, cfg);
 
-        // Disable logging if the server can't be used (the probe result is cached per URL for the run).
-        var probe = ElasticConnectivity.Check(ElasticClientFactory.ResolveUrl(serverChoice, cfg), cfg.Elastic.Username, cfg.Elastic.Password);
+        // Disable logging if the server can't be used (the probe result is cached per connection configuration for the run).
+        var probe = ElasticConnectivity.Check(ElasticClientFactory.ResolveUrl(serverChoice, cfg), cfg.Elastic.Username, cfg.Elastic.Password,
+            profile: serverChoice, certificateFingerprint: cfg.Elastic.CertificateFingerprint);
         _enabled = probe.IsUsable;
         if (!_enabled)
         {
