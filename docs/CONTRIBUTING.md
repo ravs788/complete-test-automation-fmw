@@ -11,13 +11,13 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | An API test | `Tests/Api/` (inherit `ApiTestBase`) |
 | A unit test for framework code (`Core`) | `Tests/Unit/<Area>/` (plain xUnit; no browser or external services; isolated loopback fixtures are allowed for transport checks) |
 | A mobile page / test | `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`) |
-| A model (API contract or test-data shape) | `Core/Models/<App>/` |
-| Test data for an entity | `Core/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |
+| A model (API contract or test-data shape) | `Domain/Models/<App>/` |
+| Test data for an entity | `Domain/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |
 | `[Theory]` cases | a `[MemberData]` source in the test class, built from Builders/Mothers (plain values, so each case is its own test) |
 | Large scenario tables, captured payloads, data owned outside the code | `Tests/test-data/<App>/<TestClass>/<Scenario>.json`, loaded with `TestDataLoader` (the exception, not the default) |
-| An API-specific helper (auth, …) | `Core/Api/<Service>/` |
+| An API-specific helper (auth, …) | `Domain/Api/<Service>/` |
 | Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`) |
-| Other shared framework code (clients, logging, runner) | `Core/<Area>/` |
+| Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 

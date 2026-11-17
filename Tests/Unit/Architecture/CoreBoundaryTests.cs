@@ -1,0 +1,37 @@
+using System.Reflection;
+using Core.Api;
+
+namespace Tests.Unit.Architecture;
+
+/// <summary>
+/// Core is the domain-agnostic engine (R34): it must not depend on app-specific code, page objects or tests,
+/// so it can be shared by other teams (e.g. as an internal NuGet package).
+/// </summary>
+public class CoreBoundaryTests
+{
+    private static readonly Assembly Core = typeof(ApiClient).Assembly;
+
+    private static readonly string[] AppNames = ["RestfulBooker", "SauceDemo", "Todo"];
+
+    [Theory]
+    [InlineData("Domain")]
+    [InlineData("Pages")]
+    [InlineData("Tests")]
+    [InlineData("Tests.UI.Mobile")]
+    public void Core_Should_NotReference_HigherLayers(string assemblyName)
+    {
+        Assert.DoesNotContain(Core.GetReferencedAssemblies(), a => a.Name == assemblyName);
+    }
+
+    [Fact]
+    public void Core_Should_NotContain_AppSpecificNamespaces()
+    {
+        var appSpecific = Core.GetTypes()
+            .Select(t => t.Namespace ?? "")
+            .Where(ns => AppNames.Any(app => ns.Split('.').Contains(app)))
+            .Distinct()
+            .ToList();
+
+        Assert.Empty(appSpecific);
+    }
+}

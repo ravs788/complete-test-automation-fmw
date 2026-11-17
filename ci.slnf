@@ -3,6 +3,7 @@
     "path": "TestAutomationPlatform.slnx",
     "projects": [
       "Core/Core.csproj",
+      "Domain/Domain.csproj",
       "Pages/Pages.csproj",
       "Tests/Tests.csproj",
       "Tests/Unit/Tests.Unit.csproj",

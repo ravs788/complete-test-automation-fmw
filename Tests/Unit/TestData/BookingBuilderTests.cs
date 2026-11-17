@@ -1,4 +1,4 @@
-using Core.TestData.RestfulBooker;
+using Domain.TestData.RestfulBooker;
 
 namespace Tests.Unit.TestData;
 

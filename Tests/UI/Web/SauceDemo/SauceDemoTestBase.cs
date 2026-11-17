@@ -1,4 +1,4 @@
-using Core.Models.SauceDemo;
+using Domain.Models.SauceDemo;
 using Pages.SauceDemo;
 using Tests.Fixtures;
 using Tests.Infrastructure;

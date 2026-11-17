@@ -14,11 +14,11 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R34 | P3 | Open | – | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
 | R35 | P3 | Open | – | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Open | – | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
+| R34 | P3 | Closed | 2026-11-17 · `d01fbf0` | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
 | R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
 | R24 | P1 | Closed | 2026-11-16 · `5cdb42c` | [Elastic probe bypasses TLS verification](#r24) | Security |
@@ -212,7 +212,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r33"></a>
 ### R33. Appium's 20 s helper-app install timeout is too short for the hosted emulator
 
-- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes.
+- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes. **Run 118 (manual, 2026-11-17):** the fix worked (helpers pre-installed in 19/34/9 s; Appium found them, `sameVersionInstalled`, and started UiAutomator2 in 30 s; boot took 446 s). The session then failed at the next step: Appium auto-downloaded Chromedriver for the device's Chrome 113 and was starting Chrome for the first time when the .NET client's 120 s command timeout (`Server.CommandTimeoutSec`) expired. **Next (parked by the owner on 2026-11-17):** raise `MOBILE_Server__CommandTimeoutSec` on CI and pre-download Chromedriver 113 (`Android.ChromedriverExecutable`).
 - **Where:** `Tests/UI/Mobile/Driver/MobileOptionsBuilder.cs`, `Tests/UI/Mobile/Configuration/AndroidSettings.cs`, `scripts/unix/run_mobile_ci.sh`.
 - **Problem:** manual run 115 (2026-11-17) was the first where the emulator booted (505 s) and the smoke test ran, but session creation failed: `adb install … appium-uiautomator2-server-v7.7.1.apk timed out after 20000ms`. Appium installs two helper apps when the session starts: `io.appium.settings` took 16.1 s, and the UiAutomator2 server hit the 20 s default. Android was still compiling apps in the background after boot (355 `dex2oat` lines in logcat) on its single vCPU (see R32).
 - **Fix:** make the UiAutomator2 timeouts configurable (`adbExecTimeout`, `uiautomator2ServerInstallTimeout`, `uiautomator2ServerLaunchTimeout`; normal defaults locally, about 120 s on CI through `MOBILE_Android__*`). In the CI script, wait for background compilation to settle after boot, turn off install verification, and pre-install Appium's helper apps with plain `adb install` before the session starts, so the session doesn't have to.
@@ -339,7 +339,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r34"></a>
 ### R34. Core contains app-specific code, so it can't be shared as a domain-agnostic package
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `d01fbf0`. App-specific code moved to a new Domain project (Domain/Api/RestfulBooker, Domain/Models/<App>, Domain/TestData/<App>); Core keeps only generic code. Tests/Unit/Architecture/CoreBoundaryTests enforces the boundary (no references to Domain, Pages or test projects; no app-named namespaces). Unit 44/44, Playwright 15/15. Not done: the optional split of Core into a light core plus Core.Playwright / Core.Logging.Elastic add-ons (see R38 for the mobile part).
 - **Source:** external architecture feedback, 2026-11-17 ("the golden rule of Core: zero references to Page Objects, UI locators or specific test suites").
 - **Where:** `Core/Api/RestfulBooker/`, `Core/Models/{RestfulBooker,SauceDemo,Todo}/`, `Core/TestData/{RestfulBooker,SauceDemo,Todo}/`. Only `Tests` and `Tests/Unit` use them; `Pages` doesn't.
 - **Problem:** Core mixes the reusable engine (configuration, driver/client factories, `TestRunner`, logging, the `TestDataLoader`) with models, Builders/Mothers and auth for three specific apps. Another product team couldn't consume Core (for example as an internal NuGet package) without inheriting SauceDemo/Restful Booker/TodoMVC code. Core also references Playwright and the Elasticsearch client, so even a mobile-only or API-only consumer would get both.

@@ -1,6 +1,6 @@
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
-using Core.TestData.RestfulBooker;
+using Domain.TestData.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
 

@@ -1,5 +1,5 @@
-using Core.TestData.SauceDemo;
-using Core.TestData.Todo;
+using Domain.TestData.SauceDemo;
+using Domain.TestData.Todo;
 
 namespace Tests.Unit.TestData;
 

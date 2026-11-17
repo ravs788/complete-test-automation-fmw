@@ -1,5 +1,5 @@
-using Core.Models.RestfulBooker;
-using Core.TestData.RestfulBooker;
+using Domain.Models.RestfulBooker;
+using Domain.TestData.RestfulBooker;
 
 namespace Tests.Unit.TestData;
 

@@ -1,7 +1,7 @@
 using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
-using Core.Models.SauceDemo;
-using Core.TestData.SauceDemo;
+using Domain.Models.SauceDemo;
+using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
 using Tests.Fixtures;
 
