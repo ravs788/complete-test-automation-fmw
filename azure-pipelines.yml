@@ -224,10 +224,10 @@ stages:
               packageType: "sdk"
               version: "10.x"
 
-          - task: NodeTool@0
+          - task: UseNode@1
             displayName: "Setup Node.js (mobile)"
             inputs:
-              versionSpec: "22.23.2"
+              version: "22.23.2"
 
           - bash: bash scripts/unix/run_mobile_ci.sh
             displayName: "Boot Android, Start Appium, Run Smoke Tests"

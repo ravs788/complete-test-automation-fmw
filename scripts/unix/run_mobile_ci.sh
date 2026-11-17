@@ -77,6 +77,15 @@ image="system-images;android-34;google_apis;$abi"
 printf 'y\n%.0s' {1..100} | "$sdkmanager" --licenses > "$logs/sdk-licenses.log" 2>&1
 "$sdkmanager" --install platform-tools emulator "$image" > "$logs/sdk-install.log" 2>&1
 printf 'no\n' | "$avdmanager" create avd -n ci_android_14 -k "$image" --force > "$logs/avd-create.log" 2>&1
+# Hosted agents have fewer than 6 logical cores, so the emulator would give the guest a single vCPU,
+# which is too slow to boot Android 14 (R32). Ask for 2 cores and 3 GB in the AVD as well as on the command line.
+cat >> "$ANDROID_AVD_HOME/ci_android_14.avd/config.ini" <<'AVD'
+hw.cpu.ncore=2
+hw.ramSize=3072
+hw.camera.back=none
+hw.camera.front=none
+AVD
+cp "$ANDROID_AVD_HOME/ci_android_14.avd/config.ini" "$logs/avd-config.ini"
 
 npm install --prefix "$work/appium" --no-save --no-package-lock "appium@$APPIUM_VERSION" > "$logs/appium-install.log" 2>&1
 appium="$work/appium/node_modules/.bin/appium"
@@ -97,16 +106,33 @@ if adb devices | awk '{print $1}' | grep -qx "$serial"; then
   exit 1
 fi
 emulator -accel-check > "$logs/acceleration.log" 2>&1
-emulator -avd ci_android_14 -port 5554 -no-snapshot -no-audio -no-boot-anim -gpu swiftshader > "$logs/emulator.log" 2>&1 &
+# Headless, software rendering without a window, 2 cores / 3 GB, cold boot (R32).
+emulator -avd ci_android_14 -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -no-metrics \
+  -gpu swiftshader_indirect -cores 2 -memory 3072 > "$logs/emulator.log" 2>&1 &
 emulator_pid=$!
-deadline=$((SECONDS + 300))
+boot_timeout="${BOOT_TIMEOUT_SECONDS:-600}"
+boot_start=$SECONDS
+deadline=$((SECONDS + boot_timeout))
+next_report=$((SECONDS + 30))
 until [[ "$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; do
-  if ! kill -0 "$emulator_pid" 2>/dev/null || (( SECONDS >= deadline )); then
-    echo "Emulator failed to boot within 300 seconds; see emulator.log" >&2
+  if ! kill -0 "$emulator_pid" 2>/dev/null; then
+    echo "Emulator process exited during boot after $((SECONDS - boot_start)) seconds; see emulator.log" >&2
     exit 1
+  fi
+  if (( SECONDS >= deadline )); then
+    echo "Emulator failed to boot within $boot_timeout seconds; see emulator.log and boot-progress.log" >&2
+    exit 1
+  fi
+  if (( SECONDS >= next_report )); then
+    # Shows how far boot got if it times out: adb state, boot animation service, package manager readiness.
+    state="$(adb -s "$serial" get-state 2>/dev/null || echo offline)"
+    anim="$(adb -s "$serial" shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')"
+    echo "[boot] $((SECONDS - boot_start))s: adb=$state bootanim=${anim:-?}" | tee -a "$logs/boot-progress.log"
+    next_report=$((SECONDS + 30))
   fi
   sleep 2
 done
+echo "[boot] Android booted in $((SECONDS - boot_start)) seconds" | tee -a "$logs/boot-progress.log"
 emulator_ready=true
 adb -s "$serial" logcat -v threadtime > "$logs/logcat.log" 2>&1 &
 logcat_pid=$!

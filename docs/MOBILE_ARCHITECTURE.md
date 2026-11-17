@@ -4,6 +4,7 @@ The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
 - **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; its first hosted execution is pending. Results and diagnostics are published as `mobile-results`. See [GETTING_STARTED.md](GETTING_STARTED.md).
+- **Hosted emulator:** `scripts/unix/run_mobile_ci.sh` boots it headless (`-no-window -gpu swiftshader_indirect`) with 2 cores and 3 GB, because hosted agents have fewer than 6 cores and the emulator would otherwise give Android a single core. The boot budget is `BOOT_TIMEOUT_SECONDS` (default 600), and progress is logged to `boot-progress.log` in the `mobile-results` artifact.
 
 ---
 
