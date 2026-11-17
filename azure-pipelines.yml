@@ -98,7 +98,7 @@ stages:
           - script: dotnet test Tests/Unit/Tests.Unit.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=unit_results.trx" $(coverageArgs)
             displayName: "Run Framework Unit Tests"
 
-          # Each dotnet test run starts by clearing bin/.../allure-results (Core.Testing.AllureResults), so
+          # Each dotnet test run starts by clearing bin/.../allure-results (the Allure reporter's BeginRun, R39), so
           # every run copies its results to the staging folder straight away.
           - script: |
               dotnet test Tests/Tests.csproj --configuration $(buildConfiguration) --no-build $(testFilterArgs) --logger "trx;LogFileName=playwright_results.trx" $(coverageArgs)

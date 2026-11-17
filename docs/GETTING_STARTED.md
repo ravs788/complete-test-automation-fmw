@@ -136,7 +136,7 @@ BROWSERS="chromium webkit" scripts/unix/run_ui_web_all_browsers.sh
 BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
 ```
 
-**Another UI driver.** The web tests run on the UI driver selected in `providers.json` (`"Ui": "playwright"`). To run them on Selenium instead (installed Chrome, Edge or Firefox; Selenium Manager fetches the matching driver), set `PROVIDERS_Ui=selenium` with `BROWSER=chrome`, `msedge` or `firefox`, e.g. `PROVIDERS_Ui=selenium BROWSER=chrome dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~Tests.UI.Web."`. Known limitation: SauceDemo's cart link ignores WebDriver's native clicks (plain Selenium behaves the same), so the three SauceDemo tests that open the cart pass only on Playwright. `dotnet test Tests/Contract/Tests.Contract.csproj` checks every UI driver against the same contract.
+**Another UI driver.** The web tests run on the UI driver selected in `providers.json` (`"Ui": "playwright"`). To run them on Selenium instead (installed Chrome, Edge or Firefox; Selenium Manager fetches the matching driver), set `PROVIDERS_Ui=selenium` with `BROWSER=chrome`, `msedge` or `firefox`, e.g. `PROVIDERS_Ui=selenium BROWSER=chrome dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~Tests.UI.Web."`. All 8 web tests pass on Selenium. If only the SauceDemo tests that open the cart fail there, check the site first: on 2026-11-17 its cart link briefly ignored WebDriver's native clicks (reproduced with plain Selenium, no framework code); later runs passed. `dotnet test Tests/Contract/Tests.Contract.csproj` checks every UI driver against the same contract.
 
 ### Mobile on macOS
 
