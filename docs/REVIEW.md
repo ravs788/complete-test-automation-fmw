@@ -14,7 +14,6 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R39 | P3 | Open | – | [Allure is called directly from the shared runner, the base classes and every test](#r39) | Architecture / reporting |
 | R41 | P3 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
 | R42 | P3 | Open | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
 | R44 | P3 | Open (partly done) | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
@@ -23,6 +22,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R47 | P4 | Open | – | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
 | R48 | P4 | Open | – | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
+| R39 | P3 | Closed | 2026-11-17 · `be94933` | [Allure is called directly from the shared runner, the base classes and every test](#r39) | Architecture / reporting |
 | R40 | P3 | Closed | 2026-11-17 · `659a228` | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
 | R43 | P3 | Closed | 2026-11-17 · `0a3cd2a` | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
 | R37 | P4 | Closed | 2026-11-17 · `8a6dc6d` | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
@@ -384,7 +384,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r39"></a>
 ### R39. Allure is called directly from the shared runner, the base classes and every test
 
-- **Status:** Open.
+- **Status:** Closed, 2026-11-17 · `be94933`. Core/Reporting (ITestReporter, Report.Step, built-in console reporter) selected with "Reporting" in providers.json; Allure moved into the Core.Reporting.Allure adapter (Core no longer references Allure.Net.Commons); TestRunner, UiTestBase, MobileTestBase and the 13 test classes call the contract. Verified: Allure results of the 15 Playwright tests and the Android smoke identical to a pre-change baseline (names, status, labels, parameters, steps, attachments; ids and times ignored); TRACE=on still attaches traces; PROVIDERS_Reporting=console passes 15/15 with steps printed; AdapterBoundaryTests keeps Allure out of Core. Not done (kept per the plan): class labels are still Allure.Xunit attributes, and Allure.Xunit (the xUnit hook) still writes a basic outcome file per test, see R48.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 2.**
 - **Where:** `Core/Testing/TestRunner.cs` (Allure timing parameters), `Core/Testing/AllureResults.cs`, `Tests/Infrastructure/UiTestBase.cs` (test name, browser parameter, screenshot and trace attachments), `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs`, and all 13 test classes (`AllureApi.Step`, about 30 calls, plus `[AllureParentSuite]`/`[AllureSuite]`/… attributes).
 - **Problem:** reporting has no contract of its own. `Core` references `Allure.Net.Commons` and test code calls Allure's static API, so swapping or adding a reporter (ReportPortal, plain HTML/JSON, none) touches the runner, every base class and every test.
@@ -434,7 +434,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r44"></a>
 ### R44. Core references seven vendor packages; the target is none
 
-- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Elastic.Clients.Elasticsearch` moved out of `Core` into the `Core.Logging.Elastic` adapter; `AdapterBoundaryTests` keeps Elastic, Azure, RabbitMQ and Kafka assemblies out of `Core`. Remaining in `Core`: Playwright (R41, R42), Allure (R39), Polly (R45), Microsoft.Extensions.Configuration behind a settings source.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Elastic.Clients.Elasticsearch` moved out of `Core` into the `Core.Logging.Elastic` adapter; `AdapterBoundaryTests` keeps Elastic, Azure, RabbitMQ and Kafka assemblies out of `Core`. Remaining in `Core`: Playwright (R41, R42), Allure (R39), Polly (R45), Microsoft.Extensions.Configuration behind a settings source. Phase 2 (`be94933`): `Allure.Net.Commons` moved into the `Core.Reporting.Allure` adapter. Remaining in `Core`: Playwright (R41, R42), Polly (R45), Microsoft.Extensions.Configuration behind a settings source.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1–4 (umbrella).**
 - **Where:** `Core/Core.csproj`: `Microsoft.Playwright`, `Allure.Net.Commons`, `Elastic.Clients.Elasticsearch`, `Polly.Core`, `Microsoft.Extensions.Configuration.{Binder,EnvironmentVariables,Json}`; public signatures exposing them: `ApiClient` (R41), `PlaywrightDriverFactory` (R42), `RetryPolicies` returning `ResiliencePipeline` (R45), `SettingsLoader.ResolveSecrets(IConfiguration, …)`.
 - **Problem:** anything that uses `Core` pulls in all of these, and their types reach callers, so a swap ripples beyond one project.
@@ -454,7 +454,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r46"></a>
 ### R46. No guardrail or contract tests that prove adapters are replaceable
 
-- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Tests/Unit/Architecture/AdapterBoundaryTests`: `Core` doesn't reference adapter vendors (Elastic, Azure, RabbitMQ, Kafka); each adapter depends on `Core` only among framework projects. Checked that it fails when `Core` references Elasticsearch. Remaining: vendor-namespace checks for `Pages`/`Domain`/tests as later phases remove them, "two implementations per contract", and shared contract test suites.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Tests/Unit/Architecture/AdapterBoundaryTests`: `Core` doesn't reference adapter vendors (Elastic, Azure, RabbitMQ, Kafka); each adapter depends on `Core` only among framework projects. Checked that it fails when `Core` references Elasticsearch. Remaining: vendor-namespace checks for `Pages`/`Domain`/tests as later phases remove them, "two implementations per contract", and shared contract test suites. Phase 2 (`be94933`): the guardrail also keeps Allure out of `Core`, and `Core.Reporting.Allure` is in the adapter list.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1 onwards (grows with each phase).**
 - **Where:** `Tests/Unit/Architecture/CoreBoundaryTests.cs` (checks project references and app-named namespaces only).
 - **Problem:** nothing stops vendor namespaces creeping back into `Core`, `Pages`, `Domain` or tests, and nothing checks that two adapters of one contract behave the same; without that, "replaceable" is an assumption.
