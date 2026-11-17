@@ -1,6 +1,6 @@
 # Framework Review
 
-Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
+Findings from the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
 
 **How this list is maintained**
 
@@ -14,6 +14,11 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
+| R34 | P3 | Open | – | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
+| R35 | P3 | Open | – | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
+| R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
+| R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
+| R38 | P4 | Open | – | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
 | R24 | P1 | Closed | 2026-11-16 · `5cdb42c` | [Elastic probe bypasses TLS verification](#r24) | Security |
@@ -331,6 +336,24 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 - **Problem:** the reachability probe counts any 2xx–4xx answer as "reachable". With wrong credentials (401/403), or an incompatible server (the OpenSearch 406 found in R2), the `elastic` provider is chosen anyway. Then every log line prints an indexing error, every test logs a publish failure, and nothing reaches the console fallback. Seen during the R2 investigation.
 - **Fix:** probe with the configured credentials and require 2xx (and, ideally, an Elasticsearch 8.x `version.number` from `GET /`); otherwise fall back to the console with one clear message. Also disable the Elastic logger after the first failed write instead of failing on every line.
 
+<a id="r34"></a>
+### R34. Core contains app-specific code, so it can't be shared as a domain-agnostic package
+
+- **Status:** Open
+- **Source:** external architecture feedback, 2026-11-17 ("the golden rule of Core: zero references to Page Objects, UI locators or specific test suites").
+- **Where:** `Core/Api/RestfulBooker/`, `Core/Models/{RestfulBooker,SauceDemo,Todo}/`, `Core/TestData/{RestfulBooker,SauceDemo,Todo}/`. Only `Tests` and `Tests/Unit` use them; `Pages` doesn't.
+- **Problem:** Core mixes the reusable engine (configuration, driver/client factories, `TestRunner`, logging, the `TestDataLoader`) with models, Builders/Mothers and auth for three specific apps. Another product team couldn't consume Core (for example as an internal NuGet package) without inheriting SauceDemo/Restful Booker/TodoMVC code. Core also references Playwright and the Elasticsearch client, so even a mobile-only or API-only consumer would get both.
+- **Fix:** move the app-specific folders to a separate project (e.g. `Domain/<App>/{Api,Models,TestData}` or per-app client libraries) referenced by `Tests` and `Tests/Unit`, keeping `<Layer>/<App>/` inside it. Optionally split Core further into a dependency-light core (configuration, `TestRunner`, logging abstractions, `TestDataLoader`) plus add-ons (`Core.Playwright`, `Core.Logging.Elastic`), so each consumer only takes what it needs. Add an architecture test (e.g. NetArchTest) that fails if Core references app-specific namespaces.
+
+<a id="r35"></a>
+### R35. No central retry / polling policy; retries are hand-written per class
+
+- **Status:** Open
+- **Source:** external architecture feedback, 2026-11-17.
+- **Where:** `Pages/Common/BasePage.cs` (`GotoAsync` retry loop, R20), `Tests/UI/Mobile/Pages/Common/MobileBasePage.cs` (two `while (attempts++ < 3)` loops), `Core/Api/ApiClient.cs` (no retry).
+- **Problem:** each retry is hand-written with its own attempts, backoff and exception filter, and `ApiClient` doesn't retry transient `502/503/504` responses or network errors from slow-starting test environments. There's no shared "poll until a condition holds" helper for eventually consistent backends, so future tests are likely to add ad-hoc loops or sleeps. (Playwright's auto-waiting already covers most UI waits.)
+- **Fix:** add `Core/Resilience/` with named policies built on Polly (`Microsoft.Extensions.Resilience` / Polly v8): transient-HTTP retry with jittered backoff for **idempotent** requests only (never blindly retry a POST that creates data), navigation retry, and a `PollAsync(condition, timeout, interval)` helper. Use them in `ApiClient`, `BasePage.GotoAsync` and `MobileBasePage`. Retry counts belong in settings, and assertions are never retried.
+
 ---
 
 ## P4: Nice to have
@@ -374,3 +397,30 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 - **Where:** `Tests/bin/<Configuration>/net10.0/allure-results/` (written by `Allure.Xunit`).
 - **Problem:** `Allure.Xunit` doesn't clear its results folder, so each local `dotnet test` adds to the previous runs' results (checked: 2 results after one run, 4 after two). `allure serve` on that folder then mixes old and new runs. The run scripts delete the folder first, and CI agents start clean, so only plain local `dotnet test` runs are affected.
 - **Fix:** clear the folder once at the start of a test run, e.g. a `[ModuleInitializer]` in the test projects calling `AllureLifecycle.Instance.CleanupResultDirectory()`, or document running through the scripts.
+
+<a id="r36"></a>
+### R36. No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader
+
+- **Status:** Open
+- **Source:** external architecture feedback, 2026-11-17.
+- **Where:** `Core/Configuration/SettingsLoader.cs`.
+- **Problem:** secrets (Elastic and API credentials) come from environment variables (R1, R6). That's fine for CI and local runs, but enterprise setups usually pull credentials at runtime from Azure Key Vault, AWS Secrets Manager or HashiCorp Vault, and there's no seam for that.
+- **Fix:** add `Core/Security/ISecretProvider` and let `SettingsLoader` resolve placeholders such as `secret://elastic-password` through it (an environment-variable provider by default, a Key Vault provider via `Azure.Security.KeyVault.Secrets` + `DefaultAzureCredential` when configured). For Azure Pipelines alone, a variable group linked to Key Vault already delivers secrets as environment variables without code changes, so build this when a vault actually exists.
+
+<a id="r37"></a>
+### R37. No data / infrastructure helpers (database, message queue) with cleanup tracking
+
+- **Status:** Open
+- **Source:** external architecture feedback, 2026-11-17.
+- **Where:** would be `Core/Data/` (doesn't exist).
+- **Problem:** end-to-end tests of an owned system often need to seed state or check persistence in a database or queue. The current apps under test are public demo sites without database or queue access, so nothing needs this today, but there's no pattern ready for it.
+- **Fix (when a system under test needs it):** a `DbConnectionFactory` (e.g. Dapper over SQL Server/Postgres) and queue listeners (Kafka/RabbitMQ), with built-in cleanup tracking or transaction rollback, following the same pattern as `ApiTestBase.CreateBookingAsync`, which records created bookings and deletes them after the test (R5).
+
+<a id="r38"></a>
+### R38. Mobile driver bootstrapping can't be reused outside the mobile test project
+
+- **Status:** Open
+- **Source:** external architecture feedback, 2026-11-17 (its checklist lists `MobileDriverFactory` among the bootstrapping that belongs in Core).
+- **Where:** `Tests/UI/Mobile/Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`), `Tests/UI/Mobile/Configuration/`.
+- **Problem:** the Appium bootstrapping and its settings live inside the mobile test project, so another team or project can't reuse them. Moving them into Core as it is would make every Core consumer depend on Appium and Selenium.
+- **Fix:** together with R34's split, move the mobile driver factory, options builder and `MobileSettings` into a separate library (e.g. `Core.Mobile`) that only mobile suites reference.
