@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17: Flow diagrams (Mermaid)
+
+- New `docs/DIAGRAMS.md` with six Mermaid diagrams that GitHub renders: project dependencies, a web UI test run, an API test run (retries and cleanup), a mobile test run, settings and secrets resolution, and the CI pipeline. Linked from README, ARCHITECTURE and CONTRIBUTING.
+
 ## 2026-11-17: Chromedriver keeps Chrome's data on Android (R33)
 
 - `MobileOptionsBuilder` now sets `goog:chromeOptions.androidKeepAppDataDir` from `Behavior.NoReset` (default true). Chromedriver otherwise clears Chrome's data before every web session; in run 130 that undid the CI warm-up, and the cold Chrome start on the hosted emulator ended in `chrome not reachable`. Set `NoReset: false` to get a clean Chrome profile per session. Verified locally (Appium 3.6 + UiAutomator2 8.7.3, Android 14 arm64 emulator, Chrome 113): smoke test passes and the device log shows no data clear. The name `androidKeepAppData` (first tried in PR #35) is rejected by Chromedriver.

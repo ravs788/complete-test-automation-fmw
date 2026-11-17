@@ -4,6 +4,8 @@
 
 This framework is a modular C# / .NET 10 test automation platform for REST API, web UI and Android mobile-web testing. **Playwright** drives both the web UI and the API tests; **Appium** drives the mobile tests. Every suite runs on **xUnit v2 with Allure (`Allure.Xunit`)**. Source lives on GitHub, and CI/CD runs on Azure DevOps Pipelines. Results go to Allure, TRX, and an optional Elasticsearch sink.
 
+**Diagrams:** rendered flow diagrams of the same material (project dependencies, each kind of test run, settings and secrets, CI) are in [DIAGRAMS.md](DIAGRAMS.md).
+
 | Area | Location | Driver/Client | In CI |
 |------|----------|---------------|-------|
 | API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
@@ -210,7 +212,7 @@ Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests thr
 - **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) and tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
 - **Desktop (later):** add a `Tests/Desktop` project with the same layout as Mobile (Configuration/, Driver/, Pages/<App>/, Infrastructure/DesktopTestBase, <App>/ tests) using FlaUI, and a Windows job (`windows-latest`) to run it.
 
-Update this document whenever a layer, a dependency direction, or a CI flow changes.
+Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), whenever a layer, a dependency direction, a test-run step or a CI flow changes.
 
 ### Roadmap
 
@@ -239,3 +241,4 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 | 2026-11-14 | Review R4–R20: traces on failure, navigation retry, API cleanup, one `SettingsLoader`, `Directory.Build.props` (style in build, warnings as errors in CI), pages return next page + test-id locators, test naming, `api-logs-*`, generic `ApiClient` headers, nightly cross-browser run, Allure HTML report artifact, `Tests/Unit`, mobile compiled in CI; Desktop project and `.npmrc` removed. |
 | 2026-11-17 | Core-architecture feedback: app-specific code moved to `Domain` (R34) with `CoreBoundaryTests`; shared retry/polling in `Core/Resilience` with Polly (R35); mobile bootstrapping moved to `Core.Mobile` (R38). |
 | 2026-11-17 | Core add-ons moved inside `Core/` next to the area they extend (`Core/Mobile`, `Core/Messaging/{Kafka,RabbitMq}`, `Core/Security/AzureKeyVault`), still separate projects excluded from `Core.csproj`; `Core.Secrets.AzureKeyVault` renamed `Core.Security.AzureKeyVault`; solution groups them under `/Core/`. |
+| 2026-11-17 | Mermaid flow diagrams added in `docs/DIAGRAMS.md`: project dependencies, web UI / API / mobile test runs, settings and secrets, CI pipeline. |

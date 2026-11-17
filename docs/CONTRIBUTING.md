@@ -27,6 +27,8 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 
+When a change alters a dependency, a step in a test run, how settings load or the CI flow, update the matching Mermaid diagram in [DIAGRAMS.md](DIAGRAMS.md) in the same PR (preview it in the [Mermaid Live Editor](https://mermaid.live/) or a Markdown preview with Mermaid support).
+
 ## Code Style
 
 - **Always use `using` imports and never fully qualified names in the code.**
