@@ -36,17 +36,17 @@ Every external library belongs behind a framework contract, in its own adapter p
 ## Code Style
 
 - **Always use `using` imports and never fully qualified names in the code.**
-  - ❌ Do NOT: `await Microsoft.Playwright.Assertions.Expect(locator).ToBeVisibleAsync();`
+  - ❌ Do NOT: `await Core.Ui.Ui.Expect(element).ToBeVisibleAsync();`
   - ✅ Do:
     ```csharp
-    using Microsoft.Playwright;
+    using Core.Ui;
     ...
-    await Assertions.Expect(locator).ToBeVisibleAsync();
+    await Ui.Expect(element).ToBeVisibleAsync();
     ```
-- Page objects expose `ILocator`s for assertions and async intent methods (`LoginAsync`, `AddToCartAsync`) for actions. Keep assertions in tests, not in pages.
-- A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Page)`, `new TodoPage(Page)`) and get every other page from the step before it.
-- Locate elements by test id (`TestId("…")`, from `BasePage`), role, label or placeholder (`GetByRole`, `GetByLabel`, `GetByPlaceholder`), never by CSS class. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
-- Prefer Playwright's auto-retrying `Assertions.Expect(...)` over reading values and asserting on them; never add fixed sleeps.
+- Page objects work on the UI contract (`Core.Ui`: `IUiSession`, `IElement`, `Locate`) and never import a driver's namespace. They expose `IElement`s for assertions and async intent methods (`LoginAsync`, `AddToCartAsync`) for actions. Keep assertions in tests, not in pages.
+- A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Session)`, `new TodoPage(Session)`) and get every other page from the step before it.
+- Locate elements by test id (`TestId("…")` / `ByTestId("…")`, from `BasePage`), role or placeholder (`Locate.Role(UiRole.Button, "Remove")`, `Locate.Placeholder("…")`), and narrow lists with `WithChild(ByTestId("…"), text)`, never by CSS class. If the contract lacks something you need, add it to `Core.Ui` (and to every driver adapter) rather than reaching for `Session.Native<T>()`. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
+- Prefer the auto-retrying `Ui.Expect(...)` assertions over reading values and asserting on them; never add fixed sleeps.
 - For transient failures use `Core.Resilience`: `RetryPolicies` (transient HTTP for idempotent requests only, navigation, UI actions; implemented by the `"Resilience"` provider in `providers.json`, `polly` or `builtin`) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
 - Wrap every test body in the base class's `RunAsync(...)` / `Run(...)` so it gets logging, Allure timing, failure screenshots and results publishing.
 - Give each test class the same labels:

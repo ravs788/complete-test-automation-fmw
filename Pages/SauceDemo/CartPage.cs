@@ -1,20 +1,20 @@
-using Microsoft.Playwright;
+using Core.Ui;
 
 namespace Pages.SauceDemo;
 
-public sealed class CartPage(IPage page) : SauceDemoPage(page)
+public sealed class CartPage(IUiSession session) : SauceDemoPage(session)
 {
-    public ILocator ItemNames => TestId("inventory-item").Locator(TestId("inventory-item-name"));
+    public IElement ItemNames => TestId("inventory-item").Find(ByTestId("inventory-item-name"));
 
-    public ILocator Item(string productName) =>
-        TestId("inventory-item").Filter(new() { Has = TestId("inventory-item-name").Filter(new() { HasTextString = productName }) });
+    public IElement Item(string productName) =>
+        TestId("inventory-item").WithChild(ByTestId("inventory-item-name"), productName);
 
     public async Task RemoveAsync(string productName) =>
-        await Item(productName).GetByRole(AriaRole.Button, new() { Name = "Remove" }).ClickAsync();
+        await Item(productName).Find(Locate.Role(UiRole.Button, "Remove")).ClickAsync();
 
     public async Task<CheckoutInformationPage> CheckoutAsync()
     {
         await TestId("checkout").ClickAsync();
-        return new CheckoutInformationPage(Page);
+        return new CheckoutInformationPage(Session);
     }
 }

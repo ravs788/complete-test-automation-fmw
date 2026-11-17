@@ -5,7 +5,8 @@
 # This pipeline is connected to that repo through the Azure Pipelines GitHub app,
 # so pushes and PRs on GitHub trigger it and results appear as GitHub checks.
 #
-# All UI and API tests are Playwright-based and live in Tests/ (pages in Pages/, shared code in Core/):
+# Web UI and API tests live in Tests/ (pages in Pages/, shared code in Core/); they run on the drivers selected in
+# providers.json (Playwright for the browser and, by default, for HTTP), with UI driver contract checks in Tests/Contract:
 #
 #   PR into main      -> API + TodoMVC (all), SauceDemo (smoke), Chrome
 #   Push to main /    -> everything, Chrome, plus code coverage
@@ -106,6 +107,12 @@ stages:
               cp -R "Tests/bin/$(buildConfiguration)/net10.0/allure-results/." "$(Build.ArtifactStagingDirectory)/allure-results/" 2>/dev/null || true
               exit $rc
             displayName: "Run Playwright UI + API Tests"
+
+          # Driver contract tests (R42, R46): the same behaviour checks against each UI driver adapter, on a local
+          # data: page (no external site). Separate project without Allure, so they stay out of the app report.
+          - script: dotnet test Tests/Contract/Tests.Contract.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=contract_results.trx"
+            displayName: "Run UI Driver Contract Tests"
+            condition: succeededOrFailed()
 
           # Nightly only: the web UI tests again on Playwright's own browsers (installed here).
           - script: pwsh Tests/bin/$(buildConfiguration)/net10.0/playwright.ps1 install --with-deps chromium firefox webkit

@@ -22,6 +22,9 @@ public sealed record ProvidersSettings
     /// <summary>Retry policies, e.g. <c>polly</c> or <c>builtin</c> (built in).</summary>
     public string Resilience { get; init; } = "builtin";
 
+    /// <summary>UI driver for web tests, e.g. <c>playwright</c> (no driver is built in).</summary>
+    public string Ui { get; init; } = "playwright";
+
     /// <summary>
     /// Secret providers, tried in order for each <c>secret://NAME</c> placeholder, e.g. <c>["environment", "azure-keyvault"]</c>.
     /// Empty means <c>["environment"]</c>.

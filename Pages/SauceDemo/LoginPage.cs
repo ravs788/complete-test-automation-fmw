@@ -1,14 +1,14 @@
-using Microsoft.Playwright;
+using Core.Ui;
 
 namespace Pages.SauceDemo;
 
-public sealed class LoginPage(IPage page) : SauceDemoPage(page)
+public sealed class LoginPage(IUiSession session) : SauceDemoPage(session)
 {
-    private ILocator Username => TestId("username");
-    private ILocator Password => TestId("password");
-    private ILocator LoginButton => TestId("login-button");
+    private IElement Username => TestId("username");
+    private IElement Password => TestId("password");
+    private IElement LoginButton => TestId("login-button");
 
-    public ILocator ErrorMessage => TestId("error");
+    public IElement ErrorMessage => TestId("error");
 
     /// <summary>Opens the login page (the context's BaseURL).</summary>
     public async Task OpenAsync() => await GotoAsync("./");
@@ -17,7 +17,7 @@ public sealed class LoginPage(IPage page) : SauceDemoPage(page)
     public async Task<InventoryPage> LoginAsync(string username, string password)
     {
         await SubmitAsync(username, password);
-        return new InventoryPage(Page);
+        return new InventoryPage(Session);
     }
 
     /// <summary>Submits credentials that should be rejected; stays on the login page (see <see cref="ErrorMessage"/>).</summary>

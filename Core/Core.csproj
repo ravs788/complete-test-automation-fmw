@@ -3,14 +3,13 @@
   <PropertyGroup>
     <!--
       The adapters are separate projects inside this folder, so only the suites that need Appium, a vault, a
-      broker client, Elasticsearch, Allure, Polly or Playwright's HTTP client take those packages (R40-R45).
+      broker client, Elasticsearch, Allure, Polly or Playwright take those packages (R40-R45, R42).
       Don't compile them here (same pattern as Tests/Tests.csproj).
     -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**;Resilience/Polly/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**;Resilience/Polly/**;Ui/Playwright/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Playwright" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />

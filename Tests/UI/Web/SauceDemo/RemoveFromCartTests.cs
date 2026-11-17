@@ -1,7 +1,7 @@
 using Allure.Net.Commons.Attributes;
 using Core.Reporting;
+using Core.Ui;
 using Domain.TestData.SauceDemo;
-using Microsoft.Playwright;
 using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
@@ -11,7 +11,7 @@ namespace Tests.UI.Web.SauceDemo;
 [AllureSubSuite("Remove from cart")]
 [AllureTag("ui", "saucedemo", "remove-from-cart", "regression")]
 [Trait("Category", "regression")]
-public class RemoveFromCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
+public class RemoveFromCartTests(BrowserFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
     public Task Cart_Should_RemoveProduct_When_RemoveClicked() => RunAsync(async () =>
@@ -23,11 +23,11 @@ public class RemoveFromCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(
         var cart = await inventory.OpenCartAsync();
 
         await Report.Step("Assert product added to cart", async () =>
-            await Assertions.Expect(cart.Item(product.Name)).ToBeVisibleAsync());
+            await Ui.Expect(cart.Item(product.Name)).ToBeVisibleAsync());
 
         await cart.RemoveAsync(product.Name);
 
         await Report.Step("Assert product removed from cart", async () =>
-            await Assertions.Expect(cart.Item(product.Name)).ToHaveCountAsync(0));
+            await Ui.Expect(cart.Item(product.Name)).ToHaveCountAsync(0));
     });
 }

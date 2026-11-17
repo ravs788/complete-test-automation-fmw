@@ -1,6 +1,6 @@
 using Microsoft.Playwright;
 
-namespace Core.Driver;
+namespace Core.Ui.Playwright;
 
 public static class PlaywrightDriverFactory
 {

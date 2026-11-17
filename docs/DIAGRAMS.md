@@ -19,9 +19,9 @@ Read top to bottom: each layer uses only the layers below it. `Core` uses none o
 
 ```mermaid
 flowchart TB
-    TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit"]
+    TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit · Tests.Contract"]
     APP["<b>App-specific code</b><br/>Pages (page objects) · Domain (models, test data, auth)"]
-    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
+    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Ui · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
     CORE["<b>Core</b><br/>domain-agnostic engine"]
 
     TESTS --> APP
@@ -41,11 +41,12 @@ Exact references:
 
 | Project | Uses |
 |---|---|
-| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
+| `Tests` (API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright` |
 | `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
-| `Tests.Unit` (framework self-tests) | `Core`, `Domain` and every add-on, so it can test them |
+| `Tests.Unit` (framework self-tests) | `Core`, `Domain`, `Pages` and every adapter, so it can test them |
+| `Tests.Contract` (UI driver contract tests) | `Core` and each UI driver adapter |
 | `Pages`, `Domain` | `Core` |
-| `Core.Mobile`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Mobile`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
 
 ---
 
@@ -77,10 +78,10 @@ sequenceDiagram
 
 | Step | Detail |
 |---|---|
-| Before the first test | `TestRunSetup` calls `Framework.Configure` with the adapters' plugins (providers chosen in `providers.json`), and the selected reporter clears the previous run's results; `PlaywrightFixture` reads `testsettings.json` and launches the browser once per class. |
+| Before the first test | `TestRunSetup` calls `Framework.Configure` with the adapters' plugins (providers chosen in `providers.json`), and the selected reporter clears the previous run's results; `BrowserFixture` reads `testsettings.json` and launches the browser once per class through the UI driver selected with `"Ui"` in `providers.json`. |
 | New context + page | Fresh cookies and storage for every test; tracing is on unless `Trace` is `off`. |
-| Test steps | `Report.Step(...)` around assertions; page objects, Mothers/Builders and `Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
-| Test failed | A Playwright assertion is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
+| Test steps | `Report.Step(...)` around assertions; page objects (on the UI contract), Mothers/Builders and `Ui.Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
+| Test failed | A `UiException` (missed `Ui.Expect`, element never actionable) is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
 | Finish | The result goes to the selected reporter (Allure by default) and, as `LogMetadata`, to Elasticsearch or the console. With `Trace = on` the trace is attached even on success. |
 
 ---
@@ -194,7 +195,7 @@ What each job does:
 flowchart LR
     subgraph L["Linux job"]
         direction LR
-        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L4["Allure report"]
+        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L5["UI driver<br/>contract tests"] --> L4["Allure report"]
     end
     subgraph M["Android job"]
         direction LR

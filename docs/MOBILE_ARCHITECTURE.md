@@ -36,7 +36,7 @@ Tests/UI/Mobile/                   # the mobile test suite (Tests.UI.Mobile.cspr
 | Playwright side | Mobile equivalent |
 |---|---|
 | `Core.Configuration.TestSettings` + `ConfigurationProvider` (`testsettings.json`) | `Core.Mobile.Configuration.MobileSettings` + `MobileSettingsProvider` (`mobilesettings.json`) |
-| `Core.Driver.PlaywrightDriverFactory` | `Core.Mobile.Driver.MobileDriverFactory` (+ `MobileOptionsBuilder`) |
+| `Core.Ui.Playwright` (UI driver adapter, selected in `providers.json`) | `Core.Mobile.Driver.MobileDriverFactory` (+ `MobileOptionsBuilder`) |
 | `Pages.Common.BasePage`, `Pages/<App>/` | `Pages/Common/MobileBasePage`, `Pages/<App>/` |
 | `Tests/Infrastructure/UiTestBase` (`RunAsync`) | `Infrastructure/MobileTestBase` (`Run`) |
 | `Tests/UI/Web/<App>/<Feature>Tests.cs` | `Tests/UI/Mobile/<App>/<Feature>Tests.cs` |

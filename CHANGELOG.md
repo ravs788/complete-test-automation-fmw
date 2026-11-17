@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-17: UI contract; Core has no vendor package left (R42, phase 5)
+
+- New `Core/Ui`: `IUiDriverFactory` / `IUiDriver` / `IUiSession` (one isolated session per test), lazy auto-waiting `IElement` found by `Locate` (test id, role, placeholder, CSS; `WithChild` filter, `First`), web-first assertions `Ui.Expect(element).ToBeVisibleAsync / ToHaveTextAsync / ToContainTextAsync / ToHaveCountAsync / ToHaveClassAsync`, `UiException` / `UiAssertionException`, and optional capabilities `IScreenshots` / `ITracing` (`TryGet<T>`), with `Native<T>()` as a visible escape hatch. Selected with `"Ui"` in `providers.json`.
+- **Playwright moved out of `Core`** into the adapter project `Core/Ui/Playwright` (`PlaywrightUiPlugin`; `PlaywrightDriverFactory` moved there). `Core` now references no vendor package (only Microsoft.Extensions.Configuration). Playwright timeouts and errors become `UiException`, so an element that never appears is now reported as **failed** rather than broken.
+- Page objects (`BasePage(IUiSession)`, `IElement` instead of `ILocator`), `UiTestBase` (`Session` instead of `Page`/`Context`) and web tests (`Ui.Expect` instead of `Assertions.Expect`) use only the contract. **`PlaywrightFixture` is now `BrowserFixture`.** `Tests.csproj` no longer references Playwright directly (its install script and driver still arrive through the adapter).
+- New test project **`Tests/Contract`**: UI driver contract tests (8 checks on a local `data:` page, run per driver adapter, no Allure), run in CI after the Playwright tests (`contract_results.trx`).
+- Verified: 15/15 Playwright tests with Allure results identical to the baseline; contract 8/8; `AdapterBoundaryTests`: `Core` doesn't reference Playwright and `Pages` uses only the contract.
+
 ## 2026-11-17: Resilience contract (R45, phase 4)
 
 - New contract in `Core/Resilience`: `IRetryPolicy` (sync/async, with or without a result), `IRetryPolicy<T>` (also retries on a transient result) and `IRetryPolicyFactory`, plus a built-in implementation (**`builtin`**: exponential backoff with jitter). New adapter project **`Core/Resilience/Polly`** (`PollyResiliencePlugin`, `"polly"`). Selected with `"Resilience"` in `providers.json` (`polly` committed). Both log the same `[Retry] attempt N of M after D ms: reason` line.

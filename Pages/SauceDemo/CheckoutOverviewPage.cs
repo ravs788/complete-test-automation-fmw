@@ -1,12 +1,12 @@
-using Microsoft.Playwright;
+using Core.Ui;
 
 namespace Pages.SauceDemo;
 
-public sealed class CheckoutOverviewPage(IPage page) : SauceDemoPage(page)
+public sealed class CheckoutOverviewPage(IUiSession session) : SauceDemoPage(session)
 {
     public async Task<CheckoutCompletePage> FinishAsync()
     {
         await TestId("finish").ClickAsync();
-        return new CheckoutCompletePage(Page);
+        return new CheckoutCompletePage(Session);
     }
 }

@@ -9,4 +9,5 @@ public static class ProviderKinds
     public const string Reporting = "Reporting";
     public const string Http = "Http";
     public const string Resilience = "Resilience";
+    public const string Ui = "Ui";
 }

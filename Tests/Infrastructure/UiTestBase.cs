@@ -3,32 +3,34 @@ using Core.Composition;
 using Core.Configuration;
 using Core.Logging;
 using Core.Testing;
-using Microsoft.Playwright;
+using Core.Ui;
+using Core.Ui.Capabilities;
 using Tests.Fixtures;
 
 namespace Tests.Infrastructure;
 
 /// <summary>
-/// Base for browser tests. Each test gets a fresh context and page (opened at <see cref="BaseUrl"/>);
-/// wrap the test body in <see cref="RunAsync"/> for logging, report timing, a full-page screenshot and a
-/// Playwright trace on failure (see <see cref="TestSettings.Trace"/>) and results publishing (via Core's
-/// <see cref="TestRunner"/>).
+/// Base for browser tests. Each test gets a fresh <see cref="Session"/> (opened at <see cref="BaseUrl"/>) from the UI
+/// driver selected in <c>providers.json</c> (R42); wrap the test body in <see cref="RunAsync"/> for logging, report
+/// timing, a full-page screenshot and a trace on failure (when the driver supports them, see
+/// <see cref="TestSettings.Trace"/>) and results publishing (via Core's <see cref="TestRunner"/>).
 /// </summary>
-public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifetime
+public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
 {
-    protected UiTestBase(PlaywrightFixture fixture)
+    protected UiTestBase(BrowserFixture fixture)
     {
         Fixture = fixture;
         Logger = LoggingServiceFactory.CreateLogger("ui-web-logs-{0:yyyy.MM.dd}");
     }
 
-    protected PlaywrightFixture Fixture { get; }
+    protected BrowserFixture Fixture { get; }
     protected TestSettings Settings => Fixture.Settings;
     protected ILoggingService Logger { get; }
-    protected IBrowserContext Context { get; private set; } = null!;
-    protected IPage Page { get; private set; } = null!;
 
-    /// <summary>Base URL of the application under test (the context's BaseURL).</summary>
+    /// <summary>This test's browser session (isolated cookies and storage, one page).</summary>
+    protected IUiSession Session { get; private set; } = null!;
+
+    /// <summary>Base URL of the application under test (the session's base URL).</summary>
     protected abstract string BaseUrl { get; }
 
     private bool Tracing => !string.Equals(Settings.Trace, TraceModes.Off, StringComparison.OrdinalIgnoreCase);
@@ -36,18 +38,18 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
 
     public async Task InitializeAsync()
     {
-        (Context, Page) = await Fixture.CreateCleanPageAsync(BaseUrl);
-        if (Tracing)
+        Session = await Fixture.NewSessionAsync(BaseUrl);
+        if (Tracing && Session.TryGet<ITracing>(out var tracing))
         {
-            await Context.Tracing.StartAsync(new() { Screenshots = true, Snapshots = true, Sources = true });
+            await tracing.StartAsync();
         }
     }
 
     public async Task DisposeAsync()
     {
-        if (Context != null)
+        if (Session != null)
         {
-            await Context.CloseAsync();
+            await Session.DisposeAsync();
         }
     }
 
@@ -64,12 +66,12 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
                 {
                     await test();
                 }
-                catch (PlaywrightException ex)
+                catch (UiException ex)
                 {
-                    // Playwright's Expect(...) throws PlaywrightException, which Allure reports as "broken"
-                    // (it only treats xUnit's own assertion exceptions as "failed"). Re-raise it as an xUnit
-                    // failure, keeping Playwright's message (with its call log) and stack trace.
-                    Assert.Fail($"{ex.Message}{Environment.NewLine}{ex.StackTrace}");
+                    // UI failures (a missed assertion, an element that never appeared) are test failures: report them
+                    // as xUnit assertion failures so Allure shows "failed" rather than "broken", keeping the driver's
+                    // message (with its call log) and stack trace.
+                    Assert.Fail($"{ex.Message}{Environment.NewLine}{ex.InnerException?.StackTrace ?? ex.StackTrace}");
                 }
             },
             onFailureAsync: AttachFailureArtifactsAsync,
@@ -79,8 +81,11 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
     {
         try
         {
-            var png = await Page.ScreenshotAsync(new() { FullPage = true });
-            Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+            if (Session.TryGet<IScreenshots>(out var screenshots))
+            {
+                var png = await screenshots.CaptureAsync(fullPage: true);
+                Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+            }
         }
         finally
         {
@@ -101,21 +106,17 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
     }
 
     /// <summary>
-    /// Stops tracing into a zip and attaches it to the report. Allure's report opens it in the Playwright trace viewer;
-    /// it can also be opened with <c>pwsh playwright.ps1 show-trace &lt;file&gt;</c> or at https://trace.playwright.dev.
+    /// Stops tracing and attaches the trace to the report (Allure opens Playwright traces in Playwright's trace viewer:
+    /// a step-by-step replay with DOM snapshots, network and console).
     /// </summary>
     private async Task AttachTraceAsync()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"trace_{Guid.NewGuid():N}.zip");
-        try
+        if (!Session.TryGet<ITracing>(out var tracing))
         {
-            await Context.Tracing.StopAsync(new() { Path = path });
-            _traceSaved = true;
-            Framework.Reporter.Attach("Playwright trace", "application/vnd.allure.playwright-trace", await File.ReadAllBytesAsync(path), "zip");
+            return;
         }
-        finally
-        {
-            File.Delete(path);
-        }
+        var trace = await tracing.StopAsync();
+        _traceSaved = true;
+        Framework.Reporter.Attach(tracing.TraceName, tracing.TraceContentType, trace, tracing.TraceFileExtension);
     }
 }
