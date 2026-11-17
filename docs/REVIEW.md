@@ -1,6 +1,6 @@
 # Framework Review
 
-Findings from the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters (2026-11-17, R39–R43), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
+Findings from the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters plus the owner's plug-and-play goal (2026-11-17, R39–R48; see [Plug-and-play roadmap](#plug-and-play-roadmap)), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
 
 **How this list is maintained**
 
@@ -15,11 +15,16 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
 | R39 | P3 | Open | – | [Allure is called directly from the shared runner, the base classes and every test](#r39) | Architecture / reporting |
-| R40 | P3 | Open | – | [Providers are chosen three different ways; there is no composition root](#r40) | Architecture |
+| R40 | P3 | Open | – | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
+| R41 | P3 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
+| R42 | P3 | Open | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
+| R43 | P3 | Open | – | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
+| R44 | P3 | Open | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
+| R45 | P3 | Open | – | [Polly types are part of Core's public resilience API](#r45) | Architecture / resilience |
+| R46 | P3 | Open | – | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
-| R41 | P4 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
-| R42 | P4 | Open (decision needed) | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
-| R43 | P4 | Open | – | [No dependency inventory or provider contract documentation](#r43) | Documentation / architecture |
+| R47 | P4 | Open | – | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
+| R48 | P4 | Open | – | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
 | R37 | P4 | Closed | 2026-11-17 · `8a6dc6d` | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
@@ -89,6 +94,23 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 | Mobile CI | Hosted macOS Android smoke job configured for scheduled/manual runs; Linux compilation retained | First actual Azure execution, smoke result discovery and artifact publication | R16 (CI verification pending) |
 
 **Original review checks:** Source/configuration tracing and 14 local documentation file-link checks across six Markdown files (none missing). External links and anchors in those documentation files were not checked. Per-finding verification steps below remain outstanding unless marked completed or supported by the user-reported test run above.
+
+---
+
+## Plug-and-play roadmap
+
+Goal (owner, 2026-11-17): every external library replaceable, plug and play. Direction: **`Core` holds contracts and the engine with no vendor packages; each library sits in its own adapter project under `Core/<Area>/<Vendor>/`; one composition root picks adapters from a `Providers` configuration section; every contract has a second implementation and a shared contract test suite.** xUnit stays the host and `Microsoft.Extensions.*` are accepted platform dependencies (R43, R48). Each phase keeps all tests green and ships as its own PR.
+
+| Phase | Work | Items | Proves |
+|---|---|---|---|
+| 0 | Dependency inventory, contract list, `docs/PLUGIN_ARCHITECTURE.md` | [R43](#r43) | the scope and rules |
+| 1 | Composition root + plugin model; logging and secrets moved onto it; first guardrail tests | [R40](#r40), [R44](#r44), [R46](#r46) | console ↔ Elastic by config only |
+| 2 | Reporting contract; Allure and Console reporter adapters | [R39](#r39) | report unchanged; runs without Allure |
+| 3 | HTTP transport contract; Playwright and `HttpClient` adapters | [R41](#r41) | API tests without Playwright |
+| 4 | Resilience contract (Polly adapter + built-in retry); settings source contract | [R45](#r45), [R44](#r44) | `Core` has no vendor packages |
+| 5 | UI contract with capability interfaces and framework assertions; Playwright adapter; one slice, then all web tests | [R42](#r42) | `Pages` and web tests free of Playwright |
+| 6 | Selenium web adapter; Appium on the same UI contract | [R47](#r47) | same tests on another driver |
+| 7 | xUnit confined to a thin host layer | [R48](#r48) | a later runner move is contained |
 
 ---
 
@@ -363,19 +385,81 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 ### R39. Allure is called directly from the shared runner, the base classes and every test
 
 - **Status:** Open.
-- **Source:** external architecture feedback on replaceable adapters, 2026-11-17. The feedback names this as the first milestone.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 2.**
 - **Where:** `Core/Testing/TestRunner.cs` (Allure timing parameters), `Core/Testing/AllureResults.cs`, `Tests/Infrastructure/UiTestBase.cs` (test name, browser parameter, screenshot and trace attachments), `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs`, and all 14 test classes (`AllureApi.Step`, about 30 calls, plus `[AllureParentSuite]`/`[AllureSuite]`/… attributes).
-- **Problem:** reporting has no contract of its own. `Core` references `Allure.Net.Commons`, and test code calls Allure's static API. Swapping or adding a reporter (ReportPortal, a plain JSON/HTML report, or none for fast local runs) would touch the runner, every base class and every test, and Allure can't be left out of a lightweight `Core`.
-- **Fix:** a small reporting contract in `Core` (e.g. `Core/Reporting/ITestReporter`: start/finish a test, name and parameters, `StepAsync(name, body)`, `Attach(name, contentType, bytes)`) with a no-op default. Move the Allure calls into an adapter project (`Core/Reporting/Allure`, same pattern as the other add-ons). `TestRunner` and the base classes call the contract; tests use a framework `Step(...)` helper instead of `AllureApi.Step`. Keep the class-level labels as Allure attributes for now (xUnit/Allure.Xunit read them at discovery), or map them from a framework attribute later. **Verify:** report output unchanged (same names, steps, parameters, attachments, labels) for the 15 Playwright tests and the mobile smoke; `CoreBoundaryTests` gains a rule that `Core` doesn't reference Allure.
+- **Problem:** reporting has no contract of its own. `Core` references `Allure.Net.Commons` and test code calls Allure's static API, so swapping or adding a reporter (ReportPortal, plain HTML/JSON, none) touches the runner, every base class and every test.
+- **Fix:** `Core/Reporting/ITestReporter` (start/finish test, name and parameters, `StepAsync(name, body)`, `Attach(name, contentType, bytes)`, labels) with adapters `Core/Reporting/Allure` and `Core/Reporting/Console` (the second implementation). `TestRunner` and the base classes call the contract; tests use a framework `Step(...)` helper. Class-level suite labels move to a framework attribute mapped by the adapter (Allure.Xunit reads its own attributes at discovery, so keep them in the adapter layer until then).
+- **Verify:** Allure report unchanged (names, steps, parameters, attachments, labels) for the Playwright and mobile tests; the same run with `Reporting: console` passes with no Allure output; `CoreBoundaryTests`: `Core` doesn't reference Allure.
 
 <a id="r40"></a>
-### R40. Providers are chosen three different ways; there is no composition root
+### R40. Providers are chosen three different ways; there is no composition root or plugin model
 
 - **Status:** Open.
-- **Source:** external architecture feedback on replaceable adapters, 2026-11-17.
-- **Where:** `Core/Logging/LoggingServiceFactory.cs` + `ResultsPublisherFactory.cs` (scan loaded types for `ILoggingProviderFactory` / `IResultsPublisherFactory`, select by `Provider` name from `logging-config.json`), `Core/Configuration/SettingsLoader.cs` (static settable `SecretProvider`, replaced in each test project's `TestRunSetup` module initializer), `Core/Driver/PlaywrightDriverFactory.cs`, `Core/Api/ApiClient.CreateAsync`, `Core/Mobile/Driver/MobileDriverFactory.cs` (static factories called from fixtures and base classes).
-- **Problem:** each seam is wired differently, and the wiring is spread across fixtures, base classes and module initializers. Adding a provider means learning that seam's mechanism; the reflection scan only finds providers in assemblies that happen to be loaded; there's no single place that shows which implementations a run uses.
-- **Fix:** one composition root built at startup (the existing `TestRunSetup` module initializers are the natural place): read the settings once, then register the chosen implementation for each contract (logging, results publishing, secrets, reporting from R39, later transport/driver) in a small registry or `Microsoft.Extensions.DependencyInjection` container that fixtures and base classes resolve from. Providers declare a name and are selected by configuration the same way everywhere. Prove it with one swap (the feedback suggests logging: console ↔ Elastic purely by configuration, with no code change outside the composition root).
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1.**
+- **Where:** `Core/Logging/LoggingServiceFactory.cs` + `ResultsPublisherFactory.cs` (reflection scan of loaded types, selection by `Provider` name), `Core/Configuration/SettingsLoader.cs` (static settable `SecretProvider`, replaced in each `TestRunSetup` module initializer), static factories `PlaywrightDriverFactory`, `ApiClient.CreateAsync`, `MobileDriverFactory`.
+- **Problem:** each seam is wired differently and the wiring is spread over fixtures, base classes and module initializers; the reflection scan only finds providers in assemblies that happen to be loaded; nothing shows which implementations a run uses.
+- **Fix:** a composition root in `TestRunSetup`: read a `Providers` section (e.g. `"Ui": "playwright", "Http": "playwright", "Reporting": "allure", "Logging": "elastic", "Secrets": ["environment", "azure-keyvault"], "Resilience": "polly"`) and register the chosen adapters in `Microsoft.Extensions.DependencyInjection`. Each adapter project exposes one plugin class (`IFrameworkPlugin`: kind, name, `Register(services, configuration)`); registration is explicit, not a type scan. Fixtures and base classes resolve contracts from the container. Unknown or missing provider names fail at startup with the valid names listed.
+- **Verify:** switching logging between console and Elastic, and secrets between environment-only and environment + Key Vault, needs only a config change; the run log states the selected provider for each kind.
+
+<a id="r41"></a>
+### R41. Playwright types are part of the API client's public surface
+
+- **Status:** Open.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 3.**
+- **Where:** `Core/Api/ApiClient.cs`: `CreateAsync(IPlaywright playwright, …)` and `SendRawAsync(…)` returning Playwright's `IAPIResponse`; `Tests/Fixtures/ApiFixture.cs` owns an `IPlaywright`; raw-response assertions read `IAPIResponse`.
+- **Problem:** the transport isn't behind a contract, so replacing Playwright's `APIRequestContext` changes the client's signatures and every raw-response assertion, and API-only runs need Playwright installed.
+- **Fix:** `Core/Http/IHttpTransport` (method, URL, headers, body → status, headers, body) with adapters `Core/Http/Playwright` and `Core/Http/HttpClient`. `ApiClient` keeps JSON, `ApiException`, retries and test semantics; `SendRawAsync` returns a framework `ApiResponse` record; `ApiFixture` resolves the transport. Migrate one test class first, then the rest.
+- **Verify:** the 7 API tests pass with `Http: playwright` and with `Http: httpclient`; the API test project no longer needs a Playwright instance when `httpclient` is selected.
+
+<a id="r42"></a>
+### R42. The web UI layer is Playwright-specific end to end
+
+- **Status:** Open (decided 2026-11-17: abstract it, as the last and largest phase).
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 5.**
+- **Where:** `Pages/Common/BasePage.cs` (`BasePage(IPage)`, `ILocator` helpers), all page objects, `Tests/Infrastructure/UiTestBase.cs` (`IPage`, `IBrowserContext`, tracing), `Tests/Fixtures/PlaywrightFixture.cs`, `Core/Driver/PlaywrightDriverFactory.cs`, web tests using Playwright's `Expect(...)`.
+- **Problem:** swapping the browser library means rewriting the page layer, the UI base and the assertions.
+- **Fix:** a small UI contract in `Core/Ui` (`IUiSession`: navigate, find; `IElement`: click, fill, text, visible, enabled; waits) plus **capability interfaces** that adapters implement only if they can (`ITracing`, `IScreenshots`, `INetworkControl`, `IMobileGestures`), queried with `session.TryGet<T>(out …)`, and a visible escape hatch `session.Native<T>()` for rare vendor-only needs. Framework assertions `Ui.Expect(element).ToBeVisible()/ToHaveText(...)` implemented per adapter (Playwright's web-first assertions; polling via `Poll` elsewhere). Do **not** flatten everything to a lowest common denominator. Adapter `Core/Ui/Playwright`; migrate one slice (SauceDemo login → inventory) end to end, then the remaining pages and tests.
+- **Verify:** all web tests pass on the Playwright adapter with no `Microsoft.Playwright` reference in `Pages` or `Tests/UI/Web`; traces and screenshots still attached on failure through the capabilities.
+
+<a id="r43"></a>
+### R43. No dependency inventory, contract list or provider guide
+
+- **Status:** Open. **Do first.**
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 0.**
+- **Where:** `docs/ARCHITECTURE.md`, `docs/CONTRIBUTING.md`; new `docs/PLUGIN_ARCHITECTURE.md`.
+- **Problem:** nothing lists, per external dependency, whether it is core, optional (adapter) or host-level, its realistic replacement and where its types leak today; there is no written contract for adding a provider.
+- **Fix:** (1) inventory table: Playwright (web UI + HTTP), Appium/Selenium, Allure, xUnit, Elasticsearch client, Polly, Azure SDK, RabbitMQ.Client, Confluent.Kafka, Microsoft.Extensions.Configuration/DependencyInjection: role, kind, replacement, current leaks, R item. (2) `docs/PLUGIN_ARCHITECTURE.md`: target shape (contracts in `Core`, one adapter project per vendor under `Core/<Area>/<Vendor>/`, composition root), the design rules (contracts describe framework behaviour, not vendor APIs; capability interfaces; framework assertions; one registration pattern; guardrail and contract tests; a second implementation per contract) and the roadmap. (3) "Writing a provider" in CONTRIBUTING. (4) Record the accepted platform dependencies: xUnit as the host (R48) and `Microsoft.Extensions.*` (already abstraction libraries; not wrapped again).
+- **Verify:** docs reviewed against the code; every R39–R48 item links to its inventory row.
+
+<a id="r44"></a>
+### R44. Core references seven vendor packages; the target is none
+
+- **Status:** Open.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1–4 (umbrella).**
+- **Where:** `Core/Core.csproj`: `Microsoft.Playwright`, `Allure.Net.Commons`, `Elastic.Clients.Elasticsearch`, `Polly.Core`, `Microsoft.Extensions.Configuration.{Binder,EnvironmentVariables,Json}`; public signatures exposing them: `ApiClient` (R41), `PlaywrightDriverFactory` (R42), `RetryPolicies` returning `ResiliencePipeline` (R45), `SettingsLoader.ResolveSecrets(IConfiguration, …)`.
+- **Problem:** anything that uses `Core` pulls in all of these, and their types reach callers, so a swap ripples beyond one project.
+- **Fix:** move each vendor into its adapter project as the phases land: `Core/Logging/Elastic` and `Core/Logging/Console` become projects (phase 1), `Core/Reporting/Allure` (R39), `Core/Http/Playwright` (R41), `Core/Resilience/Polly` (R45), `Core/Ui/Playwright` (R42). Settings loading moves behind an `ISettingsSource` contract with a `Microsoft.Extensions.Configuration` adapter, keeping `IConfiguration` out of public `Core` signatures.
+- **Verify:** `Core.csproj` has no `PackageReference` to a vendor library; enforced by R46.
+
+<a id="r45"></a>
+### R45. Polly types are part of Core's public resilience API
+
+- **Status:** Open.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 4.**
+- **Where:** `Core/Resilience/RetryPolicies.cs`: `TransientHttp<T>`, `Navigation`, `Transient` return Polly `ResiliencePipeline`/`ResiliencePipeline<T>`; callers in `ApiClient`, `BasePage.GotoAsync`, `MobileBasePage`.
+- **Problem:** replacing Polly (or using a simpler retry for a lightweight build) changes every caller.
+- **Fix:** `Core/Resilience/IRetryPolicy` (`ExecuteAsync(action)`, created from `RetryOptions` + a transient predicate), `Poll` stays framework code; adapter `Core/Resilience/Polly`, plus a small built-in retry as the second implementation. Callers depend on `IRetryPolicy` only.
+- **Verify:** existing `RetryPoliciesTests`/`PollTests` pass against both implementations (as contract tests, R46).
+
+<a id="r46"></a>
+### R46. No guardrail or contract tests that prove adapters are replaceable
+
+- **Status:** Open.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1 onwards (grows with each phase).**
+- **Where:** `Tests/Unit/Architecture/CoreBoundaryTests.cs` (checks project references and app-named namespaces only).
+- **Problem:** nothing stops vendor namespaces creeping back into `Core`, `Pages`, `Domain` or tests, and nothing checks that two adapters of one contract behave the same; without that, "replaceable" is an assumption.
+- **Fix:** (1) architecture tests: `Core`, `Domain`, `Pages` and scenario tests reference no vendor namespace; each adapter references only `Core` and its own vendor; every contract has at least two registered implementations. (2) contract test suites: one abstract test class per contract (`TestReporterContractTests`, `HttpTransportContractTests`, `RetryPolicyContractTests`, `UiSessionContractTests`, …) that each adapter's test class inherits, so the same behaviour is asserted for every implementation.
+- **Verify:** deliberately adding a Playwright `using` to `Pages` or a vendor package to `Core` fails the unit tests; each contract suite runs green for every adapter.
 
 ---
 
@@ -448,29 +532,22 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 - **Problem:** the Appium bootstrapping and its settings live inside the mobile test project, so another team or project can't reuse them. Moving them into Core as it is would make every Core consumer depend on Appium and Selenium.
 - **Fix:** together with R34's split, move the mobile driver factory, options builder and `MobileSettings` into a separate library (e.g. `Core.Mobile`) that only mobile suites reference.
 
-<a id="r41"></a>
-### R41. Playwright types are part of the API client's public surface
+<a id="r47"></a>
+### R47. Only one implementation exists for the UI contract (no second browser or device driver)
 
 - **Status:** Open.
-- **Source:** external architecture feedback on replaceable adapters, 2026-11-17.
-- **Where:** `Core/Api/ApiClient.cs`: `CreateAsync(IPlaywright playwright, …)` and `SendRawAsync(…)` returning Playwright's `IAPIResponse`; `Tests/Fixtures/ApiFixture.cs` owns an `IPlaywright` for API tests; tests asserting on raw responses read `IAPIResponse`.
-- **Problem:** serialization, status handling and retries already live in `ApiClient`, but the transport isn't behind a contract, so replacing Playwright's `APIRequestContext` (e.g. with `HttpClient` for API-only runs that don't need Playwright installed) changes the client's signatures and every raw-response assertion.
-- **Fix:** an `IHttpTransport` contract (send method, URL, headers, body → status, headers, body) with a Playwright adapter and, optionally, an `HttpClient` adapter; `ApiClient` keeps JSON, `ApiException`, retries and test semantics, and `SendRawAsync` returns a framework `ApiResponse` record. Migrate one test class first, then the rest. Relatively small: the leak is two public signatures plus the fixture.
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 6.**
+- **Where:** after R42: `Core/Ui/Playwright` only; `Core/Mobile` (Appium) sits outside the UI contract with its own `MobileBasePage`.
+- **Problem:** a contract with one implementation hasn't proven it is replaceable; mobile page objects use a different API from web ones.
+- **Fix:** a `Core/Ui/Selenium` adapter for web, and Appium as a `Core/Ui/Appium` adapter of the same contract plus `IMobileGestures`; mobile pages move onto the shared page base. Capabilities a driver lacks (e.g. Playwright tracing on Selenium) are simply not offered.
+- **Verify:** the migrated web slice passes with `Ui: selenium`; the mobile smoke passes through the shared UI contract; R46's UI contract suite runs for all three adapters.
 
-<a id="r42"></a>
-### R42. The web UI layer is Playwright-specific end to end (decision needed)
+<a id="r48"></a>
+### R48. xUnit-specific code isn't isolated in a thin host layer
 
-- **Status:** Open (decision needed before any work).
-- **Source:** external architecture feedback on replaceable adapters, 2026-11-17.
-- **Where:** `Pages/Common/BasePage.cs` (`BasePage(IPage)`, `ILocator` helpers), all page objects, `Tests/Infrastructure/UiTestBase.cs` (`IPage`, `IBrowserContext`, tracing), `Core/Driver/PlaywrightDriverFactory.cs`, web tests using Playwright's `Expect(...)` assertions.
-- **Problem:** swapping the browser library (e.g. to Selenium) would mean rewriting the page layer, the UI base and the assertions. The feedback itself warns against flattening Playwright, Selenium and Appium into a lowest-common-denominator API.
-- **Assessment:** this is the most expensive boundary and the least likely swap: Playwright's auto-waiting locators, web-first assertions, tracing and network control are much of the suite's value, and a generic UI API would either hide them or re-implement them. Page objects already keep Playwright out of the test bodies except for `Expect`. Suggested position: **keep Playwright as the deliberate web UI technology** (documented in ARCHITECTURE as a host-level choice like xUnit), and only introduce scenario-level contracts with capability interfaces if a second web driver becomes a real requirement. If that happens, start with one end-to-end slice (e.g. login → inventory) as the feedback suggests.
-
-<a id="r43"></a>
-### R43. No dependency inventory or provider contract documentation
-
-- **Status:** Open.
-- **Source:** external architecture feedback on replaceable adapters, 2026-11-17.
-- **Where:** `docs/ARCHITECTURE.md`, `docs/CONTRIBUTING.md`.
-- **Problem:** nothing lists, per external dependency, whether it is core, optional (add-on) or host-level, what a realistic replacement would be, and where its types leak today; and there is no written contract for adding a provider (interface to implement, how it is selected, what it must guarantee, e.g. "a publish failure never fails a test").
-- **Fix:** an inventory table in ARCHITECTURE (Playwright, Appium/Selenium, Allure, xUnit, Elasticsearch client, Polly, Azure SDK, RabbitMQ.Client, Confluent.Kafka, Microsoft.Extensions.Configuration: role, kind, replacement, where it leaks, related R item) and a "Writing a provider" section in CONTRIBUTING. Do this first: it is cheap and frames R39–R42.
+- **Status:** Open (accepted host dependency; isolate, don't replace).
+- **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 7.**
+- **Where:** test classes (`[Fact]`, `[Theory]`, `[Trait]`, `IClassFixture`, `IAsyncLifetime`), `Tests/Fixtures/*`, base classes, `RequiresEnvironmentFactAttribute`.
+- **Problem:** xUnit discovers and runs tests, so it isn't a plugin like the others, but its types are spread across fixtures and base classes; a later move to xUnit v3 or NUnit would touch more than necessary.
+- **Fix:** keep test bodies on framework APIs only (R39–R42 do most of this); confine xUnit types to attributes, fixtures and base classes, and document xUnit as the accepted host in PLUGIN_ARCHITECTURE (R43).
+- **Verify:** an architecture test lists the only folders allowed to reference `Xunit` besides test attributes.
