@@ -15,7 +15,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
 | R36 | P4 | Open (partly done) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
-| R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
+| R37 | P4 | Open (partly done) | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R34 | P3 | Closed | 2026-11-17 · `d01fbf0` | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
@@ -410,7 +410,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r37"></a>
 ### R37. No data / infrastructure helpers (database, message queue) with cleanup tracking
 
-- **Status:** Open
+- **Status:** Open (partly done). In `292c4c8` (2026-11-17): `Core.Testing.CleanupTracker` (now used by `ApiTestBase` for bookings) and `Core/Data` (`DbConnectionFactory` for any ADO.NET provider, `DbTestScope` rolled back by default), verified with unit tests against a real temporary SQLite database and by the API suite's cleanups. **Still open:** message-queue listeners (Kafka/RabbitMQ), to add when a system under test uses a broker.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** would be `Core/Data/` (doesn't exist).
 - **Problem:** end-to-end tests of an owned system often need to seed state or check persistence in a database or queue. The current apps under test are public demo sites without database or queue access, so nothing needs this today, but there's no pattern ready for it.
