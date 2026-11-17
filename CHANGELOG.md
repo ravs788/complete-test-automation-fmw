@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-17: Composition root and plugin model (R40, phase 1)
+
+- New `Core/Composition`: `Framework.Configure(params IFrameworkPlugin[])` is the composition root, called once from each test project's `TestRunSetup`; adapters register named providers through `IFrameworkPlugin` into a `ProviderRegistry`. The reflection scan in `LoggingServiceFactory` / `ResultsPublisherFactory` is gone.
+- New **`providers.json`** (repo root, `PROVIDERS_*` overrides) chooses the provider per contract: `Logging`, `ResultsPublisher` (default: same as `Logging`), `Secrets` (ordered list). The run prints the selection once, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`. Selecting a secret provider that isn't registered stops the run at startup with the registered names.
+- **Elasticsearch moved out of `Core`** into the adapter project `Core/Logging/Elastic` (`Core.Logging.Elastic`, `ElasticLoggingPlugin`); `Core` no longer references `Elastic.Clients.Elasticsearch`. Console logging stays built in. Key Vault registers through `AzureKeyVaultPlugin`.
+- **Behaviour changes:** the logging provider is no longer `Provider` in `logging-config.json` / `LOGGING_PROVIDER`; use `"Logging"` in `providers.json` or `PROVIDERS_Logging`. Key Vault is no longer switched on by `KEYVAULT_URI` alone; list `"azure-keyvault"` in `Secrets` (e.g. `PROVIDERS_Secrets__0=environment PROVIDERS_Secrets__1=azure-keyvault`) and set `KEYVAULT_URI`.
+- Tests: 26 new unit tests (registry, `providers.json` loading, secret and logging selection with fallback, plugins) and `AdapterBoundaryTests` (Core doesn't reference Elastic, Azure, RabbitMQ or Kafka assemblies; each adapter depends on Core only among framework projects).
+- Docs: README (configuration, logging, secrets, structure), ARCHITECTURE, GETTING_STARTED, DIAGRAMS, PLUGIN_ARCHITECTURE updated.
+
 ## 2026-11-17: Plug-and-play architecture doc (R43)
 
 - New `docs/PLUGIN_ARCHITECTURE.md`: target shape (contracts in `Core`, one adapter project per library, a composition root selecting adapters from a `Providers` section), the contract list, a dependency inventory (role, kind, where each library's types leak today, realistic replacement, review item), design rules, a provider guide with the guarantees each kind of provider must keep, and the accepted host/platform dependencies (xUnit, Microsoft.Extensions, ADO.NET). Phase 0 of the roadmap in `docs/REVIEW.md`; no code changes.

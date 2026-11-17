@@ -50,10 +50,11 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Core/   (Core.csproj, shared by everything)                              │
 │   Api/            ApiClient (auth-agnostic), ApiException                │
+│   Composition/    Framework.Configure · IFrameworkPlugin · registry      │
 │   Configuration/  TestSettings (+ sections) + ConfigurationProvider      │
 │   Driver/         PlaywrightDriverFactory                                │
 │   Logging/        factories, LogMetadata, LoggingConfig + Provider       │
-│                   Console/ · Elastic/ providers                          │
+│                   Console/ (built in) · Elastic/ (adapter project)       │
 │   TestData/       TestDataLoader (JSON)                                  │
 │   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
 │   Security/       ISecretProvider (secret://NAME) · env-var provider     │
@@ -67,16 +68,16 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional add-ons (R36, R37). Nothing depends on `Tests`.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Logging.Elastic`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R40). Nothing depends on `Tests`.
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
-- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
+- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Logging/Elastic`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
 - Selenium remains a package only because Appium's .NET client is built on it.
 - The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
 
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Logging.Elastic`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -86,8 +87,9 @@ Conventions (the same in every project):
 
 ### 3.1 Configuration
 
-- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases. Values of the form `secret://NAME` are then resolved by `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`; environment variables by default; with `KEYVAULT_URI` set, the test projects' module initializer chains Azure Key Vault after the environment via the `Core.Security.AzureKeyVault` add-on in `Core/Security/AzureKeyVault/`).
+- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases. Values of the form `secret://NAME` are then resolved by `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`; chosen by name in `providers.json` `Secrets`, tried in order: `environment` by default, plus `azure-keyvault` from the `Core.Security.AzureKeyVault` adapter in `Core/Security/AzureKeyVault/`).
 - **Playwright tests:** `ConfigurationProvider.Current`: `Tests/testsettings.json` from the output directory, `TESTS_*`, aliases `BROWSER` / `HEADLESS`. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
+- **Providers (R40):** `ProvidersConfigProvider.Current`: `providers.json` (found by walking up from the run directory), `PROVIDERS_*`. It names the provider for `Logging`, `ResultsPublisher` (default: same as `Logging`) and `Secrets` (ordered list). Each test project's `TestRunSetup` module initializer is the composition root: `Framework.Configure(new ElasticLoggingPlugin(), new AzureKeyVaultPlugin())` registers the adapters it references (plus the built-in console and environment providers) in a `ProviderRegistry`, wires the selected secret providers into `SettingsLoader`, and prints the selection once. Selecting a secret provider that isn't registered fails at startup with the registered names. See [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md).
 - **Logging:** `LoggingConfigProvider.Current`: `logging-config.json` (found by walking up from the run directory), `LOGGING_*`, aliases `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT`. Credentials only come from the environment.
 - **Mobile:** `Core.Mobile.Configuration.MobileSettingsProvider.Current`: `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.
 
@@ -109,13 +111,13 @@ Conventions (the same in every project):
 ### 3.5 Logging & results publishing
 
 ```text
-            logging-config.json  (found by walking up from the run dir)
+     providers.json (Logging / ResultsPublisher)  +  logging-config.json (Elastic settings)
                        │
         ┌──────────────┴───────────────┐
         ▼                              ▼
 LoggingServiceFactory          ResultsPublisherFactory
-  │ reflection: ILoggingProviderFactory / IResultsPublisherFactory
-  │ 1. configured Provider  → 2. "console"  → 3. any other  → 4. console (direct)
+  │ Framework.Providers (registered by TestRunSetup): ILoggingProviderFactory / IResultsPublisherFactory
+  │ 1. selected provider  → 2. "console"  → 3. console (direct)
   ▼                              ▼
 ILoggingService               IResultsPublisher
  ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
@@ -125,7 +127,7 @@ ILoggingService               IResultsPublisher
 ```
 
 - Loggers are cached per index format and the publisher once per run; the reachability probe is cached per URL, credentials, TLS profile/fingerprint, and timeout.
-- To add a provider, implement both factory interfaces in `Core`. The factories discover providers by reflection, so no registration code is needed.
+- To add a provider, implement both factory interfaces in an adapter project, register them in its `IFrameworkPlugin`, pass the plugin to `Framework.Configure` in the test projects' `TestRunSetup`, and select it by name in `providers.json` ([provider guide](PLUGIN_ARCHITECTURE.md#5-writing-a-provider)).
 - Each test publishes one `LogMetadata` document (project, class, method, status, duration, reason, timing, browser, user) from `TestRunner`. A publish failure never fails the test.
 
 ---
@@ -245,3 +247,4 @@ Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), wh
 | 2026-11-17 | Core add-ons moved inside `Core/` next to the area they extend (`Core/Mobile`, `Core/Messaging/{Kafka,RabbitMq}`, `Core/Security/AzureKeyVault`), still separate projects excluded from `Core.csproj`; `Core.Secrets.AzureKeyVault` renamed `Core.Security.AzureKeyVault`; solution groups them under `/Core/`. |
 | 2026-11-17 | Mermaid flow diagrams added in `docs/DIAGRAMS.md`: project dependencies, web UI / API / mobile test runs, settings and secrets, CI pipeline. |
 | 2026-11-17 | `docs/PLUGIN_ARCHITECTURE.md` added (R43): plug-and-play target shape, contract list, dependency inventory, design rules, provider guide, accepted host/platform dependencies. |
+| 2026-11-17 | Composition root (R40): `providers.json` + `Core/Composition` (`Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`) replace the reflection scan and the per-project Key Vault wiring; Elasticsearch moved out of `Core` into the `Core.Logging.Elastic` adapter (R44); first adapter guardrail tests (R46). |

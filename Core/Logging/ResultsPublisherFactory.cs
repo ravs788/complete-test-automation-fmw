@@ -1,39 +1,37 @@
+using Core.Composition;
+
 namespace Core.Logging;
 
 /// <summary>
-/// Generic selector for results publishers. Uses pluggable factories (IResultsPublisherFactory)
-/// discovered via reflection, so no direct dependency on any specific provider.
+/// Creates the results publisher selected in <c>providers.json</c> (<c>ResultsPublisher</c>, default: same as
+/// <c>Logging</c>), from the providers registered with <see cref="Framework"/> (R40). Falls back to console if the
+/// selected provider isn't registered or is unavailable.
 /// </summary>
 public static class ResultsPublisherFactory
 {
-    private static readonly Lazy<IResultsPublisher> _publisher = new(CreatePublisher, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<IResultsPublisher> _publisher = new(
+        () => Create(Framework.Providers, Framework.Settings.EffectiveResultsPublisher, LoggingConfigProvider.Current),
+        LazyThreadSafetyMode.ExecutionAndPublication);
 
-    /// <summary>
-    /// Returns the results publisher, created on first use with the configured provider and then reused for the
-    /// rest of the test run. Falls back to another available provider (preferably "console") if the chosen one is
-    /// unavailable.
-    /// </summary>
+    /// <summary>Returns the results publisher, created on first use and then reused for the rest of the test run.</summary>
     public static IResultsPublisher Create() => _publisher.Value;
 
-    private static IResultsPublisher CreatePublisher()
+    /// <summary>
+    /// Creates the publisher called <paramref name="provider"/>; if it isn't registered or can't be used, says so once
+    /// and uses console.
+    /// </summary>
+    public static IResultsPublisher Create(ProviderRegistry registry, string provider, LoggingConfig cfg)
     {
-        var cfg = LoggingConfigProvider.Current;
-        var factories = DiscoverFactories();
-
-        // Try explicitly selected provider first
-        var provider = (cfg.Provider ?? string.Empty).Trim();
-        if (!string.IsNullOrEmpty(provider))
+        provider = (provider ?? string.Empty).Trim();
+        if (provider.Length > 0 && !IsConsole(provider))
         {
-            var selected = factories.FirstOrDefault(f =>
-                string.Equals(f.Name, provider, StringComparison.OrdinalIgnoreCase));
-
-            if (selected == null)
+            if (!registry.TryGet<IResultsPublisherFactory>(provider, out var selected))
             {
                 ProviderFallback.Report(provider, "no such provider", "console");
             }
-            else if (selected.TryCreate(cfg, out var pub, out var reason))
+            else if (selected.TryCreate(cfg, out var publisher, out var reason))
             {
-                return pub;
+                return publisher;
             }
             else
             {
@@ -41,48 +39,15 @@ public static class ResultsPublisherFactory
             }
         }
 
-        // Prefer console if available
-        var console = factories.FirstOrDefault(f =>
-            string.Equals(f.Name, "console", StringComparison.OrdinalIgnoreCase));
-        if (console != null && console.TryCreate(cfg, out var consolePub, out _))
+        if (registry.TryGet<IResultsPublisherFactory>("console", out var console) &&
+            console.TryCreate(cfg, out var consolePublisher, out _))
         {
-            return consolePub;
+            return consolePublisher;
         }
 
-        // Otherwise, try any available provider
-        foreach (var f in factories)
-        {
-            if (f.TryCreate(cfg, out var pub, out _))
-            {
-                return pub;
-            }
-        }
-
-        // Absolute last resort: inline console publisher (in case no factory type was discovered)
+        // Last resort, in case the console provider was not registered.
         return new Console.ConsoleResultsPublisher();
     }
 
-    private static List<IResultsPublisherFactory> DiscoverFactories()
-    {
-        var asm = typeof(IResultsPublisherFactory).Assembly;
-        var types = asm
-            .GetTypes()
-            .Where(t => !t.IsAbstract && typeof(IResultsPublisherFactory).IsAssignableFrom(t));
-
-        var list = new List<IResultsPublisherFactory>();
-        foreach (var t in types)
-        {
-            try
-            {
-                if (Activator.CreateInstance(t) is IResultsPublisherFactory instance)
-                    list.Add(instance);
-            }
-            catch
-            {
-                // ignore load/activation failures
-            }
-        }
-
-        return list;
-    }
+    private static bool IsConsole(string provider) => string.Equals(provider, "console", StringComparison.OrdinalIgnoreCase);
 }

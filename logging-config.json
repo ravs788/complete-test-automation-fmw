@@ -1,5 +1,4 @@
 {
-  "Provider": "elastic",
   "Elastic": {
     "Url": "http://localhost:9200",
     "Username": "",

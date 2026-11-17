@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
+using Core.Composition;
 
 namespace Core.Logging;
 
 /// <summary>
-/// Generic selector for logging providers. Uses pluggable factories (ILoggingProviderFactory)
-/// discovered via reflection, so no direct dependency on any specific provider.
+/// Creates loggers with the provider selected in <c>providers.json</c> (<c>Logging</c>), from the providers registered
+/// with <see cref="Framework"/> (R40). Falls back to console if the selected provider isn't registered or is unavailable.
 /// </summary>
 public static class LoggingServiceFactory
 {
@@ -13,30 +14,27 @@ public static class LoggingServiceFactory
     /// <summary>
     /// Returns the logger for <paramref name="indexFormat"/>, created on first use with the configured provider and
     /// then reused for the rest of the test run (the services are thread-safe).
-    /// Falls back to another available provider (preferably "console") if the chosen one is unavailable.
     /// </summary>
     public static ILoggingService CreateLogger(string indexFormat) =>
-        _loggers.GetOrAdd(indexFormat, format => new Lazy<ILoggingService>(() => Create(format))).Value;
+        _loggers.GetOrAdd(indexFormat, format => new Lazy<ILoggingService>(() =>
+            Create(Framework.Providers, Framework.Settings.Logging, LoggingConfigProvider.Current, format))).Value;
 
-    private static ILoggingService Create(string indexFormat)
+    /// <summary>
+    /// Creates a logger with the provider called <paramref name="provider"/>; if it isn't registered or can't be used
+    /// (e.g. Elasticsearch unreachable), says so once and uses console.
+    /// </summary>
+    public static ILoggingService Create(ProviderRegistry registry, string provider, LoggingConfig cfg, string indexFormat)
     {
-        var cfg = LoggingConfigProvider.Current;
-        var factories = DiscoverFactories();
-
-        // Try explicitly selected provider first
-        var provider = (cfg.Provider ?? string.Empty).Trim();
-        if (!string.IsNullOrEmpty(provider))
+        provider = (provider ?? string.Empty).Trim();
+        if (provider.Length > 0 && !IsConsole(provider))
         {
-            var selected = factories.FirstOrDefault(f =>
-                string.Equals(f.Name, provider, StringComparison.OrdinalIgnoreCase));
-
-            if (selected == null)
+            if (!registry.TryGet<ILoggingProviderFactory>(provider, out var selected))
             {
                 ProviderFallback.Report(provider, "no such provider", "console");
             }
-            else if (selected.TryCreate(cfg, indexFormat, out var svc, out var reason))
+            else if (selected.TryCreate(cfg, indexFormat, out var service, out var reason))
             {
-                return svc;
+                return service;
             }
             else
             {
@@ -44,50 +42,17 @@ public static class LoggingServiceFactory
             }
         }
 
-        // Prefer console if available
-        var console = factories.FirstOrDefault(f =>
-            string.Equals(f.Name, "console", StringComparison.OrdinalIgnoreCase));
-        if (console != null && console.TryCreate(cfg, indexFormat, out var consoleSvc, out _))
+        if (registry.TryGet<ILoggingProviderFactory>("console", out var console) &&
+            console.TryCreate(cfg, indexFormat, out var consoleService, out _))
         {
-            return consoleSvc;
+            return consoleService;
         }
 
-        // Otherwise, try any available provider
-        foreach (var f in factories)
-        {
-            if (f.TryCreate(cfg, indexFormat, out var svc, out _))
-            {
-                return svc;
-            }
-        }
-
-        // Absolute last resort: direct console logger (in case no factory type was discovered)
+        // Last resort, in case the console provider was not registered.
         var fallback = new Console.ConsoleLoggingService();
         fallback.Configure(indexFormat);
         return fallback;
     }
 
-    private static List<ILoggingProviderFactory> DiscoverFactories()
-    {
-        var asm = typeof(ILoggingProviderFactory).Assembly;
-        var types = asm
-            .GetTypes()
-            .Where(t => !t.IsAbstract && typeof(ILoggingProviderFactory).IsAssignableFrom(t));
-
-        var list = new List<ILoggingProviderFactory>();
-        foreach (var t in types)
-        {
-            try
-            {
-                if (Activator.CreateInstance(t) is ILoggingProviderFactory instance)
-                    list.Add(instance);
-            }
-            catch
-            {
-                // ignore load/activation failures
-            }
-        }
-
-        return list;
-    }
+    private static bool IsConsole(string provider) => string.Equals(provider, "console", StringComparison.OrdinalIgnoreCase);
 }

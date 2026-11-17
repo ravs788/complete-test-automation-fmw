@@ -1,0 +1,8 @@
+{
+  // Which provider implements each framework contract (docs/PLUGIN_ARCHITECTURE.md). Found by walking up from the
+  // run directory. Override with PROVIDERS_* env vars, e.g. PROVIDERS_Logging=console,
+  // PROVIDERS_Secrets__0=environment PROVIDERS_Secrets__1=azure-keyvault.
+  "Logging": "elastic",
+  // "ResultsPublisher": "elastic",   // default: same as Logging
+  "Secrets": [ "environment" ]
+}

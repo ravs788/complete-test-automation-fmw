@@ -20,7 +20,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **Four top-level folders**: `Core` (shared framework code, with optional add-on projects such as `Core/Mobile` inside it), `Domain` (app-specific models, test data, API helpers), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
-- **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
+- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, secrets), with automatic fallback to console for logging
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
 - **Local Elasticsearch + Kibana stack** (`docker-compose.yml`) for the Elastic logging provider
@@ -34,19 +34,20 @@ TestAutomationProj/
 │
 ├── Core/                              # Domain-agnostic framework engine (Core.csproj; used by every project)
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
-│   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
+│   ├── Composition/                   # Framework.Configure (composition root), IFrameworkPlugin, ProviderRegistry, providers.json settings
+│   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider, SettingsLoader
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
 │   ├── Messaging/                     # MessageCollector<T> + ReceivedMessage (broker-neutral; fed by the add-ons)
 │   │   ├── Kafka/                     # Add-on project Core.Messaging.Kafka: KafkaListener (manual partition assignment, no commits)
 │   │   └── RabbitMq/                  # Add-on project Core.Messaging.RabbitMq: RabbitMqListener (exclusive auto-delete queue)
 │   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
 │   ├── Security/                      # ISecretProvider, EnvironmentSecretProvider, CompositeSecretProvider (secret://NAME placeholders)
-│   │   └── AzureKeyVault/             # Add-on project Core.Security.AzureKeyVault (on when KEYVAULT_URI is set)
+│   │   └── AzureKeyVault/             # Adapter project Core.Security.AzureKeyVault ("azure-keyvault" in providers.json Secrets)
 │   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
-│   │   ├── Console/                   # console provider
-│   │   └── Elastic/                   # Elasticsearch provider
+│   │   ├── Console/                   # console provider (built in)
+│   │   └── Elastic/                   # Adapter project Core.Logging.Elastic: Elasticsearch provider ("elastic" in providers.json)
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
 │   ├── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
 │   └── Mobile/                        # Add-on project Core.Mobile: reusable Appium bootstrapping (only mobile suites use it)
@@ -93,7 +94,8 @@ TestAutomationProj/
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
-├── logging-config.json                # Global logging provider configuration
+├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Secrets)
+├── logging-config.json                # Logging provider settings (Elasticsearch URL, TLS fingerprint)
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
@@ -160,7 +162,7 @@ allure serve Tests/bin/Debug/net10.0/allure-results
 
 ## ⚙️ Configuration
 
-All three settings files load the same way (`Core.Configuration.SettingsLoader`, built on `Microsoft.Extensions.Configuration`), once per run, with later sources winning:
+All four settings files load the same way (`Core.Configuration.SettingsLoader`, built on `Microsoft.Extensions.Configuration`), once per run, with later sources winning:
 
 1. the JSON file (comments allowed),
 2. environment variables with the file's prefix, using `__` between nested keys,
@@ -169,7 +171,8 @@ All three settings files load the same way (`Core.Configuration.SettingsLoader`,
 | File | Loaded by | Prefix | Example | Aliases |
 |---|---|---|---|---|
 | `Tests/testsettings.json` | `ConfigurationProvider.Current` | `TESTS_` | `TESTS_RestfulBooker__Password=…` | `BROWSER`, `HEADLESS` |
-| `logging-config.json` | `LoggingConfigProvider.Current` | `LOGGING_` | `LOGGING_PROVIDER=console`, `LOGGING_Elastic__Url=…` | `ELASTIC_URL`, `ELASTIC_USERNAME`, `ELASTIC_PASSWORD`, `ELASTIC_CERT_FINGERPRINT` |
+| `providers.json` | `ProvidersConfigProvider.Current` | `PROVIDERS_` | `PROVIDERS_Logging=console`, `PROVIDERS_Secrets__1=azure-keyvault` | – |
+| `logging-config.json` | `LoggingConfigProvider.Current` | `LOGGING_` | `LOGGING_Elastic__Url=…` | `ELASTIC_URL`, `ELASTIC_USERNAME`, `ELASTIC_PASSWORD`, `ELASTIC_CERT_FINGERPRINT` |
 | `Tests/UI/Mobile/mobilesettings.json` | `MobileSettingsProvider.Current` | `MOBILE_` | `MOBILE_Device__Udid=…` | `APPIUM_URL`, `DEVICE_NAME` |
 
 Keys are case-insensitive. Secrets (passwords, tokens) should come only from the environment or a CI secret variable.
@@ -177,8 +180,8 @@ Keys are case-insensitive. Secrets (passwords, tokens) should come only from the
 **Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). A missing secret fails the run with the setting and secret named.
 
 - **Default:** environment variables: `booker-password`, then `BOOKER_PASSWORD`.
-- **Azure Key Vault:** set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. The test projects then use environment variables first and Key Vault second (`Core.Security.AzureKeyVault` in `Core/Security/AzureKeyVault/`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
-- **Another vault:** implement `ISecretProvider` in an add-on project and assign it in the test project's `TestRunSetup` module initializer.
+- **Azure Key Vault:** add `"azure-keyvault"` to `Secrets` in `providers.json` (e.g. `"Secrets": ["environment", "azure-keyvault"]`, or `PROVIDERS_Secrets__1=azure-keyvault`) and set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. Providers are tried in the listed order, so environment variables still win (`Core.Security.AzureKeyVault` in `Core/Security/AzureKeyVault/`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
+- **Another vault:** implement `ISecretProvider` in an adapter project with an `IFrameworkPlugin` that registers it by name, pass the plugin to `Framework.Configure` in the test project's `TestRunSetup`, and list the name in `Secrets` ([provider guide](docs/PLUGIN_ARCHITECTURE.md#5-writing-a-provider)). Selecting a provider that isn't registered, or Key Vault without `KEYVAULT_URI`, stops the run at startup with the reason.
 
 ### Playwright tests: `Tests/testsettings.json`
 
@@ -244,11 +247,12 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-The Playwright tests (`Tests/`) and the Mobile suite read logging settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
+Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
+
+The Playwright tests (`Tests/`) and the Mobile suite read the provider settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 
 ```json
 {
-  "Provider": "elastic",
   "Elastic": {
     "Url": "http://localhost:9200",
     "Username": "",
@@ -260,7 +264,6 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
 
 | Setting | Environment override | Notes |
 |---|---|---|
-| `Provider` | `LOGGING_PROVIDER` | `elastic` or `console` (any other key works with the `LOGGING_` prefix too, e.g. `LOGGING_Elastic__Url`) |
 | `Elastic.Url` | `ELASTIC_URL` | |
 | `Elastic.Username` / `Elastic.Password` | `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` | **Only set these in the environment** (or a CI secret variable); keep them empty in the file. The local `docker compose` stack needs none. |
 | `Elastic.CertificateFingerprint` | `ELASTIC_CERT_FINGERPRINT` | CA fingerprint for `ON_LOCALHOST_SECURE`; when empty, a self-signed certificate is accepted only for loopback URLs in that profile |
@@ -268,9 +271,9 @@ The Playwright tests (`Tests/`) and the Mobile suite read logging settings from 
 
 Provider selection, implemented by `LoggingServiceFactory` and `ResultsPublisherFactory`:
 
-1. Use the provider named in `Provider` (`elastic` or `console`) if it can be created.
-2. If it can't, fall back to `console`.
-3. If console can't be created either, try any other discovered provider. As a last resort, use a built-in console logger.
+1. Use the provider named in `providers.json` if it is registered and can be created.
+2. If it isn't registered or can't be used (e.g. Elasticsearch unreachable), print one message and use `console`.
+3. As a last resort, use a built-in console logger.
 
 The `elastic` provider checks the server first, **once per URL per test run** (cached): `GET /` with the configured credentials must return 2xx from **Elasticsearch 8 or later** (not OpenSearch). If it doesn't (unreachable, wrong credentials, OpenSearch, too old), the run uses the console and prints **one** message with the reason, e.g. `[Logging] Provider 'elastic' not used: authentication failed (HTTP 401) …`. If the check passes but writes are rejected later (e.g. a user without write rights), the Elastic logger prints one message and continues on the console, and results publishing stops after its first failure. Loggers (one per index) and the results publisher are created once and reused. A user for an external cluster needs the `monitor` cluster privilege (for `GET /`) and write access to the `*-logs-*` and `search-*` indices.
 

@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Core\Mobile\Core.Mobile.csproj" />
+    <ProjectReference Include="..\..\..\Core\Logging\Elastic\Core.Logging.Elastic.csproj" />
     <ProjectReference Include="..\..\..\Core\Security\AzureKeyVault\Core.Security.AzureKeyVault.csproj" />
   </ItemGroup>
 

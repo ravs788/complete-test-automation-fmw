@@ -238,7 +238,7 @@ Remove-Item Env:MOBILE_Device__Udid -ErrorAction SilentlyContinue
 
 Environment values override JSON. Removing the environment override restores the value from `Tests/UI/Mobile/mobilesettings.json`, so also clear any stale `Device.Udid` there to `""`. The shared default is empty (R29), allowing Appium to choose a matching available device; use an explicit UDID when more than one is connected. See the [mobile configuration reference](MOBILE_ARCHITECTURE.md) for the settings and aliases.
 
-**Secrets from Azure Key Vault.** If settings use `secret://NAME` placeholders kept in Key Vault, run `az login` and set `KEYVAULT_URI=https://<vault>.vault.azure.net/` (Windows: `set` / `$env:`). Environment variables with the same name still take precedence.
+**Secrets from Azure Key Vault.** If settings use `secret://NAME` placeholders kept in Key Vault, run `az login`, add `"azure-keyvault"` to `Secrets` in `providers.json` (e.g. `"Secrets": ["environment", "azure-keyvault"]`, or `PROVIDERS_Secrets__1=azure-keyvault`) and set `KEYVAULT_URI=https://<vault>.vault.azure.net/` (Windows: `set` / `$env:`). Environment variables with the same name still take precedence. To log to the console instead of Elasticsearch, set `PROVIDERS_Logging=console`.
 
 **Broker integration tests (optional).** `Tests/Unit` has RabbitMQ and Kafka listener tests that are skipped unless a broker is configured. To run them locally with Docker:
 

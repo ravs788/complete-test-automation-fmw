@@ -21,7 +21,7 @@ Read top to bottom: each layer uses only the layers below it. `Core` uses none o
 flowchart TB
     TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit"]
     APP["<b>App-specific code</b><br/>Pages (page objects) · Domain (models, test data, auth)"]
-    ADDONS["<b>Optional add-ons</b> in Core/<br/>Mobile · AzureKeyVault · RabbitMq · Kafka"]
+    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Elastic · AzureKeyVault · RabbitMq · Kafka"]
     CORE["<b>Core</b><br/>domain-agnostic engine"]
 
     TESTS --> APP
@@ -41,11 +41,11 @@ Exact references:
 
 | Project | Uses |
 |---|---|
-| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Security.AzureKeyVault` |
-| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Security.AzureKeyVault` |
+| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Logging.Elastic`, `Core.Security.AzureKeyVault` |
+| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Logging.Elastic`, `Core.Security.AzureKeyVault` |
 | `Tests.Unit` (framework self-tests) | `Core`, `Domain` and every add-on, so it can test them |
 | `Pages`, `Domain` | `Core` |
-| `Core.Mobile`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Mobile`, `Core.Logging.Elastic`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
 
 ---
 
@@ -77,7 +77,7 @@ sequenceDiagram
 
 | Step | Detail |
 |---|---|
-| Before the first test | `TestRunSetup` clears old Allure results; `PlaywrightFixture` reads `testsettings.json` and launches the browser once per class. |
+| Before the first test | `TestRunSetup` clears old Allure results and calls `Framework.Configure` with the adapters' plugins (providers chosen in `providers.json`); `PlaywrightFixture` reads `testsettings.json` and launches the browser once per class. |
 | New context + page | Fresh cookies and storage for every test; tracing is on unless `Trace` is `off`. |
 | Test steps | Page objects, Mothers/Builders and `Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
 | Test failed | A Playwright assertion is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
@@ -153,7 +153,7 @@ Every settings file is loaded the same way and cached for the run. Later sources
 flowchart LR
     J["JSON file"] --> E["env vars"] --> A["aliases"] --> S{"secret://?"}
     S -- no --> OK["settings ready"]
-    S -- yes --> V["env var, then<br/>Key Vault"]
+    S -- yes --> V["secret providers<br/>in listed order"]
     V -- found --> OK
     V -- missing --> F["fail with the<br/>setting named"]
 
@@ -165,11 +165,12 @@ flowchart LR
 
 | Settings | JSON file | Env prefix | Aliases |
 |---|---|---|---|
+| `ProvidersSettings` | `providers.json` | `PROVIDERS_` | – |
 | `TestSettings` | `testsettings.json` | `TESTS_` | `BROWSER`, `HEADLESS`, `TRACE` |
 | `LoggingConfig` | `logging-config.json` | `LOGGING_` | `ELASTIC_URL`, `ELASTIC_USERNAME`, `ELASTIC_PASSWORD`, `ELASTIC_CERT_FINGERPRINT` |
 | `MobileSettings` | `mobilesettings.json` | `MOBILE_` | `APPIUM_URL`, `DEVICE_NAME` |
 
-`__` in an env var name means nesting (`TESTS_Resilience__Http__MaxRetries`). Key Vault is used only when `KEYVAULT_URI` is set; environment variables always win.
+`__` in an env var name means nesting (`TESTS_Resilience__Http__MaxRetries`). Secret providers are the `Secrets` list in `providers.json`, tried in order: `environment` by default; add `azure-keyvault` (with `KEYVAULT_URI` set) to use Key Vault after the environment.
 
 ---
 

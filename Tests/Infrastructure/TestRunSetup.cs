@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Core.Configuration;
-using Core.Security;
+using Core.Composition;
+using Core.Logging.Elastic;
 using Core.Security.AzureKeyVault;
 using Core.Testing;
 
@@ -17,11 +17,8 @@ internal static class TestRunSetup
     {
         AllureResults.ClearPreviousRun();
 
-        // R36: with KEYVAULT_URI set, secret://NAME placeholders also resolve from Azure Key Vault
-        // (environment variables still win, so local overrides keep working).
-        if (AzureKeyVaultSecretProvider.FromEnvironment() is { } vault)
-        {
-            SettingsLoader.SecretProvider = new CompositeSecretProvider(new EnvironmentSecretProvider(), vault);
-        }
+        // Composition root (R40): the adapters this test project references. Which one is used for each contract is
+        // chosen by name in providers.json (e.g. "Logging": "elastic", "Secrets": ["environment", "azure-keyvault"]).
+        Framework.Configure(new ElasticLoggingPlugin(), new AzureKeyVaultPlugin());
     }
 }

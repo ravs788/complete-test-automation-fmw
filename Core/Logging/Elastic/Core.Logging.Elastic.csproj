@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R40/R44): Elasticsearch logging and results publishing behind ILoggingProviderFactory and
+    IResultsPublisherFactory. Selected with "Logging": "elastic" in providers.json; only test projects that
+    reference this project (and pass ElasticLoggingPlugin to Framework.Configure) take the Elasticsearch client.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Elastic.Clients.Elasticsearch" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>
