@@ -21,7 +21,7 @@ Read top to bottom: each layer uses only the layers below it. `Core` uses none o
 flowchart TB
     TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit"]
     APP["<b>App-specific code</b><br/>Pages (page objects) · Domain (models, test data, auth)"]
-    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Http · Elastic · Allure · AzureKeyVault · RabbitMq · Kafka"]
+    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
     CORE["<b>Core</b><br/>domain-agnostic engine"]
 
     TESTS --> APP
@@ -41,11 +41,11 @@ Exact references:
 
 | Project | Uses |
 |---|---|
-| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault` |
-| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault` |
+| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
+| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
 | `Tests.Unit` (framework self-tests) | `Core`, `Domain` and every add-on, so it can test them |
 | `Pages`, `Domain` | `Core` |
-| `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Mobile`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
 
 ---
 

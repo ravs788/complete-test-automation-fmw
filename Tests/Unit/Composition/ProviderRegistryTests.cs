@@ -64,5 +64,6 @@ public class ProviderRegistryTests
         Assert.Equal(["environment"], registry.Names<ISecretProvider>());
         Assert.Equal(["console"], registry.Names<Core.Reporting.ITestReporter>());
         Assert.Equal(["httpclient"], registry.Names<Core.Http.IHttpTransportFactory>());
+        Assert.Equal(["builtin"], registry.Names<Core.Resilience.IRetryPolicyFactory>());
     }
 }

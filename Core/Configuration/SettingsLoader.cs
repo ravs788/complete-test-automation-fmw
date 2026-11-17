@@ -45,7 +45,7 @@ public static class SettingsLoader
     }
 
     /// <summary>Replaces every <c>secret://NAME</c> value; fails with the setting's key if a secret can't be found.</summary>
-    public static IConfiguration ResolveSecrets(IConfiguration config, ISecretProvider secrets)
+    internal static IConfiguration ResolveSecrets(IConfiguration config, ISecretProvider secrets)
     {
         var placeholders = config.AsEnumerable()
             .Where(kv => kv.Value is not null && kv.Value.StartsWith(SecretScheme, StringComparison.OrdinalIgnoreCase))

@@ -4,7 +4,6 @@ using Core.Mobile.Interactions;
 using Core.Resilience;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
-using Polly;
 
 namespace Tests.UI.Mobile.Pages.Common;
 
@@ -65,7 +64,7 @@ public abstract class MobileBasePage
     private static bool IsTransientUiError(Exception ex) =>
         ex is StaleElementReferenceException or ElementClickInterceptedException or InvalidElementStateException or WebDriverException;
 
-    private ResiliencePipeline UiActionRetry =>
+    private IRetryPolicy UiActionRetry =>
         RetryPolicies.Transient(MobileSettingsProvider.Current.Resilience.UiAction, IsTransientUiError, message => Logger.Debug(message));
 
     protected void SafeClick(By locator, int timeoutSeconds = WaitHelper.DefaultTimeoutSeconds)

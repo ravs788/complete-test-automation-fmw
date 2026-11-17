@@ -20,7 +20,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **Four top-level folders**: `Core` (shared framework code, with optional add-on projects such as `Core/Mobile` inside it), `Domain` (app-specific models, test data, API helpers), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
-- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, reporting, HTTP transport, secrets), with automatic fallback to console for logging and reporting
+- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, reporting, HTTP transport, retries, secrets), with automatic fallback to console for logging and reporting
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
 - **Local Elasticsearch + Kibana stack** (`docker-compose.yml`) for the Elastic logging provider
@@ -45,7 +45,8 @@ TestAutomationProj/
 │   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
 │   ├── Security/                      # ISecretProvider, EnvironmentSecretProvider, CompositeSecretProvider (secret://NAME placeholders)
 │   │   └── AzureKeyVault/             # Adapter project Core.Security.AzureKeyVault ("azure-keyvault" in providers.json Secrets)
-│   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
+│   ├── Resilience/                    # RetryPolicies (transient HTTP, navigation, UI action) on IRetryPolicy, built-in retries, Poll.UntilAsync
+│   │   └── Polly/                     # Adapter project Core.Resilience.Polly ("polly" in providers.json)
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
 │   │   ├── Console/                   # console provider (built in)
@@ -98,7 +99,7 @@ TestAutomationProj/
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
-├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Http, Secrets)
+├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Http, Resilience, Secrets)
 ├── logging-config.json                # Logging provider settings (Elasticsearch URL, TLS fingerprint)
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
@@ -251,7 +252,7 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`; `"Http": "playwright"` or `"httpclient"` for API tests), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
+Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`; `"Http": "playwright"` or `"httpclient"` for API tests; `"Resilience": "polly"` or `"builtin"` for retries), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
 
 The Playwright tests (`Tests/`) and the Mobile suite read the provider settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-17: Resilience contract (R45, phase 4)
+
+- New contract in `Core/Resilience`: `IRetryPolicy` (sync/async, with or without a result), `IRetryPolicy<T>` (also retries on a transient result) and `IRetryPolicyFactory`, plus a built-in implementation (**`builtin`**: exponential backoff with jitter). New adapter project **`Core/Resilience/Polly`** (`PollyResiliencePlugin`, `"polly"`). Selected with `"Resilience"` in `providers.json` (`polly` committed). Both log the same `[Retry] attempt N of M after D ms: reason` line.
+- `RetryPolicies.TransientHttp / Navigation / Transient` now return `IRetryPolicy` / `IRetryPolicy<T>` (were Polly `ResiliencePipeline`s) and take an optional `factory`. Network errors are recognised by `HttpRequestException` or by message, so `Core/Resilience` no longer references Playwright. `ApiClient`, `BasePage.GotoAsync` and `MobileBasePage` use the contract.
+- `Core` no longer references `Polly.Core`. `SettingsLoader.ResolveSecrets` is internal, so `IConfiguration` is out of Core's public API; Microsoft.Extensions.Configuration stays as an accepted platform dependency (no `ISettingsSource` wrapper).
+- Tests: the retry tests are now a contract suite run for both implementations (20 tests); Playwright suite 15/15 with `polly` and with `builtin`; `AdapterBoundaryTests` keeps Polly out of `Core`.
+- Docs fix: the project-reference table in `docs/DIAGRAMS.md` listed `Core.Http.Playwright` under the mobile test project (a phase 3 slip); the rows now match the `.csproj` files.
+
 ## 2026-11-17: HTTP transport contract (R41, phase 3)
 
 - New `Core/Http`: `IHttpTransport` / `IHttpTransportFactory`, `HttpRequestData`, `HttpResponseData` (status, status text, headers, body; fully read) and a built-in **`httpclient`** transport on .NET `HttpClient`. New adapter project **`Core/Http/Playwright`** (`PlaywrightHttpPlugin`, `"playwright"`; one Playwright instance shared by the run). Selected with `"Http"` in `providers.json` (`playwright` committed).

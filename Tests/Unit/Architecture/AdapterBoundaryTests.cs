@@ -6,12 +6,13 @@ using Core.Messaging.Kafka;
 using Core.Messaging.RabbitMq;
 using Core.Mobile.Driver;
 using Core.Reporting.Allure;
+using Core.Resilience.Polly;
 using Core.Security.AzureKeyVault;
 
 namespace Tests.Unit.Architecture;
 
 /// <summary>
-/// Plug-and-play guardrails (R39, R40, R41, R44, R46): vendor packages live in adapter projects, not in Core, and an adapter
+/// Plug-and-play guardrails (R39, R40, R41, R44, R45, R46): vendor packages live in adapter projects, not in Core, and an adapter
 /// depends on Core only, never on another adapter or on app or test code. Extended as each roadmap phase lands.
 /// </summary>
 public class AdapterBoundaryTests
@@ -23,6 +24,7 @@ public class AdapterBoundaryTests
         typeof(ElasticLoggingPlugin).Assembly.GetName().Name!,
         typeof(PlaywrightHttpPlugin).Assembly.GetName().Name!,
         typeof(AllureReportingPlugin).Assembly.GetName().Name!,
+        typeof(PollyResiliencePlugin).Assembly.GetName().Name!,
         typeof(AzureKeyVaultPlugin).Assembly.GetName().Name!,
         typeof(RabbitMqListener).Assembly.GetName().Name!,
         typeof(KafkaListener).Assembly.GetName().Name!,
@@ -32,6 +34,7 @@ public class AdapterBoundaryTests
     [Theory]
     [InlineData("Elastic.")]
     [InlineData("Allure")]
+    [InlineData("Polly")]
     [InlineData("Azure.")]
     [InlineData("RabbitMQ.")]
     [InlineData("Confluent.")]

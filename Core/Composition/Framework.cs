@@ -2,6 +2,7 @@ using Core.Configuration;
 using Core.Http;
 using Core.Logging;
 using Core.Reporting;
+using Core.Resilience;
 using Core.Security;
 
 namespace Core.Composition;
@@ -58,6 +59,9 @@ public static class Framework
     /// <summary>The HTTP transport factory selected in <c>providers.json</c>; fails listing the registered names if it isn't registered.</summary>
     public static IHttpTransportFactory HttpTransports => Providers.Get<IHttpTransportFactory>(ProviderKinds.Http, Settings.Http);
 
+    /// <summary>The retry policy factory selected in <c>providers.json</c>; fails listing the registered names if it isn't registered.</summary>
+    public static IRetryPolicyFactory Retries => Providers.Get<IRetryPolicyFactory>(ProviderKinds.Resilience, Settings.Resilience);
+
     /// <summary>Registers the built-in providers plus <paramref name="plugins"/>, using the selection from <c>providers.json</c>.</summary>
     public static ProviderRegistry Configure(params IFrameworkPlugin[] plugins) =>
         Configure(ProvidersConfigProvider.Current, plugins);
@@ -82,7 +86,7 @@ public static class Framework
         reporter.BeginRun();
         System.Console.WriteLine(
             $"[Providers] {ProviderKinds.Logging}={settings.Logging}, {ProviderKinds.ResultsPublisher}={settings.EffectiveResultsPublisher}, " +
-            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}, {ProviderKinds.Reporting}={settings.Reporting}, {ProviderKinds.Http}={settings.Http}");
+            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}, {ProviderKinds.Reporting}={settings.Reporting}, {ProviderKinds.Http}={settings.Http}, {ProviderKinds.Resilience}={settings.Resilience}");
         return registry;
     }
 

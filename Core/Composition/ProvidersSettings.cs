@@ -19,6 +19,9 @@ public sealed record ProvidersSettings
     /// <summary>HTTP transport for API tests, e.g. <c>playwright</c> or <c>httpclient</c> (built in).</summary>
     public string Http { get; init; } = "httpclient";
 
+    /// <summary>Retry policies, e.g. <c>polly</c> or <c>builtin</c> (built in).</summary>
+    public string Resilience { get; init; } = "builtin";
+
     /// <summary>
     /// Secret providers, tried in order for each <c>secret://NAME</c> placeholder, e.g. <c>["environment", "azure-keyvault"]</c>.
     /// Empty means <c>["environment"]</c>.

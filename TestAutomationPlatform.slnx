@@ -18,6 +18,9 @@
   <Folder Name="/Core/Reporting/">
     <Project Path="Core/Reporting/Allure/Core.Reporting.Allure.csproj" />
   </Folder>
+  <Folder Name="/Core/Resilience/">
+    <Project Path="Core/Resilience/Polly/Core.Resilience.Polly.csproj" />
+  </Folder>
   <Folder Name="/Core/Security/">
     <Project Path="Core/Security/AzureKeyVault/Core.Security.AzureKeyVault.csproj" />
   </Folder>

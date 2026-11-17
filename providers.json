@@ -6,5 +6,6 @@
   // "ResultsPublisher": "elastic",   // default: same as Logging
   "Reporting": "allure",
   "Http": "playwright",              // API tests: "playwright" or "httpclient" (built in)
+  "Resilience": "polly",             // retries: "polly" or "builtin"
   "Secrets": [ "environment" ]
 }

@@ -4,6 +4,7 @@ using Core.Composition;
 using Core.Http.Playwright;
 using Core.Logging.Elastic;
 using Core.Reporting.Allure;
+using Core.Resilience.Polly;
 using Core.Security.AzureKeyVault;
 
 namespace Tests.Infrastructure;
@@ -19,6 +20,6 @@ internal static class TestRunSetup
         // Composition root (R40): the adapters this test project references. Which one is used for each contract is
         // chosen by name in providers.json (e.g. "Logging": "elastic", "Reporting": "allure"). The selected reporter clears the
         // previous run's results here (R23).
-        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PlaywrightHttpPlugin(), new AzureKeyVaultPlugin());
+        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new PlaywrightHttpPlugin(), new AzureKeyVaultPlugin());
     }
 }

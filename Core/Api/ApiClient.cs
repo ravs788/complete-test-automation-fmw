@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 using Core.Composition;
 using Core.Http;
 using Core.Resilience;
-using Polly;
 
 namespace Core.Api;
 
@@ -26,9 +25,9 @@ public sealed class ApiClient : IAsyncDisposable
         new Dictionary<string, string> { ["Accept"] = "application/json" };
 
     private readonly IHttpTransport _transport;
-    private readonly ResiliencePipeline<HttpResponseData> _retry;
+    private readonly IRetryPolicy<HttpResponseData> _retry;
 
-    private ApiClient(IHttpTransport transport, ResiliencePipeline<HttpResponseData> retry)
+    private ApiClient(IHttpTransport transport, IRetryPolicy<HttpResponseData> retry)
     {
         _transport = transport;
         _retry = retry;
@@ -77,7 +76,7 @@ public sealed class ApiClient : IAsyncDisposable
             body is null ? null : JsonSerializer.Serialize(body, body.GetType(), JsonOptions),
             body is null ? null : "application/json");
         return RetryPolicies.IsIdempotent(method)
-            ? await _retry.ExecuteAsync(async ct => await _transport.SendAsync(request, ct))
+            ? await _retry.ExecuteAsync(ct => _transport.SendAsync(request, ct))
             : await _transport.SendAsync(request);
     }
 
