@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17: Longer Android boot budget in CI (R32)
+
+- The `MobileSmoke` job now passes `BOOT_TIMEOUT_SECONDS=900` (was the script default, 600) and its job limit is 45 minutes (was 35). Run 127 failed only because the hosted emulator took longer than 600 s to report boot completed; earlier runs booted in 446–505 s.
+
 ## 2026-11-17: Message-broker listeners (R37)
 
 - New `Core/Messaging`: `ReceivedMessage` (broker-neutral, `BodyAs<T>()`) and `MessageCollector<T>` (thread-safe buffer + `WaitForAsync(match, timeout)` on `Poll`).

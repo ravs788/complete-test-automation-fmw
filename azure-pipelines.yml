@@ -204,7 +204,8 @@ stages:
         condition: and(not(canceled()), in(variables['Build.Reason'], 'Schedule', 'Manual'))
         pool:
           vmImage: "macOS-15"
-        timeoutInMinutes: 35
+        # Worst case with every step at its own limit (boot 900 s, settle, Chrome warm-up, 300 s session) is about 35 min.
+        timeoutInMinutes: 45
         cancelTimeoutInMinutes: 5
         variables:
           # UiAutomator2 4.x supports Appium 2; avoid installing an incompatible latest driver.
@@ -236,6 +237,8 @@ stages:
               APPIUM_VERSION: $(appiumVersion)
               UIAUTOMATOR2_VERSION: $(uiautomator2Version)
               MOBILE_CI_RESULTS: $(mobileResults)
+              # Boot time on the 1-vCPU hosted emulator varies: 446-505 s in runs 115/118, over 600 s in run 127 (R32).
+              BOOT_TIMEOUT_SECONDS: "900"
 
           - task: PublishTestResults@2
             displayName: "Publish Mobile Test Results"
