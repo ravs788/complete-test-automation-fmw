@@ -122,7 +122,7 @@ Code style for `.cs` files comes from `.editorconfig`: file-scoped namespaces th
 
   or use a browser you already have, with `BROWSER=chrome` or `BROWSER=msedge`. CI uses `chrome`.
 - Optional: the [Allure CLI](https://allurereport.org/docs/install/) for viewing reports
-- For the Mobile suite: Node.js, Appium 2 (`npm i -g appium`), the UiAutomator2 driver (`appium driver install uiautomator2`), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems.
+- For the Mobile suite: Node.js, Appium (`npm i -g appium`), the UiAutomator2 driver matching your Appium version (`appium driver install uiautomator2`; see GETTING_STARTED for older Appium versions), Android SDK and a running emulator or device. On Windows, `scripts/windows/appium_env_check.ps1` diagnoses the setup and `scripts/windows/appium_env_fix.ps1` repairs common problems.
 - Optional: Elasticsearch 8 for the `elastic` logging provider. `docker compose up -d` starts a local single-node Elasticsearch on `http://localhost:9200` (security off, no password) and Kibana on `http://localhost:5601`. OpenSearch doesn't work: Elastic's 8.x client gets HTTP 406 on every write.
 
 Step-by-step setup for **Windows, macOS and Linux**, with what each platform can and can't run, is in [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).

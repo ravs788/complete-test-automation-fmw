@@ -43,6 +43,6 @@ public class MobileOptionsBuilderTests
         var options = MobileOptionsBuilder.Build(settings, MobilePlatform.Android, MobileAppType.Web);
 
         var chromeOptions = Assert.IsType<Dictionary<string, object>>(Capability(options, "goog:chromeOptions"));
-        Assert.Equal(noReset, chromeOptions["androidKeepAppData"]);
+        Assert.Equal(noReset, chromeOptions["androidKeepAppDataDir"]);
     }
 }

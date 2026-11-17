@@ -42,7 +42,7 @@ For the short version, see "Quick Start" in the root README.
 | PowerShell | Installing Playwright's browsers (`playwright.ps1`) | 7+ (`pwsh --version`) |
 | Java (JRE) | The Allure CLI | 17+ (`java -version`) |
 | Allure CLI | Viewing reports | 2.24+ (`allure --version`) |
-| Node.js + Appium 2 | Mobile only | Node 20+, `appium --version` |
+| Node.js + Appium (2, 3 or 4) + UiAutomator2 driver | Mobile only | Node 20+, `appium --version`, `appium driver list --installed` |
 | Android SDK (platform-tools, emulator) | Mobile (Android) only | `adb version` |
 | Docker | Local Elasticsearch + Kibana only (optional) | `docker --version` |
 
@@ -139,6 +139,16 @@ BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
 ### Mobile on macOS
 
 - **Android:** install Android Studio and set `ANDROID_HOME=~/Library/Android/sdk`. Add `platform-tools` and `emulator` to `PATH`. Then run `npm i -g appium && appium driver install uiautomator2`, start an emulator and `appium`, and run `scripts/unix/run_mobile_android_web.sh`. On Apple Silicon, use an **arm64** system image for the emulator.
+  - **Driver version must match Appium:** `appium driver install uiautomator2` takes the newest driver, which needs the newest Appium (4.x). With an older Appium already installed, pick a matching driver: Appium 3 → `appium driver install uiautomator2@8.7.3`; Appium 2 → `uiautomator2@4.2.9` (what CI uses with Appium 2.19.0). Restart `appium` after installing a driver.
+  - **SDK tools and an emulator from the command line (Homebrew):** `brew install --cask android-commandlinetools`, then install everything into the one SDK folder so `avdmanager` finds the images:
+    ```bash
+    export ANDROID_HOME=~/Library/Android/sdk
+    yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
+    sdkmanager --sdk_root=$ANDROID_HOME "cmdline-tools;latest" platform-tools emulator "system-images;android-34;google_apis;arm64-v8a"
+    printf 'no\n' | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -n android_14 -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_6
+    $ANDROID_HOME/emulator/emulator -avd android_14 -port 5554 &
+    ```
+    The brew copy of `avdmanager` only looks in its own SDK folder, hence the `cmdline-tools;latest` install into `ANDROID_HOME`. `mobilesettings.json` expects Android 14 on `emulator-5554`; on an M-series Mac this boots in about a minute.
 - **iOS:** install Xcode and its command-line tools, then `appium driver install xcuitest`. Set `"Platform": "iOS"` (and `"AppType"`, `"IOS"`) in `Tests/UI/Mobile/mobilesettings.json`. There are no iOS tests in the repo yet, so you'd add them under `Tests/UI/Mobile/<App>/`.
 
 **Can't do on macOS:** desktop (Windows UI Automation) tests, if a desktop suite is added.

@@ -71,7 +71,7 @@ The file is copied to the output directory. Property names match the C# records.
 | `Device` | `DeviceName`, `PlatformVersion`, `Udid`, `Orientation` | `Udid` selects an Android serial from `adb devices -l`; override it with `MOBILE_Device__Udid`. `DEVICE_NAME` changes only `DeviceName`, not `Udid`. The shared UDID default is empty |
 | `Android` | `AutomationName`, `App`, `AppPackage`, `AppActivity`, `BrowserName`, `ChromedriverExecutable`, `ChromedriverExecutableDir`, `ChromedriverArgs`, `GeckodriverExecutable`, `FirefoxPackage`, `FirefoxActivity`, `AdbExecTimeoutMs`, `ServerInstallTimeoutMs`, `ServerLaunchTimeoutMs` | Leave both Chromedriver settings empty to let Appium download a matching Chromedriver The three timeouts are Appium's UiAutomator2 limits (defaults 20 s / 20 s / 30 s); CI raises them to 120 s. |
 | `IOS` | `AutomationName`, `App`, `BundleId`, `BrowserName` | Needs macOS + Xcode |
-| `Behavior` | `NoReset`, `FullReset`, `AcceptAlertsAutomatically` | `NoReset` (default true) also sets Chromedriver's `androidKeepAppData`, so Chrome's data isn't cleared before each web session |
+| `Behavior` | `NoReset`, `FullReset`, `AcceptAlertsAutomatically` | `NoReset` (default true) also sets Chromedriver's `androidKeepAppDataDir`, so Chrome's data isn't cleared before each web session |
 
 Logging is configured in the repository-wide `logging-config.json`, like the other suites.
 
@@ -106,7 +106,7 @@ For device selection commands and clearing stale overrides, see [mobile troubles
 Prerequisites per OS are in [GETTING_STARTED.md](GETTING_STARTED.md). In short:
 
 ```bash
-npm i -g appium && appium driver install uiautomator2   # xcuitest for iOS
+npm i -g appium && appium driver install uiautomator2   # xcuitest for iOS (version pairing: see GETTING_STARTED)
 appium                                                   # in its own terminal
 emulator -avd <your_avd>                                 # or a device on adb
 scripts/unix/run_mobile_android_web.sh                  # scripts\windows\run_mobile_android_web.bat

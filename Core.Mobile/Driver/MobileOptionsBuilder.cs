@@ -88,12 +88,13 @@ public static class MobileOptionsBuilder
                     opts.BrowserName = browserName;
 
                     // Pass options directly to ChromeDriver to suppress first-run/welcome and sync screens.
-                    // androidKeepAppData: by default Chromedriver clears Chrome's data before launching it, which
+                    // androidKeepAppDataDir: by default Chromedriver clears Chrome's data before launching it, which
                     // throws away a warmed-up profile and forces a full first start (run 130: "chrome not reachable"
                     // on the hosted emulator). It follows NoReset, so "don't reset the app" also covers Chromedriver.
+                    // (Chromedriver rejects the similar-looking "androidKeepAppData" as an unrecognized option.)
                     opts.AddAdditionalAppiumOption("goog:chromeOptions", new Dictionary<string, object>
                     {
-                        ["androidKeepAppData"] = cfg.Behavior.NoReset,
+                        ["androidKeepAppDataDir"] = cfg.Behavior.NoReset,
                         ["args"] = new[]
                         {
                             "--no-first-run",
