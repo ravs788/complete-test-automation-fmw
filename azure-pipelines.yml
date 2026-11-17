@@ -22,7 +22,7 @@
 #
 # Tests use xUnit + Allure.Xunit. Every run publishes two artifacts:
 #   allure-report  : the HTML report (allure-report.html is a single file you can open directly)
-#                    with history/trends carried over from the previous run on the same branch
+#                    with history/trends carried over from the latest main build's report
 #   allure-results : the raw results (for `allure serve <dir>`)
 # The mobile job publishes mobile-results separately, including TRX, raw Allure results,
 # Appium/emulator/logcat logs. Its first hosted execution must pass before R16 can close.
@@ -156,8 +156,8 @@ stages:
               targetPath: "$(Build.ArtifactStagingDirectory)/allure-results"
               artifact: "allure-results"
 
-          # R14: HTML report with trends. Take history/ from the last report on this branch (missing on
-          # the first run or a new PR, which is fine), then generate the report and a single-file copy.
+          # R14: HTML report with trends. Take history/ from the latest main build that has a report, then
+          # generate the report and a single-file copy.
           - task: DownloadPipelineArtifact@2
             displayName: "Download Previous Allure History"
             condition: always()
@@ -167,7 +167,11 @@ stages:
               project: "$(System.TeamProjectId)"
               definition: "$(System.DefinitionId)"
               buildVersionToDownload: "latestFromBranch"
-              branchName: "$(Build.SourceBranch)"
+              # Always main: PRs and other branches have no earlier reports of their own, so they compare against main.
+              branchName: "refs/heads/main"
+              # A build with any warning is "partially succeeded"; without this it is never picked, and the search falls
+              # back to an old build that has no report (R31).
+              allowPartiallySucceededBuilds: true
               allowFailedBuilds: true
               artifactName: "allure-report"
               itemPattern: "history/**"
@@ -220,10 +224,10 @@ stages:
               packageType: "sdk"
               version: "10.x"
 
-          - task: NodeTool@0
+          - task: UseNode@1
             displayName: "Setup Node.js (mobile)"
             inputs:
-              versionSpec: "22.23.2"
+              version: "22.23.2"
 
           - bash: bash scripts/unix/run_mobile_ci.sh
             displayName: "Boot Android, Start Appium, Run Smoke Tests"
