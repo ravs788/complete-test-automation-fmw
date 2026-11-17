@@ -36,6 +36,7 @@ TestAutomationProj/
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Security/                      # ISecretProvider + EnvironmentSecretProvider (secret://NAME placeholders)
 │   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
@@ -168,6 +169,8 @@ All three settings files load the same way (`Core.Configuration.SettingsLoader`,
 | `Tests/UI/Mobile/mobilesettings.json` | `MobileSettingsProvider.Current` | `MOBILE_` | `MOBILE_Device__Udid=…` | `APPIUM_URL`, `DEVICE_NAME` |
 
 Keys are case-insensitive. Secrets (passwords, tokens) should come only from the environment or a CI secret variable.
+
+**Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). The default provider reads the environment variable `booker-password` or `BOOKER_PASSWORD`. A missing secret fails the run with the setting and secret named. To use a vault (Azure Key Vault, AWS Secrets Manager, HashiCorp Vault), implement `ISecretProvider` (for Key Vault: `SecretClient.GetSecret(name).Value.Value` with `DefaultAzureCredential`) in a separate add-on project and assign it to `SettingsLoader.SecretProvider` before the first settings load, e.g. from a module initializer.
 
 ### Playwright tests: `Tests/testsettings.json`
 

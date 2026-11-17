@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17: Secret placeholders (R36)
+
+- New `Core/Security`: `ISecretProvider` and `EnvironmentSecretProvider`. Any setting can be `secret://NAME`; `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (environment variables by default: `NAME`, then `NAME` upper-cased with `-`/`.` → `_`). A missing secret fails with the setting and secret named. A vault provider (e.g. Azure Key Vault) can be plugged in without changing Core; none is included yet.
+
 ## 2026-11-17: Reusable mobile bootstrapping in Core.Mobile (R38)
 
 - New **`Core.Mobile`** library: `Configuration/` (`MobileSettings` + `MobileSettingsProvider`), `Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`, `MobilePlatform`, `MobileAppType`) and `Interactions/` (`WaitHelper`, `GestureHelper`), moved from `Tests/UI/Mobile` (namespaces `Tests.UI.Mobile.*` → `Core.Mobile.*`). Only mobile suites reference it, so `Core` keeps no Appium/Selenium dependency. Page objects, the test base and tests stay in `Tests/UI/Mobile`.

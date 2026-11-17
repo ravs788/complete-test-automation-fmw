@@ -52,6 +52,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │                   Console/ · Elastic/ providers                          │
 │   TestData/       TestDataLoader (JSON)                                  │
 │   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
+│   Security/       ISecretProvider (secret://NAME) · env-var provider     │
 │   Testing/        TestRunner + TestRunInfo                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -77,7 +78,7 @@ Conventions (the same in every project):
 
 ### 3.1 Configuration
 
-- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases.
+- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases. Values of the form `secret://NAME` are then resolved by `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`; environment variables by default, a vault provider can be plugged in).
 - **Playwright tests:** `ConfigurationProvider.Current`: `Tests/testsettings.json` from the output directory, `TESTS_*`, aliases `BROWSER` / `HEADLESS`. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
 - **Logging:** `LoggingConfigProvider.Current`: `logging-config.json` (found by walking up from the run directory), `LOGGING_*`, aliases `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT`. Credentials only come from the environment.
 - **Mobile:** `Core.Mobile.Configuration.MobileSettingsProvider.Current`: `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.

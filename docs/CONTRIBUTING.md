@@ -17,7 +17,7 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | `[Theory]` cases | a `[MemberData]` source in the test class, built from Builders/Mothers (plain values, so each case is its own test) |
 | Large scenario tables, captured payloads, data owned outside the code | `Tests/test-data/<App>/<TestClass>/<Scenario>.json`, loaded with `TestDataLoader` (the exception, not the default) |
 | An API-specific helper (auth, …) | `Domain/Api/<Service>/` |
-| Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`) |
+| Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`); secrets as `secret://NAME`, never literal values |
 | Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.
