@@ -11,8 +11,8 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R31 | P2 | Open | – | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
-| R32 | P2 | Open | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
+| R31 | P2 | Implemented (verification pending) | – | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
+| R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
 | R24 | P1 | Closed | 2026-11-16 · `5cdb42c` | [Elastic probe bypasses TLS verification](#r24) | Security |
@@ -206,7 +206,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r31"></a>
 ### R31. Allure history download never finds a report, so every build is "partially succeeded"
 
-- **Status:** Open
+- **Status:** Implemented (verification pending), 2026-11-17, in `4304475`. `allowPartiallySucceededBuilds: true` and history always from `refs/heads/main`. **Verify:** this PR's build should log a history download from a recent `main` build (107/108 have `allure-report`) without the "not found for build 99" warning; after merge, `main` builds should end **succeeded** and the report should show a trend.
 - **Where:** `azure-pipelines.yml` (`Download Previous Allure History`, `DownloadPipelineArtifact@2` with `buildVersionToDownload: latestFromBranch`).
 - **Problem:** found while checking runs 107 and 108 (2026-11-17). `latestFromBranch` only looks at builds that *succeeded* (plus failed ones, because of `allowFailedBuilds`); *partially succeeded* builds need `allowPartiallySucceededBuilds: true`. The last fully successful `main` build is 99, which ran before the report step existed, so every `main` build since (102–108) downloads from build 99, warns `Artifact allure-report was not found for build 99`, and ends "partially succeeded", which keeps it out of the next build's search too. PR builds (`refs/pull/N/merge`) have no earlier builds at all, so they warn as well. Result: no Allure trends, and no build is ever fully green.
 - **Fix:** set `allowPartiallySucceededBuilds: true` and take the history from `refs/heads/main` for every build (PRs and branches then compare against `main`).
@@ -214,7 +214,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r32"></a>
 ### R32. Android emulator doesn't finish booting on the hosted Mac within 300 s
 
-- **Status:** Open
+- **Status:** Implemented (verification pending), 2026-11-17, in `be414c3`. Headless emulator with 2 cores / 3 GB, `swiftshader_indirect`, 600 s boot budget, `boot-progress.log`, `UseNode@1`. All flags checked against emulator 37.1 help; script syntax and YAML checked. **Verify:** a manual (or the next nightly) run whose `MobileSmoke` job boots Android, runs the smoke test and passes; that also closes R16.
 - **Where:** `scripts/unix/run_mobile_ci.sh` (emulator start and boot wait), `azure-pipelines.yml` (`MobileSmoke`).
 - **Problem:** the first hosted run (run 108, nightly 2026-11-17) failed with `Emulator failed to boot within 300 seconds`. The `mobile-results` logs show it isn't a missing-acceleration problem: `acceleration.log` reports Hypervisor.Framework available on the Intel (`osx-x64`) `macos-15` agent, and the emulator ran for the whole 300 s. It was too slow: `emulator.log` says `Running on a system with less than 6 logical cores. Setting number of virtual cores to 1`, rendering is all on the CPU (`-gpu swiftshader`), the emulator window is still created (no `-no-window`), and every run is a cold boot of a heavy Android 14 `google_apis` image. Knock-on: `Publish Mobile Test Results` failed because no TRX was written. Also `NodeTool@0` is deprecated (`UseNode@1`).
 - **Fix:** start headless with lighter rendering (`-no-window -gpu swiftshader_indirect`), give the guest 2 cores and more RAM (`-cores 2 -memory 3072`, and `hw.cpu.ncore=2` in the AVD config), allow a longer boot (600 s), log boot progress, and switch to `UseNode@1`. If that still isn't enough, use a lighter system image.
