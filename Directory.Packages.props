@@ -40,6 +40,10 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup Label="Data (unit tests only)">
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+  </ItemGroup>
+
   <ItemGroup Label="Resilience">
     <PackageVersion Include="Polly.Core" Version="8.8.1" />
   </ItemGroup>

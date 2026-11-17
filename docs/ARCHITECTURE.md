@@ -53,7 +53,8 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   TestData/       TestDataLoader (JSON)                                  │
 │   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
 │   Security/       ISecretProvider (secret://NAME) · env-var provider     │
-│   Testing/        TestRunner + TestRunInfo                               │
+│   Data/           DbConnectionFactory · DbTestScope (rollback by default)│
+│   Testing/        TestRunner + TestRunInfo · CleanupTracker              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -147,7 +148,7 @@ Each test gets fresh cookies and storage while the browser is launched once per 
 
 ### 4.2 API (`Tests/Api`)
 
-`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first deleting any booking created through `CreateBookingAsync`; tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
+`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first running its `CleanupTracker` (which deletes every booking created through `CreateBookingAsync`, last first); tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
 
 ### 4.3 Mobile (`Tests/UI/Mobile`)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-17: Cleanup tracking and database helpers (R37)
+
+- `Core.Testing.CleanupTracker`: register how to remove what a test created; cleanups run last-first after the test, and failures are logged without failing the test. `ApiTestBase` now registers booking deletions on it (`Cleanup`), and tests can add their own.
+- New `Core/Data`: `DbConnectionFactory` (any ADO.NET provider passed in by the test project, so Core has no database package) and `DbTestScope` (connection + transaction, **rolled back by default**, `ExecuteAsync` / `ScalarAsync<T>` / `CommitAsync`). Verified against a temporary SQLite database in `Tests/Unit` (Microsoft.Data.Sqlite, test-only).
+- Not added: message-queue listeners (Kafka/RabbitMQ); there is no broker to use them with yet.
+
 ## 2026-11-17: Secret placeholders (R36)
 
 - New `Core/Security`: `ISecretProvider` and `EnvironmentSecretProvider`. Any setting can be `secret://NAME`; `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (environment variables by default: `NAME`, then `NAME` upper-cased with `-`/`.` → `_`). A missing secret fails with the setting and secret named. A vault provider (e.g. Azure Key Vault) can be plugged in without changing Core; none is included yet.

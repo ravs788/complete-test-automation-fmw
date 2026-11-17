@@ -36,6 +36,7 @@ TestAutomationProj/
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
 │   ├── Security/                      # ISecretProvider + EnvironmentSecretProvider (secret://NAME placeholders)
 │   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
@@ -43,7 +44,7 @@ TestAutomationProj/
 │   │   ├── Console/                   # console provider
 │   │   └── Elastic/                   # Elasticsearch provider
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
-│   └── Testing/                       # TestRunner, TestRunInfo: logging, Allure timing, failure hook, publishing
+│   └── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
 │
 ├── Core.Mobile/                       # Reusable Appium bootstrapping (Core.Mobile.csproj; only mobile suites use it)
 │   ├── Configuration/                 # MobileSettings (+ sections) + MobileSettingsProvider
@@ -399,7 +400,7 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 - Uses `ApiFixture`: one Playwright instance per class, no browser
 - Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
 - `GetAuthHeadersAsync()` gets a Restful Booker token and returns it as request headers (the `token` cookie), which tests pass to PUT, PATCH and DELETE. `ApiClient` itself knows nothing about any API's auth scheme: it just sends the headers it's given.
-- `CreateBookingAsync(booking)` POSTs a booking and records its ID; after the test, `DisposeAsync` deletes every recorded booking (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data
+- `CreateBookingAsync(booking)` POSTs a booking and registers its deletion on `Cleanup` (a `Core.Testing.CleanupTracker`); after the test, `DisposeAsync` runs every registered cleanup, last first (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data. Tests can register their own cleanups with `Cleanup.Add(description, action)`
 - `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)
 
 ### `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs` (Appium)
@@ -424,6 +425,11 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 
 1. Add models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Domain/Api/<Service>/`.
 2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Domain/Api/<Service>/` and return headers the same way).
+
+### Database checks (when a system under test has a database)
+
+1. Reference the ADO.NET provider package in the test project (e.g. `Npgsql`, `Microsoft.Data.SqlClient`) and put the connection string in settings, with the password as `secret://NAME`.
+2. Create `new DbConnectionFactory(NpgsqlFactory.Instance, connectionString)` and, per test, `await using var db = await factory.BeginScopeAsync();`. Seed or check rows with `db.ExecuteAsync` / `db.ScalarAsync<T>` (or Dapper on `db.Connection`). The scope **rolls back** when the test ends, unless you call `CommitAsync()`. For anything committed or created outside the transaction, register a cleanup with `Cleanup.Add(...)`.
 
 ### Mobile
 

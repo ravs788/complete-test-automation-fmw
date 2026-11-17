@@ -18,6 +18,8 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | Large scenario tables, captured payloads, data owned outside the code | `Tests/test-data/<App>/<TestClass>/<Scenario>.json`, loaded with `TestDataLoader` (the exception, not the default) |
 | An API-specific helper (auth, …) | `Domain/Api/<Service>/` |
 | Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`); secrets as `secret://NAME`, never literal values |
+| Database access in a test | `Core.Data.DbConnectionFactory` + `DbTestScope` (rolls back by default); the provider package goes in the test project, never in Core |
+| Anything a test creates outside a transaction | register its removal with `Cleanup.Add(...)` (`Core.Testing.CleanupTracker`) |
 | Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.
