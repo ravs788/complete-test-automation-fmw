@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17: Chromedriver keeps Chrome's data on Android (R33)
+
+- `MobileOptionsBuilder` now sets `goog:chromeOptions.androidKeepAppData` from `Behavior.NoReset` (default true). Chromedriver otherwise clears Chrome's data before every web session; in run 130 that undid the CI warm-up, and the cold Chrome start on the hosted emulator ended in `chrome not reachable`. Set `NoReset: false` to get a clean Chrome profile per session.
+
 ## 2026-11-17: Longer Android boot budget in CI (R32)
 
 - The `MobileSmoke` job now passes `BOOT_TIMEOUT_SECONDS=900` (was the script default, 600) and its job limit is 45 minutes (was 35). Run 127 failed only because the hosted emulator took longer than 600 s to report boot completed; earlier runs booted in 446–505 s.

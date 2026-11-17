@@ -32,4 +32,17 @@ public class MobileOptionsBuilderTests
         Assert.Equal(120_000, Capability(options, "appium:uiautomator2ServerInstallTimeout"));
         Assert.Equal(90_000, Capability(options, "appium:uiautomator2ServerLaunchTimeout"));
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Build_Should_KeepChromeAppData_Only_When_NoReset(bool noReset)
+    {
+        var settings = new MobileSettings { Behavior = new BehaviorSettings { NoReset = noReset } };
+
+        var options = MobileOptionsBuilder.Build(settings, MobilePlatform.Android, MobileAppType.Web);
+
+        var chromeOptions = Assert.IsType<Dictionary<string, object>>(Capability(options, "goog:chromeOptions"));
+        Assert.Equal(noReset, chromeOptions["androidKeepAppData"]);
+    }
 }
