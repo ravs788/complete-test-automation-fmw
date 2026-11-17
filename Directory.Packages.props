@@ -44,7 +44,7 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
-  <ItemGroup Label="Secrets (Core.Secrets.AzureKeyVault add-on)">
+  <ItemGroup Label="Secrets (Core.Security.AzureKeyVault add-on)">
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="4.12.0" />
   </ItemGroup>

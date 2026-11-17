@@ -15,7 +15,7 @@ The reusable Appium bootstrapping (settings + provider, driver factory/options, 
 It follows the same conventions as the Playwright side: namespace = folder (`Core.Mobile.<Folder>` / `Tests.UI.Mobile.<Folder>`), one type per file, settings record + provider, pages per app and tests per app.
 
 ```text
-Core.Mobile/                       # reusable Appium bootstrapping (Core.Mobile.csproj → Core)
+Core/Mobile/                       # reusable Appium bootstrapping (Core.Mobile.csproj → Core)
 ├── Configuration/                 # MobileSettings (+ Server/Device/Android/IOS/Behavior/Resilience sections)
 │                                  # MobileSettingsProvider (lazy, cached; reads mobilesettings.json)
 ├── Driver/                        # MobilePlatform, MobileAppType, MobileOptionsBuilder, MobileDriverFactory
@@ -62,7 +62,7 @@ SauceDemoTests.LoginPage_Should_Load()
 
 ## Configuration: `mobilesettings.json`
 
-The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Core.Mobile/Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
+The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Core/Mobile/Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
 
 | Section | Keys | Notes |
 |---|---|---|

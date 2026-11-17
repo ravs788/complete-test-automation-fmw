@@ -17,7 +17,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
   - **REST API**: [Restful Booker](https://restful-booker.herokuapp.com/) through Playwright's `APIRequestContext` (no RestSharp)
 - **Mobile tests** (`Tests/UI/Mobile`) with Appium 2: Android mobile web against saucedemo.com, with iOS and native-app support in the driver bootstrap
 - **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
-- **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
+- **Four top-level folders**: `Core` (shared framework code, with optional add-on projects such as `Core/Mobile` inside it), `Domain` (app-specific models, test data, API helpers), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
@@ -37,24 +37,22 @@ TestAutomationProj/
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
 │   ├── Messaging/                     # MessageCollector<T> + ReceivedMessage (broker-neutral; fed by the add-ons)
+│   │   ├── Kafka/                     # Add-on project Core.Messaging.Kafka: KafkaListener (manual partition assignment, no commits)
+│   │   └── RabbitMq/                  # Add-on project Core.Messaging.RabbitMq: RabbitMqListener (exclusive auto-delete queue)
 │   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
-│   ├── Security/                      # ISecretProvider + EnvironmentSecretProvider (secret://NAME placeholders)
+│   ├── Security/                      # ISecretProvider, EnvironmentSecretProvider, CompositeSecretProvider (secret://NAME placeholders)
+│   │   └── AzureKeyVault/             # Add-on project Core.Security.AzureKeyVault (on when KEYVAULT_URI is set)
 │   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
 │   │   ├── Console/                   # console provider
 │   │   └── Elastic/                   # Elasticsearch provider
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
-│   └── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
-│
-├── Core.Mobile/                       # Reusable Appium bootstrapping (Core.Mobile.csproj; only mobile suites use it)
-│   ├── Configuration/                 # MobileSettings (+ sections) + MobileSettingsProvider
-│   ├── Driver/                        # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
-│   └── Interactions/                  # WaitHelper, GestureHelper
-│
-├── Core.Messaging.Kafka/              # Optional add-on: KafkaListener (manual partition assignment, no commits)
-├── Core.Messaging.RabbitMq/           # Optional add-on: RabbitMqListener (exclusive auto-delete queue)
-├── Core.Secrets.AzureKeyVault/        # Optional add-on: ISecretProvider for Azure Key Vault (on when KEYVAULT_URI is set)
+│   ├── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
+│   └── Mobile/                        # Add-on project Core.Mobile: reusable Appium bootstrapping (only mobile suites use it)
+│       ├── Configuration/             # MobileSettings (+ sections) + MobileSettingsProvider
+│       ├── Driver/                    # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
+│       └── Interactions/              # WaitHelper, GestureHelper
 │
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
 │   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
@@ -89,7 +87,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core (+ its add-ons), Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -99,10 +97,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution; Core and its add-ons under one /Core/ solution folder
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects; in the same way `Core.csproj` excludes its add-on projects (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`), which live inside `Core/` but are built separately so only the suites that need Appium, a broker client or the Azure SDK take those packages. Every project's assembly name equals its root namespace, which matches its folder (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -179,7 +177,7 @@ Keys are case-insensitive. Secrets (passwords, tokens) should come only from the
 **Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). A missing secret fails the run with the setting and secret named.
 
 - **Default:** environment variables: `booker-password`, then `BOOKER_PASSWORD`.
-- **Azure Key Vault:** set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. The test projects then use environment variables first and Key Vault second (`Core.Secrets.AzureKeyVault`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
+- **Azure Key Vault:** set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. The test projects then use environment variables first and Key Vault second (`Core.Security.AzureKeyVault` in `Core/Security/AzureKeyVault/`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
 - **Another vault:** implement `ISecretProvider` in an add-on project and assign it in the test project's `TestRunSetup` module initializer.
 
 ### Playwright tests: `Tests/testsettings.json`

@@ -2,9 +2,8 @@ using System.Collections.Concurrent;
 using Azure;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
-using Core.Security;
 
-namespace Core.Secrets.AzureKeyVault;
+namespace Core.Security.AzureKeyVault;
 
 /// <summary>
 /// Resolves <c>secret://NAME</c> placeholders from Azure Key Vault (R36). Each secret is read once per run and cached.

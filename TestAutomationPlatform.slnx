@@ -1,9 +1,17 @@
 <Solution>
-  <Project Path="Core/Core.csproj" />
-  <Project Path="Core.Messaging.Kafka/Core.Messaging.Kafka.csproj" />
-  <Project Path="Core.Messaging.RabbitMq/Core.Messaging.RabbitMq.csproj" />
-  <Project Path="Core.Mobile/Core.Mobile.csproj" />
-  <Project Path="Core.Secrets.AzureKeyVault/Core.Secrets.AzureKeyVault.csproj" />
+  <Folder Name="/Core/">
+    <Project Path="Core/Core.csproj" />
+  </Folder>
+  <Folder Name="/Core/Messaging/">
+    <Project Path="Core/Messaging/Kafka/Core.Messaging.Kafka.csproj" />
+    <Project Path="Core/Messaging/RabbitMq/Core.Messaging.RabbitMq.csproj" />
+  </Folder>
+  <Folder Name="/Core/Mobile/">
+    <Project Path="Core/Mobile/Core.Mobile.csproj" />
+  </Folder>
+  <Folder Name="/Core/Security/">
+    <Project Path="Core/Security/AzureKeyVault/Core.Security.AzureKeyVault.csproj" />
+  </Folder>
   <Project Path="Domain/Domain.csproj" />
   <Project Path="Pages/Pages.csproj" />
   <Folder Name="/Tests/">

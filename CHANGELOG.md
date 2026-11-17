@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-17: Core add-ons grouped under Core/
+
+- The add-on projects now live inside `Core/`, next to the area they extend: `Core.Mobile/` → `Core/Mobile/`, `Core.Messaging.Kafka/` → `Core/Messaging/Kafka/`, `Core.Messaging.RabbitMq/` → `Core/Messaging/RabbitMq/`, `Core.Secrets.AzureKeyVault/` → `Core/Security/AzureKeyVault/`. They stay separate projects (`Core.csproj` excludes their folders), so Appium, the broker clients and the Azure SDK still reach only the suites that reference them.
+- **Renamed:** `Core.Secrets.AzureKeyVault` → `Core.Security.AzureKeyVault` (project, assembly and namespace), so it matches its folder next to `ISecretProvider`. Update `using Core.Secrets.AzureKeyVault;` and any project reference to it.
+- `TestAutomationPlatform.slnx` groups Core and its add-ons under one `/Core/` solution folder; `ci.slnf` uses the new paths.
+
 ## 2026-11-17: Longer Android boot budget in CI (R32)
 
 - The `MobileSmoke` job now passes `BOOT_TIMEOUT_SECONDS=900` (was the script default, 600) and its job limit is 45 minutes (was 35). Run 127 failed only because the hosted emulator took longer than 600 s to report boot completed; earlier runs booted in 446–505 s.
