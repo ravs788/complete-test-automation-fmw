@@ -51,6 +51,8 @@ TestAutomationProj/
 │   ├── Driver/                        # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
 │   └── Interactions/                  # WaitHelper, GestureHelper
 │
+├── Core.Secrets.AzureKeyVault/        # Optional add-on: ISecretProvider for Azure Key Vault (on when KEYVAULT_URI is set)
+│
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
 │   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
 │   ├── Models/                        # Data shapes per app: RestfulBooker, SauceDemo, Todo
@@ -84,7 +86,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Core.Mobile, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -94,10 +96,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Core.Mobile, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Mobile`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -171,7 +173,11 @@ All three settings files load the same way (`Core.Configuration.SettingsLoader`,
 
 Keys are case-insensitive. Secrets (passwords, tokens) should come only from the environment or a CI secret variable.
 
-**Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). The default provider reads the environment variable `booker-password` or `BOOKER_PASSWORD`. A missing secret fails the run with the setting and secret named. To use a vault (Azure Key Vault, AWS Secrets Manager, HashiCorp Vault), implement `ISecretProvider` (for Key Vault: `SecretClient.GetSecret(name).Value.Value` with `DefaultAzureCredential`) in a separate add-on project and assign it to `SettingsLoader.SecretProvider` before the first settings load, e.g. from a module initializer.
+**Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). A missing secret fails the run with the setting and secret named.
+
+- **Default:** environment variables: `booker-password`, then `BOOKER_PASSWORD`.
+- **Azure Key Vault:** set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. The test projects then use environment variables first and Key Vault second (`Core.Secrets.AzureKeyVault`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
+- **Another vault:** implement `ISecretProvider` in an add-on project and assign it in the test project's `TestRunSetup` module initializer.
 
 ### Playwright tests: `Tests/testsettings.json`
 

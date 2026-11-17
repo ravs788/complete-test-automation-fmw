@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Azure Key Vault secrets (R36)
+
+- New optional add-on **`Core.Secrets.AzureKeyVault`** (Azure.Security.KeyVault.Secrets 4.12.0, Azure.Identity 1.21.0): `AzureKeyVaultSecretProvider` resolves `secret://NAME` from the vault in `KEYVAULT_URI` with `DefaultAzureCredential`, caches each secret for the run, returns null for a missing secret and surfaces access errors.
+- `Core.Security.CompositeSecretProvider` chains providers. When `KEYVAULT_URI` is set, the test projects' module initializers use environment variables first, then Key Vault. Core itself has no Azure dependency.
+
 ## 2026-11-17: Mobile CI session start (R32, R33)
 
 - `run_mobile_ci.sh` now pre-downloads the Chromedriver matching the device's Chrome (legacy index below 115, Chrome for Testing from 115; falls back to Appium's own download if the lookup fails), pre-warms Chrome once with first-run screens disabled, and raises the .NET client's command timeout to 300 s. In run 118 these two steps happened inside the session and ran past the client's 120 s timeout.

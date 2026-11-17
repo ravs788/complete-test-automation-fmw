@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="Core/Core.csproj" />
   <Project Path="Core.Mobile/Core.Mobile.csproj" />
+  <Project Path="Core.Secrets.AzureKeyVault/Core.Secrets.AzureKeyVault.csproj" />
   <Project Path="Domain/Domain.csproj" />
   <Project Path="Pages/Pages.csproj" />
   <Folder Name="/Tests/">

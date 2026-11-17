@@ -4,6 +4,7 @@
     "projects": [
       "Core/Core.csproj",
       "Core.Mobile/Core.Mobile.csproj",
+      "Core.Secrets.AzureKeyVault/Core.Secrets.AzureKeyVault.csproj",
       "Domain/Domain.csproj",
       "Pages/Pages.csproj",
       "Tests/Tests.csproj",

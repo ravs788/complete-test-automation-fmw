@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Core.Mobile\Core.Mobile.csproj" />
+    <ProjectReference Include="..\..\..\Core.Secrets.AzureKeyVault\Core.Secrets.AzureKeyVault.csproj" />
   </ItemGroup>
 
   <Target Name="CleanAllureResults" AfterTargets="Clean">
