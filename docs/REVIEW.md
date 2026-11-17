@@ -15,15 +15,15 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
 | R39 | P3 | Open | – | [Allure is called directly from the shared runner, the base classes and every test](#r39) | Architecture / reporting |
-| R40 | P3 | Open | – | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
 | R41 | P3 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
 | R42 | P3 | Open | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
-| R44 | P3 | Open | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
+| R44 | P3 | Open (partly done) | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
 | R45 | P3 | Open | – | [Polly types are part of Core's public resilience API](#r45) | Architecture / resilience |
-| R46 | P3 | Open | – | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
+| R46 | P3 | Open (partly done) | – | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R47 | P4 | Open | – | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
 | R48 | P4 | Open | – | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
+| R40 | P3 | Closed | 2026-11-17 · `659a228` | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
 | R43 | P3 | Closed | 2026-11-17 · `0a3cd2a` | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
 | R37 | P4 | Closed | 2026-11-17 · `8a6dc6d` | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
@@ -394,7 +394,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r40"></a>
 ### R40. Providers are chosen three different ways; there is no composition root or plugin model
 
-- **Status:** Open.
+- **Status:** Closed, 2026-11-17 · `659a228`. Core/Composition (Framework.Configure composition root in each TestRunSetup, IFrameworkPlugin, ProviderRegistry with explicit named registration) and providers.json (PROVIDERS_* overrides) replace the reflection scan and the per-project Key Vault wiring; plugins: ElasticLoggingPlugin, AzureKeyVaultPlugin, built-in console/environment. Verified: PROVIDERS_Logging=console switches logging and results publishing with no code change; Secrets [environment, azure-keyvault] without KEYVAULT_URI stops the run at startup with the reason; the run prints the selection once; unit 111 (+2 skipped), Playwright 15/15, Android 1/1 locally. Uses a small ProviderRegistry instead of Microsoft.Extensions.DependencyInjection (not needed yet).
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1.**
 - **Where:** `Core/Logging/LoggingServiceFactory.cs` + `ResultsPublisherFactory.cs` (reflection scan of loaded types, selection by `Provider` name), `Core/Configuration/SettingsLoader.cs` (static settable `SecretProvider`, replaced in each `TestRunSetup` module initializer), static factories `PlaywrightDriverFactory`, `ApiClient.CreateAsync`, `MobileDriverFactory`.
 - **Problem:** each seam is wired differently and the wiring is spread over fixtures, base classes and module initializers; the reflection scan only finds providers in assemblies that happen to be loaded; nothing shows which implementations a run uses.
@@ -434,7 +434,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r44"></a>
 ### R44. Core references seven vendor packages; the target is none
 
-- **Status:** Open.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Elastic.Clients.Elasticsearch` moved out of `Core` into the `Core.Logging.Elastic` adapter; `AdapterBoundaryTests` keeps Elastic, Azure, RabbitMQ and Kafka assemblies out of `Core`. Remaining in `Core`: Playwright (R41, R42), Allure (R39), Polly (R45), Microsoft.Extensions.Configuration behind a settings source.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1–4 (umbrella).**
 - **Where:** `Core/Core.csproj`: `Microsoft.Playwright`, `Allure.Net.Commons`, `Elastic.Clients.Elasticsearch`, `Polly.Core`, `Microsoft.Extensions.Configuration.{Binder,EnvironmentVariables,Json}`; public signatures exposing them: `ApiClient` (R41), `PlaywrightDriverFactory` (R42), `RetryPolicies` returning `ResiliencePipeline` (R45), `SettingsLoader.ResolveSecrets(IConfiguration, …)`.
 - **Problem:** anything that uses `Core` pulls in all of these, and their types reach callers, so a swap ripples beyond one project.
@@ -454,7 +454,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r46"></a>
 ### R46. No guardrail or contract tests that prove adapters are replaceable
 
-- **Status:** Open.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Tests/Unit/Architecture/AdapterBoundaryTests`: `Core` doesn't reference adapter vendors (Elastic, Azure, RabbitMQ, Kafka); each adapter depends on `Core` only among framework projects. Checked that it fails when `Core` references Elasticsearch. Remaining: vendor-namespace checks for `Pages`/`Domain`/tests as later phases remove them, "two implementations per contract", and shared contract test suites.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1 onwards (grows with each phase).**
 - **Where:** `Tests/Unit/Architecture/CoreBoundaryTests.cs` (checks project references and app-named namespaces only).
 - **Problem:** nothing stops vendor namespaces creeping back into `Core`, `Pages`, `Domain` or tests, and nothing checks that two adapters of one contract behave the same; without that, "replaceable" is an assumption.
@@ -508,7 +508,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r36"></a>
 ### R36. No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader
 
-- **Status:** Implemented (verification pending), 2026-11-17. Seam and environment provider in `f0e6b65`; Azure Key Vault add-on in `b97d9c7` (`Core.Secrets.AzureKeyVault`, on when `KEYVAULT_URI` is set, environment variables first; 5 unit tests with a `SecretClient` test double). **Verify:** resolve a `secret://` placeholder from a real vault (needs a vault and an identity with *Get* on secrets; not available here).
+- **Status:** Implemented (verification pending), 2026-11-17. Seam and environment provider in `f0e6b65`; Azure Key Vault add-on in `b97d9c7` (`Core.Secrets.AzureKeyVault`, on when `KEYVAULT_URI` is set, environment variables first; 5 unit tests with a `SecretClient` test double). **Verify:** resolve a `secret://` placeholder from a real vault (needs a vault and an identity with *Get* on secrets; not available here). **2026-11-17 (R40):** Key Vault is now chosen by name: `"Secrets": ["environment", "azure-keyvault"]` in `providers.json` (or `PROVIDERS_Secrets__1=azure-keyvault`) plus `KEYVAULT_URI`; `KEYVAULT_URI` alone no longer switches it on.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** `Core/Configuration/SettingsLoader.cs`.
 - **Problem:** secrets (Elastic and API credentials) come from environment variables (R1, R6). That's fine for CI and local runs, but enterprise setups usually pull credentials at runtime from Azure Key Vault, AWS Secrets Manager or HashiCorp Vault, and there's no seam for that.
