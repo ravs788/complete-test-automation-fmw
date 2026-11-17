@@ -18,13 +18,13 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R40 | P3 | Open | – | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
 | R41 | P3 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
 | R42 | P3 | Open | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
-| R43 | P3 | Open | – | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
 | R44 | P3 | Open | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
 | R45 | P3 | Open | – | [Polly types are part of Core's public resilience API](#r45) | Architecture / resilience |
 | R46 | P3 | Open | – | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R47 | P4 | Open | – | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
 | R48 | P4 | Open | – | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
+| R43 | P3 | Closed | 2026-11-17 · `0a3cd2a` | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
 | R37 | P4 | Closed | 2026-11-17 · `8a6dc6d` | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
@@ -424,7 +424,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r43"></a>
 ### R43. No dependency inventory, contract list or provider guide
 
-- **Status:** Open. **Do first.**
+- **Status:** Closed, 2026-11-17 · `0a3cd2a`. docs/PLUGIN_ARCHITECTURE.md (target shape, contract list, dependency inventory checked against every csproj and vendor namespace use, design rules, provider guide with per-kind guarantees, accepted host/platform dependencies); CONTRIBUTING 'Adding or replacing a library'; linked from README and ARCHITECTURE. Verified: every R39-R48 item appears in the contract list, inventory or rules.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 0.**
 - **Where:** `docs/ARCHITECTURE.md`, `docs/CONTRIBUTING.md`; new `docs/PLUGIN_ARCHITECTURE.md`.
 - **Problem:** nothing lists, per external dependency, whether it is core, optional (adapter) or host-level, its realistic replacement and where its types leak today; there is no written contract for adding a provider.
