@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\Core\Core.csproj" />
     <ProjectReference Include="..\..\Core\Messaging\RabbitMq\Core.Messaging.RabbitMq.csproj" />
     <ProjectReference Include="..\..\Core\Messaging\Kafka\Core.Messaging.Kafka.csproj" />
+    <ProjectReference Include="..\..\Core\Http\Playwright\Core.Http.Playwright.csproj" />
     <ProjectReference Include="..\..\Core\Logging\Elastic\Core.Logging.Elastic.csproj" />
     <ProjectReference Include="..\..\Core\Reporting\Allure\Core.Reporting.Allure.csproj" />
     <ProjectReference Include="..\..\Core\Security\AzureKeyVault\Core.Security.AzureKeyVault.csproj" />

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-17: HTTP transport contract (R41, phase 3)
+
+- New `Core/Http`: `IHttpTransport` / `IHttpTransportFactory`, `HttpRequestData`, `HttpResponseData` (status, status text, headers, body; fully read) and a built-in **`httpclient`** transport on .NET `HttpClient`. New adapter project **`Core/Http/Playwright`** (`PlaywrightHttpPlugin`, `"playwright"`; one Playwright instance shared by the run). Selected with `"Http"` in `providers.json` (`playwright` committed).
+- `ApiClient.CreateAsync(baseUrl, retry, log, transports)` no longer takes an `IPlaywright`; it keeps JSON, `ApiException` and retries. **`SendRawAsync` now returns `HttpResponseData`** (was Playwright's `IAPIResponse`; `.Status` works as before). Transports report network failures as `HttpRequestException`, so retries don't depend on the library. `ApiFixture` no longer starts Playwright.
+- Verified: the 7 API tests pass with `PROVIDERS_Http=playwright` and `=httpclient` (no code change); Allure results identical to the earlier baseline; new transport contract tests (5 checks, run against both transports on a loopback server) and `ApiClient` retry tests.
+
 ## 2026-11-17: Reporting contract (R39, phase 2)
 
 - New `Core/Reporting`: `ITestReporter` (run start, test name, parameters, attachments, steps), `Report.Step(...)` for tests, and a built-in `console` reporter. Selected with `"Reporting"` in `providers.json` (`allure` committed; `PROVIDERS_Reporting=console` to run without it); an unregistered name falls back to console with one message.

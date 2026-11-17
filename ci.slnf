@@ -3,6 +3,7 @@
     "path": "TestAutomationPlatform.slnx",
     "projects": [
       "Core/Core.csproj",
+      "Core/Http/Playwright/Core.Http.Playwright.csproj",
       "Core/Logging/Elastic/Core.Logging.Elastic.csproj",
       "Core/Messaging/Kafka/Core.Messaging.Kafka.csproj",
       "Core/Messaging/RabbitMq/Core.Messaging.RabbitMq.csproj",

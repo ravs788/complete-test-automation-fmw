@@ -55,7 +55,7 @@ public class ProviderRegistryTests
     }
 
     [Fact]
-    public void BuiltIns_Should_Register_ConsoleLogging_ConsoleReporting_And_EnvironmentSecrets()
+    public void BuiltIns_Should_Register_TheProvidersThatNeedNoVendorPackage()
     {
         var registry = Framework.CreateRegistry([]);
 
@@ -63,5 +63,6 @@ public class ProviderRegistryTests
         Assert.Equal(["console"], registry.Names<Core.Logging.IResultsPublisherFactory>());
         Assert.Equal(["environment"], registry.Names<ISecretProvider>());
         Assert.Equal(["console"], registry.Names<Core.Reporting.ITestReporter>());
+        Assert.Equal(["httpclient"], registry.Names<Core.Http.IHttpTransportFactory>());
     }
 }

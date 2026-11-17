@@ -9,7 +9,7 @@ For the short version, see "Quick Start" in the root README.
 
 | Suite / tool | Windows | macOS | Linux |
 |---|---|---|---|
-| API tests (`Tests/Api`, Playwright `APIRequestContext`) | ✅ | ✅ | ✅ |
+| API tests (`Tests/Api`; Playwright `APIRequestContext` or `HttpClient`) | ✅ | ✅ | ✅ |
 | Web UI on Playwright's **Chromium** | ✅ | ✅ | ✅ ¹ |
 | Web UI on **Firefox** / **WebKit** (Playwright builds) | ✅ | ✅ ² | ✅ ¹ |
 | Web UI on installed **Google Chrome** (`BROWSER=chrome`) | ✅ | ✅ | ✅ x64 only ³ |

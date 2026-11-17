@@ -5,7 +5,7 @@
       The add-ons are separate projects inside this folder, so only the suites that need Appium, a vault, a
       broker client, Elasticsearch or Allure take those packages. Don't compile them here (same pattern as Tests/Tests.csproj).
     -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Logging/Elastic/**;Reporting/Allure/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

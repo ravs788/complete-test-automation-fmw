@@ -1,15 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Core.Composition;
+using Core.Http;
 using Core.Resilience;
-using Microsoft.Playwright;
 using Polly;
 
 namespace Core.Api;
 
 /// <summary>
-/// Thin JSON client over Playwright's <see cref="IAPIRequestContext"/>, independent of any particular API.
-/// Non-2xx responses throw <see cref="ApiException"/> carrying the status code. Authentication is passed in as
-/// per-request <c>headers</c> built by the API-specific code (e.g. <c>RestfulBooker.AuthClient</c>).
+/// Thin JSON client over an <see cref="IHttpTransport"/> (R41), independent of any particular API or HTTP library.
+/// It owns serialization, status handling (non-2xx throws <see cref="ApiException"/>) and retries; the transport
+/// (selected with <c>"Http"</c> in <c>providers.json</c>) only sends. Authentication is passed in as per-request
+/// <c>headers</c> built by the API-specific code (e.g. <c>RestfulBooker.AuthClient</c>).
 /// </summary>
 public sealed class ApiClient : IAsyncDisposable
 {
@@ -20,28 +22,29 @@ public sealed class ApiClient : IAsyncDisposable
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly IAPIRequestContext _request;
-    private readonly ResiliencePipeline<IAPIResponse> _retry;
+    private static readonly IReadOnlyDictionary<string, string> DefaultHeaders =
+        new Dictionary<string, string> { ["Accept"] = "application/json" };
 
-    private ApiClient(IAPIRequestContext request, ResiliencePipeline<IAPIResponse> retry)
+    private readonly IHttpTransport _transport;
+    private readonly ResiliencePipeline<HttpResponseData> _retry;
+
+    private ApiClient(IHttpTransport transport, ResiliencePipeline<HttpResponseData> retry)
     {
-        _request = request;
+        _transport = transport;
         _retry = retry;
     }
 
-    /// <param name="playwright">Playwright instance that owns the request context.</param>
     /// <param name="baseUrl">Base URL for relative endpoints.</param>
     /// <param name="retry">Retries for idempotent requests that hit 502/503/504 or a network error (default: 2 retries). POST and PATCH are never retried.</param>
     /// <param name="log">Optional sink for retry log lines.</param>
-    public static async Task<ApiClient> CreateAsync(IPlaywright playwright, string baseUrl, RetryOptions? retry = null, Action<string>? log = null)
+    /// <param name="transports">Transport to use; default: the one selected in <c>providers.json</c> (<c>"Http"</c>).</param>
+    public static async Task<ApiClient> CreateAsync(
+        string baseUrl, RetryOptions? retry = null, Action<string>? log = null, IHttpTransportFactory? transports = null)
     {
-        var request = await playwright.APIRequest.NewContextAsync(new()
-        {
-            BaseURL = baseUrl,
-            ExtraHTTPHeaders = new Dictionary<string, string> { ["Accept"] = "application/json" }
-        });
-        var pipeline = RetryPolicies.TransientHttp<IAPIResponse>(retry ?? new RetryOptions(), r => r.Status, r => r.DisposeAsync(), log);
-        return new ApiClient(request, pipeline);
+        transports ??= Framework.HttpTransports;
+        var transport = await transports.CreateAsync(baseUrl, DefaultHeaders);
+        var pipeline = RetryPolicies.TransientHttp<HttpResponseData>(retry ?? new RetryOptions(), r => r.Status, log: log);
+        return new ApiClient(transport, pipeline);
     }
 
     public Task<T?> GetAsync<T>(string endpoint) => SendAsync<T>("GET", endpoint);
@@ -64,19 +67,18 @@ public sealed class ApiClient : IAsyncDisposable
     }
 
     /// <summary>Sends a request without checking the status, for tests that assert on it directly.</summary>
-    public async Task<IAPIResponse> SendRawAsync(
+    public async Task<HttpResponseData> SendRawAsync(
         string method, string endpoint, object? body = null, IReadOnlyDictionary<string, string>? headers = null)
     {
-        var requestHeaders = new Dictionary<string, string>(headers ?? new Dictionary<string, string>());
-        var options = new APIRequestContextOptions { Method = method, Headers = requestHeaders };
-        if (body is not null)
-        {
-            options.DataString = JsonSerializer.Serialize(body, body.GetType(), JsonOptions);
-            requestHeaders["Content-Type"] = "application/json";
-        }
+        var request = new HttpRequestData(
+            method,
+            endpoint,
+            headers ?? new Dictionary<string, string>(),
+            body is null ? null : JsonSerializer.Serialize(body, body.GetType(), JsonOptions),
+            body is null ? null : "application/json");
         return RetryPolicies.IsIdempotent(method)
-            ? await _retry.ExecuteAsync(async _ => await _request.FetchAsync(endpoint, options))
-            : await _request.FetchAsync(endpoint, options);
+            ? await _retry.ExecuteAsync(async ct => await _transport.SendAsync(request, ct))
+            : await _transport.SendAsync(request);
     }
 
     private async Task<T?> SendAsync<T>(
@@ -84,10 +86,10 @@ public sealed class ApiClient : IAsyncDisposable
     {
         var response = await SendRawAsync(method, endpoint, body, headers);
         EnsureSuccess(method, endpoint, response);
-        return JsonSerializer.Deserialize<T>(await response.BodyAsync(), JsonOptions);
+        return JsonSerializer.Deserialize<T>(response.Body, JsonOptions);
     }
 
-    private static void EnsureSuccess(string method, string endpoint, IAPIResponse response)
+    private static void EnsureSuccess(string method, string endpoint, HttpResponseData response)
     {
         if (!response.Ok)
         {
@@ -95,5 +97,5 @@ public sealed class ApiClient : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync() => await _request.DisposeAsync();
+    public ValueTask DisposeAsync() => _transport.DisposeAsync();
 }

@@ -14,13 +14,13 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **.NET 10** across all projects (`net10.0`, nullable enabled)
 - **Playwright for UI and API**
   - **Web UI**: [saucedemo.com](https://www.saucedemo.com/) and the [Playwright TodoMVC demo](https://demo.playwright.dev/todomvc), with async page objects and auto-retrying `Expect(...)` assertions, on Chromium, Chrome, Edge, Firefox or WebKit
-  - **REST API**: [Restful Booker](https://restful-booker.herokuapp.com/) through Playwright's `APIRequestContext` (no RestSharp)
+  - **REST API**: [Restful Booker](https://restful-booker.herokuapp.com/) through `ApiClient` on a pluggable HTTP transport: Playwright's `APIRequestContext` (default) or .NET `HttpClient` (`"Http"` in `providers.json`; no RestSharp)
 - **Mobile tests** (`Tests/UI/Mobile`) with Appium 2: Android mobile web against saucedemo.com, with iOS and native-app support in the driver bootstrap
 - **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
 - **Four top-level folders**: `Core` (shared framework code, with optional add-on projects such as `Core/Mobile` inside it), `Domain` (app-specific models, test data, API helpers), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
-- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, reporting, secrets), with automatic fallback to console for logging and reporting
+- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, reporting, HTTP transport, secrets), with automatic fallback to console for logging and reporting
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
 - **Local Elasticsearch + Kibana stack** (`docker-compose.yml`) for the Elastic logging provider
@@ -33,8 +33,10 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 TestAutomationProj/
 │
 ├── Core/                              # Domain-agnostic framework engine (Core.csproj; used by every project)
-│   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
+│   ├── Api/                           # ApiClient (JSON, status, retries on IHttpTransport; auth-agnostic), ApiException
 │   ├── Composition/                   # Framework.Configure (composition root), IFrameworkPlugin, ProviderRegistry, providers.json settings
+│   ├── Http/                          # IHttpTransport + factory, HttpRequestData/HttpResponseData, HttpClientTransport (built in)
+│   │   └── Playwright/                # Adapter project Core.Http.Playwright ("playwright" in providers.json)
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider, SettingsLoader
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
 │   ├── Messaging/                     # MessageCollector<T> + ReceivedMessage (broker-neutral; fed by the add-ons)
@@ -96,7 +98,7 @@ TestAutomationProj/
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
-├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Secrets)
+├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Http, Secrets)
 ├── logging-config.json                # Logging provider settings (Elasticsearch URL, TLS fingerprint)
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
@@ -249,7 +251,7 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
+Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`; `"Http": "playwright"` or `"httpclient"` for API tests), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
 
 The Playwright tests (`Tests/`) and the Mobile suite read the provider settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 
@@ -410,8 +412,8 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 
 ### `Tests/Infrastructure/ApiTestBase.cs` (API)
 
-- Uses `ApiFixture`: one Playwright instance per class, no browser
-- Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
+- Uses `ApiFixture` (the settings); no browser
+- Gives each test its own `ApiClient` (on the HTTP transport selected with `"Http"` in `providers.json`: `playwright`, the default, shares one Playwright instance per run; `httpclient` needs no Playwright), with `BaseURL` and `Accept: application/json`, disposed afterwards
 - `GetAuthHeadersAsync()` gets a Restful Booker token and returns it as request headers (the `token` cookie), which tests pass to PUT, PATCH and DELETE. `ApiClient` itself knows nothing about any API's auth scheme: it just sends the headers it's given.
 - `CreateBookingAsync(booking)` POSTs a booking and registers its deletion on `Cleanup` (a `Core.Testing.CleanupTracker`); after the test, `DisposeAsync` runs every registered cleanup, last first (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data. Tests can register their own cleanups with `Cleanup.Add(description, action)`
 - `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)

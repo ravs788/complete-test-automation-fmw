@@ -10,7 +10,7 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 
 | Area | Location | Driver/Client | In CI |
 |------|----------|---------------|-------|
-| API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
+| API | `Tests/Api` | `ApiClient` on `IHttpTransport`: Playwright `APIRequestContext` (default) or `HttpClient` | Yes |
 | Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | Playwright (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
 | Mobile web | `Tests/UI/Mobile` | Appium 2 (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; first CI run pending |
 
@@ -22,7 +22,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 - **Transportable:** moves to new applications and environments with minimal setup.
 - **Maintainable:** clear layering (Core → Pages → Tests) and small, single-purpose classes.
-- **One web/API tool:** Playwright for browsers and HTTP, so UI and API tests share fixtures, configuration and reporting.
+- **One web/API tool by default:** Playwright for browsers and (through the `playwright` HTTP transport) API calls, so UI and API tests share configuration and reporting; API tests can switch to the built-in `HttpClient` transport by configuration (R41).
 - **Observable:** Allure reports, TRX for CI dashboards, optional Elasticsearch for logs and trends.
 - **CI/CD ready:** Azure DevOps Pipelines, triggered from GitHub.
 
@@ -49,7 +49,8 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Api/RestfulBooker · Models/<App> · TestData/<App> (Builders/Mothers)   │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Core/   (Core.csproj, shared by everything)                              │
-│   Api/            ApiClient (auth-agnostic), ApiException                │
+│   Api/            ApiClient (JSON, status, retries), ApiException        │
+│   Http/           IHttpTransport · HttpClient (built in) · Playwright/   │
 │   Composition/    Framework.Configure · IFrameworkPlugin · registry      │
 │   Configuration/  TestSettings (+ sections) + ConfigurationProvider      │
 │   Driver/         PlaywrightDriverFactory                                │
@@ -69,16 +70,16 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R39, R40). Nothing depends on `Tests`.
-- `Core` has no dependency on a test framework. It references Playwright, Polly and Microsoft.Extensions.Configuration; Elasticsearch (R40) and Allure (R39) live in adapter projects (`Core.Logging.Elastic`, `Core.Reporting.Allure`), and `AdapterBoundaryTests` keeps them out of `Core`.
-- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Logging/Elastic`, `Core/Reporting/Allure`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R39, R40, R41). Nothing depends on `Tests`.
+- `Core` has no dependency on a test framework. It references Playwright, Polly and Microsoft.Extensions.Configuration; Elasticsearch (R40), Allure (R39) and the Playwright HTTP transport (R41) live in adapter projects (`Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Http.Playwright`), and `AdapterBoundaryTests` keeps them out of `Core`.
+- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Http/Playwright`, `Core/Logging/Elastic`, `Core/Reporting/Allure`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
 - Selenium remains a package only because Appium's .NET client is built on it.
 - The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
 
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -100,7 +101,7 @@ Conventions (the same in every project):
 
 ### 3.3 API client
 
-`ApiClient` wraps a Playwright `IAPIRequestContext` (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json (one set of options for requests and responses; `null` properties are left out) and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw response for status assertions. Every method takes optional per-request `headers`; `ApiClient` has no knowledge of any API's auth scheme. Restful Booker's `AuthClient.GetAuthHeadersAsync` turns a token from `POST /auth` into the `token` cookie header.
+`ApiClient` sends through an `IHttpTransport` (R41) created per client by the `IHttpTransportFactory` selected with `"Http"` in `providers.json`: `playwright` (`Core.Http.Playwright`, a Playwright `APIRequestContext`; one Playwright instance shared by the run) or `httpclient` (built in, .NET `HttpClient`). Transports only send: they return every HTTP response as `HttpResponseData` and throw `HttpRequestException` only when no response arrived, so `ApiClient` owns JSON, status handling and retries for all of them (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json (one set of options for requests and responses; `null` properties are left out) and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw `HttpResponseData` (status, status text, headers, body) for status assertions. Every method takes optional per-request `headers`; `ApiClient` has no knowledge of any API's auth scheme. Restful Booker's `AuthClient.GetAuthHeadersAsync` turns a token from `POST /auth` into the `token` cookie header.
 
 ### 3.4 Test data
 
@@ -158,7 +159,7 @@ Each test gets fresh cookies and storage while the browser is launched once per 
 
 ### 4.2 API (`Tests/Api`)
 
-`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first running its `CleanupTracker` (which deletes every booking created through `CreateBookingAsync`, last first); tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
+`ApiFixture` holds the settings (no browser; the transport is created per test). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first running its `CleanupTracker` (which deletes every booking created through `CreateBookingAsync`, last first); tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
 
 ### 4.3 Mobile (`Tests/UI/Mobile`)
 
@@ -250,3 +251,4 @@ Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), wh
 | 2026-11-17 | `docs/PLUGIN_ARCHITECTURE.md` added (R43): plug-and-play target shape, contract list, dependency inventory, design rules, provider guide, accepted host/platform dependencies. |
 | 2026-11-17 | Composition root (R40): `providers.json` + `Core/Composition` (`Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`) replace the reflection scan and the per-project Key Vault wiring; Elasticsearch moved out of `Core` into the `Core.Logging.Elastic` adapter (R44); first adapter guardrail tests (R46). |
 | 2026-11-17 | Reporting contract (R39): `Core/Reporting` (`ITestReporter`, `Report.Step`, built-in console reporter); Allure moved into the `Core.Reporting.Allure` adapter, selected with `"Reporting"` in `providers.json`; `TestRunner`, the base classes and all tests call the contract. |
+| 2026-11-17 | HTTP transport contract (R41): `Core/Http` (`IHttpTransport`, `HttpRequestData`/`HttpResponseData`, built-in `HttpClient` transport) and the `Core.Http.Playwright` adapter, selected with `"Http"` in `providers.json`; `ApiClient` keeps JSON, status and retries; `ApiFixture` no longer owns Playwright; transport contract tests. |

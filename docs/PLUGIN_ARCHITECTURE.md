@@ -2,7 +2,7 @@
 
 **Goal:** every external library the framework uses can be replaced or left out by changing configuration and a project reference, without touching test scenarios. This document is the target design, the current dependency inventory, and the rules for adding a provider. The work is tracked as R39–R48 in [REVIEW.md](REVIEW.md#plug-and-play-roadmap), one phase per pull request.
 
-**Status (2026-11-17):** phases 0–2 done. The composition root exists (`Core/Composition`: `Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`, `providers.json`); logging, results publishing and secrets are selected through it; Elasticsearch has moved out of `Core` into the `Core.Logging.Elastic` adapter; the Appium, Key Vault, RabbitMQ and Kafka code is in separate projects; reporting goes through `ITestReporter` with Allure in the `Core.Reporting.Allure` adapter and a built-in console reporter (phase 2); guardrail tests are in `Tests/Unit/Architecture/AdapterBoundaryTests`. HTTP, resilience and UI contracts are still target state.
+**Status (2026-11-17):** phases 0–3 done. The composition root exists (`Core/Composition`: `Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`, `providers.json`); logging, results publishing and secrets are selected through it; Elasticsearch has moved out of `Core` into the `Core.Logging.Elastic` adapter; the Appium, Key Vault, RabbitMQ and Kafka code is in separate projects; reporting goes through `ITestReporter` with Allure in the `Core.Reporting.Allure` adapter and a built-in console reporter (phase 2); guardrail tests are in `Tests/Unit/Architecture/AdapterBoundaryTests`. API calls go through `IHttpTransport` with the Playwright adapter and a built-in `HttpClient` transport, both passing the same contract tests (phase 3). Resilience and UI contracts are still target state.
 
 ---
 
@@ -32,20 +32,21 @@ flowchart TB
 - **Adapters** implement one contract with one library. Each is its own project under `Core/<Area>/<Vendor>/`, the layout the existing add-ons already use (`Core/Mobile`, `Core/Security/AzureKeyVault`, `Core/Messaging/{Kafka,RabbitMq}`).
 - **The composition root** (the test project's `TestRunSetup` module initializer) calls `Framework.Configure(...)` with the plugins of the adapters that project references. The built-in providers (console logging and results, environment secrets) are always registered; `providers.json` (repo root, `PROVIDERS_*` overrides) names which one is used for each contract.
 
-`providers.json` today (later phases add `Http`, `Resilience`, `Ui`):
+`providers.json` today (later phases add `Resilience`, `Ui`):
 
 ```json
 {
   "Logging": "elastic",
   // "ResultsPublisher": "elastic",   // default: same as Logging
   "Reporting": "allure",              // or "console"
+  "Http": "playwright",               // or "httpclient"
   "Secrets": [ "environment" ]        // e.g. [ "environment", "azure-keyvault" ]
 }
 ```
 
 ```csharp
 // Tests/Infrastructure/TestRunSetup.cs (module initializer)
-Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new AzureKeyVaultPlugin());
+Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PlaywrightHttpPlugin(), new AzureKeyVaultPlugin());
 ```
 
 Replacing a library then means: reference the other adapter project, change one value, done.
@@ -60,7 +61,7 @@ Replacing a library then means: reference the other adapter project, change one 
 | Results publishing | `IResultsPublisher` (+ `IResultsPublisherFactory`) | one `LogMetadata` document per test | Console (built in), Elastic (`Core.Logging.Elastic`) | R40 ✓ |
 | Secrets | `ISecretProvider` | resolve `secret://NAME` | `environment` (built in), `azure-keyvault` (`Core.Security.AzureKeyVault`) | R40 ✓ |
 | Reporting | `ITestReporter` (+ `Report.Step` for tests) | run start, test name and parameters, steps, attachments | `console` (built in), `allure` (`Core.Reporting.Allure`) | R39 ✓ (class labels still Allure.Xunit attributes) |
-| HTTP | `IHttpTransport` *(new)* | send a request, return status, headers, body | Playwright `APIRequestContext`, `HttpClient` | R41 |
+| HTTP | `IHttpTransport` (+ `IHttpTransportFactory`) | send a request, return status, headers, body; `HttpRequestException` only when no response arrived | `httpclient` (built in), `playwright` (`Core.Http.Playwright`) | R41 ✓ |
 | Resilience | `IRetryPolicy` *(new)* | run an action with retries for transient failures | Polly, built-in | R45 |
 | Settings source | `ISettingsSource` *(new)* | key/value settings from files and environment | Microsoft.Extensions.Configuration | R44 |
 | Web and mobile UI | `IUiSession`, `IElement`, `Ui.Expect` *(new)* + capabilities `ITracing`, `IScreenshots`, `INetworkControl`, `IMobileGestures` | navigate, find, act, wait, assert; optional extras per driver | Playwright → Selenium, Appium | R42, R47 |
@@ -77,7 +78,7 @@ Kinds: **move**: in `Core` today, moves to an adapter · **adapter**: already an
 
 | Library (version) | Role | Kind | Where it is used today | Where its types leak | Realistic replacement | Item |
 |---|---|---|---|---|---|---|
-| Microsoft.Playwright 1.64.1 | browser automation, HTTP for API tests | move | `Core` (`Api/ApiClient`, `Driver/PlaywrightDriverFactory`, `Resilience`), `Pages` (9 files), `Tests` fixtures, base classes and 6 web test files | `ApiClient.CreateAsync(IPlaywright)`, `SendRawAsync` → `IAPIResponse`; `BasePage(IPage)`, `ILocator`; `Expect(...)` in web tests | Selenium (UI), `HttpClient` (HTTP) | R41, R42, R44 |
+| Microsoft.Playwright 1.64.1 | browser automation, HTTP for API tests | move | `Core` (`Driver/PlaywrightDriverFactory`, `Resilience`), `Core.Http.Playwright` (adapter, phase 3), `Pages` (9 files), `Tests` web fixture, UI base and 6 web test files | `BasePage(IPage)`, `ILocator`; `Expect(...)` in web tests (API tests: no longer, R41) | Selenium (UI); `HttpClient` for API calls is built in | R41 ✓, R42, R44 |
 | Allure.Net.Commons / Allure.Xunit 2.15.0 | reporting | adapter (`Core/Reporting/Allure`, moved out of `Core` in phase 2); Allure.Xunit is the xUnit hook in the test projects | `Core.Reporting.Allure`; Allure.Xunit attributes on 13 test classes | class labels `[AllureParentSuite]`/`[AllureSuite]`/`[AllureSubSuite]` | Console, ReportPortal | R39 ✓, R48 |
 | Elastic.Clients.Elasticsearch 8.12.0 | log and results sink | adapter (`Core/Logging/Elastic`, moved out of `Core` in phase 1) | adapter only | none (behind the logging factories) | OpenSearch, Loki, console | R44 ✓ |
 | Polly.Core 8.8.1 | retries | move | `Core/Resilience`, `Core/Api/ApiClient`, `MobileBasePage` | `RetryPolicies` returns `ResiliencePipeline` | built-in retry | R45, R44 |
