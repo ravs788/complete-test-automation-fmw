@@ -4,5 +4,6 @@
   // PROVIDERS_Secrets__0=environment PROVIDERS_Secrets__1=azure-keyvault.
   "Logging": "elastic",
   // "ResultsPublisher": "elastic",   // default: same as Logging
+  "Reporting": "allure",
   "Secrets": [ "environment" ]
 }

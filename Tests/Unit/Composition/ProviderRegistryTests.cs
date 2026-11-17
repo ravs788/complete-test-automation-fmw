@@ -55,12 +55,13 @@ public class ProviderRegistryTests
     }
 
     [Fact]
-    public void BuiltIns_Should_Register_ConsoleLogging_And_EnvironmentSecrets()
+    public void BuiltIns_Should_Register_ConsoleLogging_ConsoleReporting_And_EnvironmentSecrets()
     {
         var registry = Framework.CreateRegistry([]);
 
         Assert.Equal(["console"], registry.Names<Core.Logging.ILoggingProviderFactory>());
         Assert.Equal(["console"], registry.Names<Core.Logging.IResultsPublisherFactory>());
         Assert.Equal(["environment"], registry.Names<ISecretProvider>());
+        Assert.Equal(["console"], registry.Names<Core.Reporting.ITestReporter>());
     }
 }

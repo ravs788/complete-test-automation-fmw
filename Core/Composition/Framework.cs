@@ -1,4 +1,6 @@
 using Core.Configuration;
+using Core.Logging;
+using Core.Reporting;
 using Core.Security;
 
 namespace Core.Composition;
@@ -14,6 +16,7 @@ public static class Framework
     private static readonly object Gate = new();
     private static ProviderRegistry? _registry;
     private static ProvidersSettings _settings = new();
+    private static ITestReporter? _reporter;
 
     /// <summary>The registered providers (built-ins only if <see cref="Configure(IFrameworkPlugin[])"/> wasn't called).</summary>
     public static ProviderRegistry Providers
@@ -39,6 +42,18 @@ public static class Framework
         }
     }
 
+    /// <summary>The test reporter selected in <c>providers.json</c> (console if it isn't registered, or before <c>Configure</c>).</summary>
+    public static ITestReporter Reporter
+    {
+        get
+        {
+            lock (Gate)
+            {
+                return _reporter ??= ResolveReporter(_registry ??= CreateRegistry([]), _settings.Reporting);
+            }
+        }
+    }
+
     /// <summary>Registers the built-in providers plus <paramref name="plugins"/>, using the selection from <c>providers.json</c>.</summary>
     public static ProviderRegistry Configure(params IFrameworkPlugin[] plugins) =>
         Configure(ProvidersConfigProvider.Current, plugins);
@@ -52,15 +67,18 @@ public static class Framework
     {
         var registry = CreateRegistry(plugins);
         var secrets = BuildSecretProvider(registry, settings);
+        var reporter = ResolveReporter(registry, settings.Reporting);
         lock (Gate)
         {
             _registry = registry;
             _settings = settings;
+            _reporter = reporter;
             SettingsLoader.SecretProvider = secrets;
         }
+        reporter.BeginRun();
         System.Console.WriteLine(
             $"[Providers] {ProviderKinds.Logging}={settings.Logging}, {ProviderKinds.ResultsPublisher}={settings.EffectiveResultsPublisher}, " +
-            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}");
+            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}, {ProviderKinds.Reporting}={settings.Reporting}");
         return registry;
     }
 
@@ -74,6 +92,17 @@ public static class Framework
             plugin.Register(registry);
         }
         return registry;
+    }
+
+    /// <summary>The reporter called <paramref name="name"/>, or console (with one message) if it isn't registered.</summary>
+    public static ITestReporter ResolveReporter(ProviderRegistry registry, string name)
+    {
+        if (registry.TryGet<ITestReporter>(name, out var reporter))
+        {
+            return reporter;
+        }
+        ProviderFallback.Report(name, "not registered", "console", ProviderKinds.Reporting);
+        return registry.TryGet<ITestReporter>("console", out var console) ? console : new ConsoleTestReporter();
     }
 
     /// <summary>The selected secret providers, tried in order (environment first by default).</summary>

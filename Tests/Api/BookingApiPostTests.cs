@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
@@ -20,7 +20,7 @@ public class BookingApiPostTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         var created = await CreateBookingAsync(newBooking);
 
-        AllureApi.Step("Assert booking creation response", () =>
+        Report.Step("Assert booking creation response", () =>
         {
             Assert.True(created.BookingId > 0, "Response missing bookingid");
             Assert.Equal(newBooking, created.Booking);

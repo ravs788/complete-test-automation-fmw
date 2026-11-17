@@ -7,6 +7,7 @@
       "Core/Messaging/Kafka/Core.Messaging.Kafka.csproj",
       "Core/Messaging/RabbitMq/Core.Messaging.RabbitMq.csproj",
       "Core/Mobile/Core.Mobile.csproj",
+      "Core/Reporting/Allure/Core.Reporting.Allure.csproj",
       "Core/Security/AzureKeyVault/Core.Security.AzureKeyVault.csproj",
       "Domain/Domain.csproj",
       "Pages/Pages.csproj",

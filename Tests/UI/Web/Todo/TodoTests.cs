@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.Todo;
 using Microsoft.Playwright;
 using Tests.Fixtures;
@@ -21,7 +21,7 @@ public class TodoTests(PlaywrightFixture fixture) : TodoTestBase(fixture)
 
         var todoPage = await OpenWithItemAsync(item);
 
-        await AllureApi.Step("Assert todo item is listed", async () =>
+        await Report.Step("Assert todo item is listed", async () =>
             await Assertions.Expect(todoPage.GetTodoItemByTitle(item.Title)).ToBeVisibleAsync());
     });
 
@@ -33,7 +33,7 @@ public class TodoTests(PlaywrightFixture fixture) : TodoTestBase(fixture)
 
         await todoPage.CompleteTodoAsync(item.Title);
 
-        await AllureApi.Step("Assert todo item is marked completed", async () =>
+        await Report.Step("Assert todo item is marked completed", async () =>
             await Assertions.Expect(todoPage.GetTodoItemByTitle(item.Title)).ToHaveClassAsync(new Regex("completed")));
     });
 }

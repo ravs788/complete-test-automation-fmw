@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Allure.Net.Commons;
+using Core.Composition;
 using Core.Configuration;
 using Core.Logging;
 using Core.Testing;
@@ -10,7 +10,7 @@ namespace Tests.Infrastructure;
 
 /// <summary>
 /// Base for browser tests. Each test gets a fresh context and page (opened at <see cref="BaseUrl"/>);
-/// wrap the test body in <see cref="RunAsync"/> for logging, Allure timing, a full-page screenshot and a
+/// wrap the test body in <see cref="RunAsync"/> for logging, report timing, a full-page screenshot and a
 /// Playwright trace on failure (see <see cref="TestSettings.Trace"/>) and results publishing (via Core's
 /// <see cref="TestRunner"/>).
 /// </summary>
@@ -56,13 +56,10 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
             new TestRunInfo(Logger, "ui-web", GetType(), testName, Settings.Browser),
             body: async () =>
             {
-                // Show the browser in the Allure test name, e.g. "Checkout_Should_CompleteOrder (chrome)", and keep
+                // Show the browser in the report's test name, e.g. "Checkout_Should_CompleteOrder (chrome)", and keep
                 // runs on different browsers apart when their results are merged (run_ui_web_all_browsers).
-                AllureLifecycle.Instance.UpdateTestCase(tc =>
-                {
-                    tc.name = $"{tc.name} ({Settings.Browser})";
-                    tc.parameters.Add(new Parameter { name = "browser", value = Settings.Browser });
-                });
+                Framework.Reporter.UpdateTestName(name => $"{name} ({Settings.Browser})");
+                Framework.Reporter.AddParameter("browser", Settings.Browser);
                 try
                 {
                     await test();
@@ -83,7 +80,7 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
         try
         {
             var png = await Page.ScreenshotAsync(new() { FullPage = true });
-            AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+            Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
         }
         finally
         {
@@ -104,7 +101,7 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
     }
 
     /// <summary>
-    /// Stops tracing into a zip and attaches it to Allure. Allure's report opens it in the Playwright trace viewer;
+    /// Stops tracing into a zip and attaches it to the report. Allure's report opens it in the Playwright trace viewer;
     /// it can also be opened with <c>pwsh playwright.ps1 show-trace &lt;file&gt;</c> or at https://trace.playwright.dev.
     /// </summary>
     private async Task AttachTraceAsync()
@@ -114,7 +111,7 @@ public abstract class UiTestBase : IClassFixture<PlaywrightFixture>, IAsyncLifet
         {
             await Context.Tracing.StopAsync(new() { Path = path });
             _traceSaved = true;
-            AllureApi.AddAttachment("Playwright trace", "application/vnd.allure.playwright-trace", await File.ReadAllBytesAsync(path), "zip");
+            Framework.Reporter.Attach("Playwright trace", "application/vnd.allure.playwright-trace", await File.ReadAllBytesAsync(path), "zip");
         }
         finally
         {

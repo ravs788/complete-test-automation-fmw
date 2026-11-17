@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
 using Pages.SauceDemo;
@@ -36,7 +36,7 @@ public class NegativeLoginTests(PlaywrightFixture fixture) : SauceDemoTestBase(f
         await login.OpenAsync();
         await login.LoginExpectingErrorAsync(username, password);
 
-        await AllureApi.Step("Assert login error displayed", async () =>
+        await Report.Step("Assert login error displayed", async () =>
         {
             await Assertions.Expect(login.ErrorMessage).ToBeVisibleAsync();
             await Assertions.Expect(login.ErrorMessage).ToContainTextAsync(expectedError, new() { IgnoreCase = true });

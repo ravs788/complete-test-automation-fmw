@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
 using Tests.Fixtures;
@@ -22,12 +22,12 @@ public class RemoveFromCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(
         await inventory.AddToCartAsync(product.Name);
         var cart = await inventory.OpenCartAsync();
 
-        await AllureApi.Step("Assert product added to cart", async () =>
+        await Report.Step("Assert product added to cart", async () =>
             await Assertions.Expect(cart.Item(product.Name)).ToBeVisibleAsync());
 
         await cart.RemoveAsync(product.Name);
 
-        await AllureApi.Step("Assert product removed from cart", async () =>
+        await Report.Step("Assert product removed from cart", async () =>
             await Assertions.Expect(cart.Item(product.Name)).ToHaveCountAsync(0));
     });
 }

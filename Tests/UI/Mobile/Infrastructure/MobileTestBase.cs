@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Allure.Net.Commons;
+using Core.Composition;
 using Core.Logging;
 using Core.Mobile.Configuration;
 using Core.Mobile.Driver;
@@ -11,7 +11,7 @@ namespace Tests.UI.Mobile.Infrastructure;
 
 /// <summary>
 /// Base for mobile tests. Wrap each test body in <see cref="Run"/>: it starts the Appium session (and opens
-/// <see cref="MobileSettings.BaseUrl"/> for Web), attaches a screenshot to Allure on failure, publishes the
+/// <see cref="MobileSettings.BaseUrl"/> for Web), attaches a screenshot to the report on failure, publishes the
 /// result and quits the driver (via Core's <see cref="TestRunner"/>).
 /// </summary>
 public abstract class MobileTestBase : IDisposable
@@ -49,8 +49,8 @@ public abstract class MobileTestBase : IDisposable
             Logger.Info($"[SetUp] Navigated to {Settings.BaseUrl} on {platform} {appType}");
         }
 
-        // Show the platform in the Allure test name, e.g. "LoginPage_Should_Load (Android Web)".
-        AllureLifecycle.Instance.UpdateTestCase(tc => tc.name = $"{tc.name} ({platform} {appType})");
+        // Show the platform in the report's test name, e.g. "LoginPage_Should_Load (Android Web)".
+        Framework.Reporter.UpdateTestName(name => $"{name} ({platform} {appType})");
     }
 
     private void AttachScreenshot()
@@ -58,7 +58,7 @@ public abstract class MobileTestBase : IDisposable
         if (Driver is ITakesScreenshot taker)
         {
             var png = taker.GetScreenshot().AsByteArray;
-            AllureApi.AddAttachment("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+            Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
         }
     }
 

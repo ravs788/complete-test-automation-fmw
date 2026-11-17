@@ -2,8 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Core.Composition;
 using Core.Logging.Elastic;
+using Core.Reporting.Allure;
 using Core.Security.AzureKeyVault;
-using Core.Testing;
 
 namespace Tests.Infrastructure;
 
@@ -15,10 +15,9 @@ internal static class TestRunSetup
         Justification = "A test assembly is the entry point of its own test run; this is the one place that runs before every test.")]
     internal static void Initialize()
     {
-        AllureResults.ClearPreviousRun();
-
         // Composition root (R40): the adapters this test project references. Which one is used for each contract is
-        // chosen by name in providers.json (e.g. "Logging": "elastic", "Secrets": ["environment", "azure-keyvault"]).
-        Framework.Configure(new ElasticLoggingPlugin(), new AzureKeyVaultPlugin());
+        // chosen by name in providers.json (e.g. "Logging": "elastic", "Reporting": "allure"). The selected reporter clears the
+        // previous run's results here (R23).
+        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new AzureKeyVaultPlugin());
     }
 }

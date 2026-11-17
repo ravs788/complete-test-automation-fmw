@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.RestfulBooker;
 using Tests.Fixtures;
 using Tests.Infrastructure;
@@ -18,18 +18,18 @@ public class BookingApiDeleteTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var booking = BookingMother.Standard();
         var created = await CreateBookingAsync(booking);
-        AllureApi.Step("Assert booking creation for delete test", () =>
+        Report.Step("Assert booking creation for delete test", () =>
         {
             Assert.True(created.BookingId > 0, "Booking creation missing id");
         });
 
         var auth = await GetAuthHeadersAsync();
         var status = await Client.DeleteAsync($"booking/{created.BookingId}", auth);
-        AllureApi.Step("Assert delete booking response", () =>
+        Report.Step("Assert delete booking response", () =>
             Assert.Equal(201, status)); // Restful Booker answers DELETE with 201 Created
 
         var afterDelete = await Client.SendRawAsync("GET", $"booking/{created.BookingId}");
-        AllureApi.Step("Assert deleted booking is not found (404)", () =>
+        Report.Step("Assert deleted booking is not found (404)", () =>
             Assert.Equal(404, afterDelete.Status));
     });
 }

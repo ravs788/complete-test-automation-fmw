@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
 using Tests.Fixtures;
@@ -19,15 +19,15 @@ public class AddToCartTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixtu
         var product = ProductMother.Backpack();
 
         var inventory = await LoginAsync(UserMother.Standard());
-        await AllureApi.Step("Assert inventory page loaded after login", async () =>
+        await Report.Step("Assert inventory page loaded after login", async () =>
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
 
         await inventory.AddToCartAsync(product.Name);
         var cart = await inventory.OpenCartAsync();
 
-        await AllureApi.Step("Assert cart page loaded", async () =>
+        await Report.Step("Assert cart page loaded", async () =>
             await Assertions.Expect(cart.Title).ToHaveTextAsync("Your Cart"));
-        await AllureApi.Step("Assert product is in the cart", async () =>
+        await Report.Step("Assert product is in the cart", async () =>
             await Assertions.Expect(cart.Item(product.Name)).ToBeVisibleAsync());
     });
 }

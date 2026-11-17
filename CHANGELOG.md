@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-17: Reporting contract (R39, phase 2)
+
+- New `Core/Reporting`: `ITestReporter` (run start, test name, parameters, attachments, steps), `Report.Step(...)` for tests, and a built-in `console` reporter. Selected with `"Reporting"` in `providers.json` (`allure` committed; `PROVIDERS_Reporting=console` to run without it); an unregistered name falls back to console with one message.
+- **Allure moved out of `Core`** into the adapter project `Core/Reporting/Allure` (`AllureReportingPlugin`); `Core` no longer references `Allure.Net.Commons`, and `Core.Testing.AllureResults` is replaced by the reporter's `BeginRun`.
+- `TestRunner`, `UiTestBase`, `MobileTestBase` and all 13 test classes call the contract (`AllureApi.Step` → `Report.Step`). Class labels (`[AllureSuite]` …) stay as Allure.Xunit attributes.
+- Verified: the Allure results of the 15 Playwright tests and the Android smoke are identical to before (names, status, labels, parameters, steps, attachments; ignoring ids and times); `TRACE=on` still attaches traces. 9 new unit tests; `AdapterBoundaryTests` now also keeps Allure out of `Core`.
+
 ## 2026-11-17: Composition root and plugin model (R40, phase 1)
 
 - New `Core/Composition`: `Framework.Configure(params IFrameworkPlugin[])` is the composition root, called once from each test project's `TestRunSetup`; adapters register named providers through `IFrameworkPlugin` into a `ProviderRegistry`. The reflection scan in `LoggingServiceFactory` / `ResultsPublisherFactory` is gone.

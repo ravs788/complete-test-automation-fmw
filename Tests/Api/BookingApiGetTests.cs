@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.Models.RestfulBooker;
 using Domain.TestData.RestfulBooker;
 using Tests.Fixtures;
@@ -19,7 +19,7 @@ public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var bookingIds = await Client.GetAsync<List<BookingId>>("booking");
 
-        AllureApi.Step("Assert that bookingIds are returned", () =>
+        Report.Step("Assert that bookingIds are returned", () =>
         {
             Assert.NotNull(bookingIds);
             Assert.NotEmpty(bookingIds);
@@ -32,13 +32,13 @@ public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
         var newBooking = BookingMother.Standard();
 
         var created = await CreateBookingAsync(newBooking);
-        AllureApi.Step("Assert booking created for get-by-id test", () =>
+        Report.Step("Assert booking created for get-by-id test", () =>
         {
             Assert.True(created.BookingId > 0, "Post response does not include a bookingid");
         });
 
         var booking = await Client.GetAsync<Booking>($"booking/{created.BookingId}");
-        AllureApi.Step("Assert booking record retrieval and its fields", () =>
+        Report.Step("Assert booking record retrieval and its fields", () =>
             Assert.Equal(newBooking, booking));
     });
 }

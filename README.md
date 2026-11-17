@@ -20,7 +20,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **Four top-level folders**: `Core` (shared framework code, with optional add-on projects such as `Core/Mobile` inside it), `Domain` (app-specific models, test data, API helpers), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
 - **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
-- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, secrets), with automatic fallback to console for logging
+- **Pluggable providers** (plug-and-play, [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md)): each test project registers its adapters' plugins in one composition root, and `providers.json` picks the implementation per contract (logging, results publishing, reporting, secrets), with automatic fallback to console for logging and reporting
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
 - **Local Elasticsearch + Kibana stack** (`docker-compose.yml`) for the Elastic logging provider
@@ -49,7 +49,9 @@ TestAutomationProj/
 │   │   ├── Console/                   # console provider (built in)
 │   │   └── Elastic/                   # Adapter project Core.Logging.Elastic: Elasticsearch provider ("elastic" in providers.json)
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
-│   ├── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
+│   ├── Reporting/                     # ITestReporter, Report.Step (what tests call), ConsoleTestReporter (built in)
+│   │   └── Allure/                    # Adapter project Core.Reporting.Allure ("allure" in providers.json)
+│   ├── Testing/                       # TestRunner, TestRunInfo (logging, report timing, failure hook, publishing), CleanupTracker
 │   └── Mobile/                        # Add-on project Core.Mobile: reusable Appium bootstrapping (only mobile suites use it)
 │       ├── Configuration/             # MobileSettings (+ sections) + MobileSettingsProvider
 │       ├── Driver/                    # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
@@ -94,7 +96,7 @@ TestAutomationProj/
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
-├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Secrets)
+├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Secrets)
 ├── logging-config.json                # Logging provider settings (Elasticsearch URL, TLS fingerprint)
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
@@ -247,7 +249,7 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
+Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
 
 The Playwright tests (`Tests/`) and the Mobile suite read the provider settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 
@@ -299,8 +301,9 @@ Index names follow `<project>-logs-{date}`: `api-logs-…` (API tests), `ui-web-
 
 ## 📊 Allure Reporting
 
-- Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run, and writes to `bin/<Configuration>/net10.0/allure-results/`. Each test run starts by clearing that folder (`Core.Testing.AllureResults`, called from a module initializer in each test project), so `allure serve` only shows the latest run. To keep several runs (e.g. one per browser), copy the folder out after each one, as the scripts and the nightly pipeline do. The run scripts collect the results (plus `categories.json`) into `./allure-results`, and CI publishes them as the `allure-results` artifact.
-- Allure attributes come from `Allure.Net.Commons.Attributes`. Every test class has the same labels: `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`. Steps use `AllureApi.Step(...)`.
+- Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run, and writes to `bin/<Configuration>/net10.0/allure-results/`. Each test run starts by clearing that folder (the Allure reporter's `BeginRun`, called by `Framework.Configure` in each test project's module initializer), so `allure serve` only shows the latest run. To keep several runs (e.g. one per browser), copy the folder out after each one, as the scripts and the nightly pipeline do. The run scripts collect the results (plus `categories.json`) into `./allure-results`, and CI publishes them as the `allure-results` artifact.
+- **Reporting goes through a contract (R39).** Framework code and tests call `Core.Reporting` (`ITestReporter`; tests use `Report.Step("…", …)`), and the reporter is chosen with `"Reporting"` in `providers.json`: `allure` (the `Core.Reporting.Allure` adapter) or `console` (built in: prints steps, keeps no attachments). With `PROVIDERS_Reporting=console` no framework code touches Allure; `Allure.Xunit`, the xUnit integration, still writes a basic outcome file per test.
+- Class labels still use Allure.Xunit's attributes from `Allure.Net.Commons.Attributes` (read when tests are discovered). Every test class has the same labels: `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`. Steps use `Report.Step(...)`.
 - `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every test.
 - `UiTestBase` appends the browser to the test name, e.g. `Checkout_Should_CompleteOrder (chrome)`, records it as a `browser` parameter (so per-browser runs stay separate when merged), and attaches a full-page screenshot and a **Playwright trace** when a test fails (Allure opens the trace in its built-in trace viewer: a step-by-step replay with DOM snapshots, network and console). `MobileTestBase` appends the platform and app type, e.g. `(Android Web)`.
 - A failed Playwright `Expect(...)` is reported as an xUnit assertion failure, so Allure shows it as **failed** rather than **broken**.
@@ -394,7 +397,7 @@ A test therefore looks like this:
 [Fact]
 public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () =>
 {
-    // Page, Settings, Logger, AllureApi.Step(...), Assertions.Expect(...)
+    // Page, Settings, Logger, Report.Step(...), Assertions.Expect(...)
 });
 ```
 
@@ -402,7 +405,7 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 
 - Uses `PlaywrightFixture` (`IClassFixture`): **one browser per test class**, launched by `PlaywrightDriverFactory` for the configured `Browser`
 - Gives each test a **new isolated `IBrowserContext` and `Page`** with `BaseURL` set to the app's `BaseUrl` (SauceDemo, TodoMVC) and the default timeout applied, and closes it after the test
-- `RunAsync` adds the browser to the Allure name and parameters, attaches a full-page screenshot on failure, and turns a failed Playwright `Expect` into an xUnit assertion failure
+- `RunAsync` adds the browser to the report's test name and parameters, attaches a full-page screenshot on failure, and turns a failed Playwright `Expect` into an xUnit assertion failure
 - Each app has its own base: `SauceDemoTestBase` (sets `BaseUrl`, adds `LoginAsync(username, password)`) and `TodoTestBase` (sets `BaseUrl`, adds `OpenWithItemAsync(item)`)
 
 ### `Tests/Infrastructure/ApiTestBase.cs` (API)

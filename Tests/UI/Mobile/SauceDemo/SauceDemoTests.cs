@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Tests.UI.Mobile.Infrastructure;
 using Tests.UI.Mobile.Pages.SauceDemo;
 
@@ -18,9 +18,9 @@ public class SauceDemoTests : MobileTestBase
         // MobileTestBase has already opened BaseUrl (mobilesettings.json).
         var login = new LoginPage(Driver, Logger);
 
-        AllureApi.Step("Assert username field is visible", () =>
+        Report.Step("Assert username field is visible", () =>
             Assert.True(login.IsUsernameVisible(), "Username field not visible"));
-        AllureApi.Step("Assert page title contains 'Swag Labs'", () =>
+        Report.Step("Assert page title contains 'Swag Labs'", () =>
             Assert.Contains("Swag Labs", login.GetPageTitle()));
     });
 }

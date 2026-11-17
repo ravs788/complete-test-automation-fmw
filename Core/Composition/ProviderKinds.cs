@@ -6,4 +6,5 @@ public static class ProviderKinds
     public const string Logging = "Logging";
     public const string ResultsPublisher = "ResultsPublisher";
     public const string Secrets = "Secrets";
+    public const string Reporting = "Reporting";
 }

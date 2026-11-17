@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R39): Allure reporting behind ITestReporter. Selected with "Reporting": "allure" in providers.json;
+    only test projects that reference this project (and pass AllureReportingPlugin to Framework.Configure) take the
+    Allure library. Class-level suite labels still come from Allure.Xunit's attributes on the test classes.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Allure.Net.Commons" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -13,6 +13,9 @@ public sealed record ProvidersSettings
     /// <summary>Results publisher name; empty means "same as <see cref="Logging"/>".</summary>
     public string ResultsPublisher { get; init; } = "";
 
+    /// <summary>Test reporter name, e.g. <c>allure</c> or <c>console</c>. Unregistered names fall back to console.</summary>
+    public string Reporting { get; init; } = "console";
+
     /// <summary>
     /// Secret providers, tried in order for each <c>secret://NAME</c> placeholder, e.g. <c>["environment", "azure-keyvault"]</c>.
     /// Empty means <c>["environment"]</c>.

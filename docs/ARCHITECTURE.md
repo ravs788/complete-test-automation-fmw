@@ -61,6 +61,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │                   AzureKeyVault/ (add-on project)                        │
 │   Data/           DbConnectionFactory · DbTestScope (rollback by default)│
 │   Messaging/      MessageCollector<T> · Kafka/, RabbitMq/ (add-ons)      │
+│   Reporting/      ITestReporter · Report.Step · console (Allure/ adapter)│
 │   Testing/        TestRunner + TestRunInfo · CleanupTracker              │
 │   Mobile/         Appium bootstrapping (add-on project Core.Mobile)      │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -68,16 +69,16 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Logging.Elastic`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R40). Nothing depends on `Tests`.
-- `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
-- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Logging/Elastic`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R39, R40). Nothing depends on `Tests`.
+- `Core` has no dependency on a test framework. It references Playwright, Polly and Microsoft.Extensions.Configuration; Elasticsearch (R40) and Allure (R39) live in adapter projects (`Core.Logging.Elastic`, `Core.Reporting.Allure`), and `AdapterBoundaryTests` keeps them out of `Core`.
+- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Logging/Elastic`, `Core/Reporting/Allure`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
 - Selenium remains a package only because Appium's .NET client is built on it.
 - The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
 
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Logging.Elastic`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -144,8 +145,8 @@ Per test      UiTestBase.InitializeAsync → new BrowserContext(BaseURL = app's 
                                        → start tracing (Trace = on-failure | on)
               [Fact] public Task X() => RunAsync(async () => { ... })
                 └─ TestRunner.RunAsync(logger, "ui-web", class, [CallerMemberName], browser)
-                     ├─ log [Start]; Allure name "<test> (<browser>)" + "browser" parameter
-                     ├─ body: page objects + Mothers/Builders + AllureApi.Step + Assertions.Expect
+                     ├─ log [Start]; report name "<test> (<browser>)" + "browser" parameter
+                     ├─ body: page objects + Mothers/Builders + Report.Step + Assertions.Expect
                      ├─ PlaywrightException → Assert.Fail (Allure shows "failed", not "broken")
                      ├─ on failure: full-page screenshot + Playwright trace → Allure → rethrow
                      └─ finally: Allure Start/End/Duration → log [Finish] → publish LogMetadata
@@ -248,3 +249,4 @@ Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), wh
 | 2026-11-17 | Mermaid flow diagrams added in `docs/DIAGRAMS.md`: project dependencies, web UI / API / mobile test runs, settings and secrets, CI pipeline. |
 | 2026-11-17 | `docs/PLUGIN_ARCHITECTURE.md` added (R43): plug-and-play target shape, contract list, dependency inventory, design rules, provider guide, accepted host/platform dependencies. |
 | 2026-11-17 | Composition root (R40): `providers.json` + `Core/Composition` (`Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`) replace the reflection scan and the per-project Key Vault wiring; Elasticsearch moved out of `Core` into the `Core.Logging.Elastic` adapter (R44); first adapter guardrail tests (R46). |
+| 2026-11-17 | Reporting contract (R39): `Core/Reporting` (`ITestReporter`, `Report.Step`, built-in console reporter); Allure moved into the `Core.Reporting.Allure` adapter, selected with `"Reporting"` in `providers.json`; `TestRunner`, the base classes and all tests call the contract. |

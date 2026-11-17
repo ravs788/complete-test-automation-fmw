@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
 using Tests.Fixtures;
@@ -19,9 +19,9 @@ public class SauceDemoTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixtu
     {
         var inventory = await LoginAsync(UserMother.Standard());
 
-        await AllureApi.Step("Assert inventory page loaded after login", async () =>
+        await Report.Step("Assert inventory page loaded after login", async () =>
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
-        await AllureApi.Step("Assert inventory shows products", async () =>
+        await Report.Step("Assert inventory shows products", async () =>
             await Assertions.Expect(inventory.Items.First).ToBeVisibleAsync());
     });
 }

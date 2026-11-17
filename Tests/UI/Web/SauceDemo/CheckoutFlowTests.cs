@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Domain.Models.SauceDemo;
 using Domain.TestData.SauceDemo;
 using Microsoft.Playwright;
@@ -21,7 +21,7 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
         var checkoutInfo = CheckoutInfoMother.Standard();
 
         var inventory = await LoginAsync(UserMother.Standard());
-        await AllureApi.Step("Assert inventory page loaded after login", async () =>
+        await Report.Step("Assert inventory page loaded after login", async () =>
             await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
 
         foreach (var product in products)
@@ -30,14 +30,14 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
         }
         var cart = await inventory.OpenCartAsync();
 
-        await AllureApi.Step("Assert cart contains the selected products", async () =>
+        await Report.Step("Assert cart contains the selected products", async () =>
         {
             await Assertions.Expect(cart.Title).ToHaveTextAsync("Your Cart");
             await Assertions.Expect(cart.ItemNames).ToHaveTextAsync(products.Select(p => p.Name).ToArray());
         });
 
         var information = await cart.CheckoutAsync();
-        await AllureApi.Step("Assert checkout information page loaded", async () =>
+        await Report.Step("Assert checkout information page loaded", async () =>
             await Assertions.Expect(information.Title).ToHaveTextAsync("Checkout: Your Information"));
 
         var overview = await information.FillAndContinueAsync(
@@ -47,7 +47,7 @@ public class CheckoutFlowTests(PlaywrightFixture fixture) : SauceDemoTestBase(fi
 
         await Assertions.Expect(overview.Title).ToHaveTextAsync("Checkout: Overview");
         var complete = await overview.FinishAsync();
-        await AllureApi.Step("Assert order completion message displayed", async () =>
+        await Report.Step("Assert order completion message displayed", async () =>
             await Assertions.Expect(complete.Header).ToContainTextAsync("thank you for your order", new() { IgnoreCase = true }));
     });
 }

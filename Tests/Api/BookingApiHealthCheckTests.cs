@@ -1,5 +1,5 @@
-using Allure.Net.Commons;
 using Allure.Net.Commons.Attributes;
+using Core.Reporting;
 using Tests.Fixtures;
 using Tests.Infrastructure;
 
@@ -18,7 +18,7 @@ public class BookingApiHealthCheckTests(ApiFixture fixture) : ApiTestBase(fixtur
     {
         var response = await Client.SendRawAsync("GET", "ping");
 
-        AllureApi.Step("Assert API health check via /ping returns 201", () =>
+        Report.Step("Assert API health check via /ping returns 201", () =>
             Assert.Equal(201, response.Status));
     });
 }
