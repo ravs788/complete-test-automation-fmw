@@ -1,4 +1,3 @@
-using Allure.Net.Commons.Attributes;
 using Core.Reporting;
 using Domain.Models.RestfulBooker;
 using Domain.TestData.RestfulBooker;
@@ -7,10 +6,8 @@ using Tests.Infrastructure;
 
 namespace Tests.Api;
 
-[AllureParentSuite("API")]
-[AllureSuite("Restful Booker")]
-[AllureSubSuite("Get booking")]
-[AllureTag("api", "restful-booker", "get", "regression")]
+[ReportSuite("API", "Restful Booker", "Get booking")]
+[ReportTags("api", "restful-booker", "get", "regression")]
 [Trait("Category", "regression")]
 public class BookingApiGetTests(ApiFixture fixture) : ApiTestBase(fixture)
 {

@@ -1,4 +1,3 @@
-using Allure.Net.Commons.Attributes;
 using Core.Reporting;
 using Core.Ui;
 using Domain.Models.SauceDemo;
@@ -7,10 +6,8 @@ using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
 
-[AllureParentSuite("UI Web")]
-[AllureSuite("SauceDemo")]
-[AllureSubSuite("Checkout")]
-[AllureTag("ui", "saucedemo", "checkout", "regression")]
+[ReportSuite("UI Web", "SauceDemo", "Checkout")]
+[ReportTags("ui", "saucedemo", "checkout", "regression")]
 [Trait("Category", "regression")]
 public class CheckoutFlowTests(BrowserFixture fixture) : SauceDemoTestBase(fixture)
 {

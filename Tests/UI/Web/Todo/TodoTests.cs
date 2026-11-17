@@ -1,4 +1,3 @@
-using Allure.Net.Commons.Attributes;
 using Core.Reporting;
 using Core.Ui;
 using Domain.TestData.Todo;
@@ -6,10 +5,8 @@ using Tests.Fixtures;
 
 namespace Tests.UI.Web.Todo;
 
-[AllureParentSuite("UI Web")]
-[AllureSuite("TodoMVC")]
-[AllureSubSuite("Todo items")]
-[AllureTag("ui", "todomvc", "todo-items", "regression")]
+[ReportSuite("UI Web", "TodoMVC", "Todo items")]
+[ReportTags("ui", "todomvc", "todo-items", "regression")]
 [Trait("Category", "regression")]
 public class TodoTests(BrowserFixture fixture) : TodoTestBase(fixture)
 {

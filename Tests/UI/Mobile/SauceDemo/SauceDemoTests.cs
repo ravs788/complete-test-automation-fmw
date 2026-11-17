@@ -1,4 +1,3 @@
-using Allure.Net.Commons.Attributes;
 using Core.Reporting;
 using Core.Ui;
 using Pages.SauceDemo;
@@ -6,10 +5,8 @@ using Tests.UI.Mobile.Infrastructure;
 
 namespace Tests.UI.Mobile.SauceDemo;
 
-[AllureParentSuite("UI Mobile")]
-[AllureSuite("SauceDemo")]
-[AllureSubSuite("Login")]
-[AllureTag("ui", "mobile", "saucedemo", "login", "smoke")]
+[ReportSuite("UI Mobile", "SauceDemo", "Login")]
+[ReportTags("ui", "mobile", "saucedemo", "login", "smoke")]
 [Trait("Category", "smoke")]
 public class SauceDemoTests : MobileTestBase
 {

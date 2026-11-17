@@ -13,6 +13,9 @@ public interface ITestReporter
     /// <summary>Renames the current test, e.g. <c>name => $"{name} (chrome)"</c>.</summary>
     void UpdateTestName(Func<string, string> update);
 
+    /// <summary>Groups the current test (layer, app, feature) and tags it, from <see cref="ReportSuiteAttribute"/> / <see cref="ReportTagsAttribute"/>.</summary>
+    void SetSuite(string parentSuite, string suite, string subSuite, IReadOnlyList<string> tags);
+
     /// <summary>Adds a name/value parameter to the current test.</summary>
     void AddParameter(string name, string value);
 

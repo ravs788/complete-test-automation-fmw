@@ -14,6 +14,10 @@ public sealed class ConsoleTestReporter : ITestReporter
     {
     }
 
+    public void SetSuite(string parentSuite, string suite, string subSuite, IReadOnlyList<string> tags)
+    {
+    }
+
     public void AddParameter(string name, string value)
     {
     }

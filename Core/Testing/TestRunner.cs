@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Reflection;
 using Core.Composition;
 using Core.Logging;
+using Core.Reporting;
 
 namespace Core.Testing;
 
@@ -35,6 +37,7 @@ public static class TestRunner
         var target = string.IsNullOrEmpty(info.Browser) ? string.Empty : $" on '{info.Browser}'";
 
         logger.Info($"[Start] {info.TestClass.Name}.{info.TestName}{target}");
+        ApplyReportLabels(info.TestClass);
         try
         {
             await body();
@@ -58,6 +61,16 @@ public static class TestRunner
 
             try { if (cleanupAsync is not null) await cleanupAsync(); }
             catch (Exception ex) { logger.Error($"[Cleanup] {ex.Message}"); }
+        }
+    }
+
+    /// <summary>Passes the class's <see cref="ReportSuiteAttribute"/> / <see cref="ReportTagsAttribute"/> to the reporter (R48).</summary>
+    private static void ApplyReportLabels(Type testClass)
+    {
+        if (testClass.GetCustomAttribute<ReportSuiteAttribute>() is { } suite)
+        {
+            var tags = testClass.GetCustomAttribute<ReportTagsAttribute>()?.Tags ?? [];
+            Framework.Reporter.SetSuite(suite.ParentSuite, suite.Suite, suite.SubSuite, tags);
         }
     }
 

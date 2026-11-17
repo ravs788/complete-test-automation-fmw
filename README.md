@@ -309,19 +309,19 @@ Index names follow `<project>-logs-{date}`: `api-logs-…` (API tests), `ui-web-
 
 - Every suite uses **`Allure.Xunit`**, which turns on automatically when the tests run, and writes to `bin/<Configuration>/net10.0/allure-results/`. Each test run starts by clearing that folder (the Allure reporter's `BeginRun`, called by `Framework.Configure` in each test project's module initializer), so `allure serve` only shows the latest run. To keep several runs (e.g. one per browser), copy the folder out after each one, as the scripts and the nightly pipeline do. The run scripts collect the results (plus `categories.json`) into `./allure-results`, and CI publishes them as the `allure-results` artifact.
 - **Reporting goes through a contract (R39).** Framework code and tests call `Core.Reporting` (`ITestReporter`; tests use `Report.Step("…", …)`), and the reporter is chosen with `"Reporting"` in `providers.json`: `allure` (the `Core.Reporting.Allure` adapter) or `console` (built in: prints steps, keeps no attachments). With `PROVIDERS_Reporting=console` no framework code touches Allure; `Allure.Xunit`, the xUnit integration, still writes a basic outcome file per test.
-- Class labels still use Allure.Xunit's attributes from `Allure.Net.Commons.Attributes` (read when tests are discovered). Every test class has the same labels: `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`. Steps use `Report.Step(...)`.
+- **Labels are framework attributes (R48):** every test class has `[ReportSuite("API" | "UI Web" | "UI Mobile", "<App>", "<Feature>")]` and `[ReportTags(...)]` from `Core.Reporting`; `TestRunner` passes them to the reporter (Allure: parentSuite / suite / subSuite and tag labels). Steps use `Report.Step(...)`. Test classes import nothing from Allure.
 - `TestRunner` adds **Start Time**, **End Time**, and **Duration (s)** parameters to every test.
 - `UiTestBase` appends the browser to the test name, e.g. `Checkout_Should_CompleteOrder (chrome)`, records it as a `browser` parameter (so per-browser runs stay separate when merged), and attaches a full-page screenshot and a **Playwright trace** when a test fails (Allure opens the trace in its built-in trace viewer: a step-by-step replay with DOM snapshots, network and console). `MobileTestBase` appends the platform and app type, e.g. `(Android Web)`.
-- A failed Playwright `Expect(...)` is reported as an xUnit assertion failure, so Allure shows it as **failed** rather than **broken**.
+- A failed `Ui.Expect(...)` (or an element that never becomes actionable) is reported as an xUnit assertion failure, so Allure shows it as **failed** rather than **broken**.
 - `allure-categories.json` groups results into **UI Tests** and **API Tests** by the `ui` / `api` tags.
 
 > **Version pin:** the solution stays on **xUnit v2** with **`xunit.runner.visualstudio` 2.8.2** (see `Directory.Packages.props`). `Allure.Xunit` doesn't support xUnit v3, and test adapters from 3.0 on can't load Allure's reporter, so you'd get no Allure results.
 
 ### Tags and categories in use
 
-Each test class carries `[AllureTag(...)]` (for Allure) and xUnit `[Trait("Category", ...)]` (for `dotnet test --filter "Category=..."`). Tags always follow the same order: layer, (`mobile`), app, feature, categories.
+Each test class carries `[ReportTags(...)]` (for the report) and xUnit `[Trait("Category", ...)]` (for `dotnet test --filter "Category=..."`). Tags always follow the same order: layer, (`mobile`), app, feature, categories.
 
-| Suite | Allure tags | `Category` traits |
+| Suite | Report tags | `Category` traits |
 |-------|-------------|-------------------|
 | API (`Tests/Api`) | `api`, `restful-booker`, `health`/`get`/`post`/`put`/`patch`/`delete`, `smoke`, `regression` | `smoke` (health check only), `regression` (all) |
 | SauceDemo (`Tests/UI/Web/SauceDemo`) | `ui`, `saucedemo`, `login`/`negative`/`add-to-cart`/`remove-from-cart`/`checkout`, `smoke`, `regression` | `smoke` (login only), `regression` (all) |
@@ -438,12 +438,12 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 1. Add a page object in `Pages/<App>/` (inherit `Pages.Common.BasePage`; it takes the test's `IUiSession`), exposing `IElement`s for assertions and async intent methods for actions. Locate elements with `TestId("…")` or `Session.Find(Locate.Role(...) / Locate.Placeholder(...))`, and filter with `WithChild(...)`, not CSS classes. Methods that navigate return the next page object (`var cart = await inventory.OpenCartAsync();`). Entry pages open with `BasePage.GotoAsync("./")`, which retries a navigation that fails with a network error (`net::ERR_*`) up to twice.
 2. Add a model in `Domain/Models/<App>/` and a Builder + Mother in `Domain/TestData/<App>/`. Put `[Theory]` cases in a `[MemberData]` source built from them. Use JSON (`Tests/test-data/<App>/<TestClass>/<Scenario>.json` via `TestDataLoader`) only for large tables or data owned outside the code (see below) cases.
 3. For a new app, add its URL to `testsettings.json` / `TestSettings` and a `Tests/UI/Web/<App>/<App>TestBase.cs` that inherits `UiTestBase` and overrides `BaseUrl`.
-4. Add a test class in `Tests/UI/Web/<App>/` that inherits the app's test base (takes `BrowserFixture`) and carries `[AllureParentSuite("UI Web")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "<app>", "<feature>", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });` and assert with `Ui.Expect(...)` (from `Core.Ui`).
+4. Add a test class in `Tests/UI/Web/<App>/` that inherits the app's test base (takes `BrowserFixture`) and carries `[ReportSuite("UI Web", "<App>", "<Feature>")]`, `[ReportTags("ui", "<app>", "<feature>", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });` and assert with `Ui.Expect(...)` (from `Core.Ui`).
 
 ### API
 
 1. Add models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Domain/Api/<Service>/`.
-2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Domain/Api/<Service>/` and return headers the same way).
+2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[ReportSuite("API", "<Service>", "<Feature>")]`, `[ReportTags("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Domain/Api/<Service>/` and return headers the same way).
 
 ### Database checks (when a system under test has a database)
 
@@ -467,7 +467,7 @@ The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener 
 ### Mobile
 
 1. Reuse the page object in `Pages/<App>/`, or add one there (inherit `BasePage`; it works on mobile and web).
-2. Add a test class in `Tests/UI/Mobile/<App>/` that inherits `MobileTestBase`, with `[AllureParentSuite("UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "mobile", "<app>", ...)]` and `[Trait("Category", ...)]`. Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });`.
+2. Add a test class in `Tests/UI/Mobile/<App>/` that inherits `MobileTestBase`, with `[ReportSuite("UI Mobile", "<App>", "<Feature>")]`, `[ReportTags("ui", "mobile", "<app>", ...)]` and `[Trait("Category", ...)]`. Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });`.
 
 See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 

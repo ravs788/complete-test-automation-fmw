@@ -1,4 +1,3 @@
-using Allure.Net.Commons.Attributes;
 using Core.Reporting;
 using Core.Ui;
 using Domain.TestData.SauceDemo;
@@ -7,10 +6,8 @@ using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
 
-[AllureParentSuite("UI Web")]
-[AllureSuite("SauceDemo")]
-[AllureSubSuite("Negative login")]
-[AllureTag("ui", "saucedemo", "login", "negative", "regression")]
+[ReportSuite("UI Web", "SauceDemo", "Negative login")]
+[ReportTags("ui", "saucedemo", "login", "negative", "regression")]
 [Trait("Category", "regression")]
 public class NegativeLoginTests(BrowserFixture fixture) : SauceDemoTestBase(fixture)
 {

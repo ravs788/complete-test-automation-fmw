@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-17: xUnit as a thin host layer; label attributes (R48, R46, phase 7)
+
+- New framework attributes **`[ReportSuite(layer, app, feature)]`** and **`[ReportTags(...)]`** in `Core.Reporting`; `TestRunner` passes them to the reporter (`ITestReporter.SetSuite`; the Allure adapter writes the parentSuite / suite / subSuite and tag labels). All 13 test classes use them instead of `[AllureParentSuite]` / `[AllureSuite]` / `[AllureSubSuite]` / `[AllureTag]`, so **scenario code imports no vendor library**. Verified: Allure results (labels included) identical to the baseline for the 15 Playwright tests and the Android smoke.
+- `TestHostBoundaryTests` (metadata only; no test-project code runs): test classes use xUnit only through `[Fact]` / `[Theory]` / `[Trait]` and `Assert`, xUnit lifecycle interfaces only in fixtures and base classes, and `Tests`, `Tests.UI.Mobile` and `Domain` reference no vendor library besides xUnit. Checked that it fails when a test class gets an Allure attribute or an xUnit interface.
+- R46 contract suites completed: reporting (console, Allure), logging and results publishing (console, Elastic on a closed port), secrets (environment, Key Vault with a fake client); the Key Vault fake moved to `Tests/Unit/Security/FakeKeyVault.cs`.
+- Docs: how to label test classes (README, CONTRIBUTING, MOBILE_ARCHITECTURE), the host layer and migration path (PLUGIN_ARCHITECTURE §6).
+
 ## 2026-11-17: Selenium and Appium on the UI contract (R47, phase 6)
 
 - New adapter project **`Core/Ui/Selenium`** (`SeleniumUiPlugin`, `"selenium"`): `WebDriverUiSession` / `WebDriverElement` for any W3C WebDriver, with polling waits, retries on stale or covered elements, a Playwright-like stability check before clicks, ARIA roles mapped to common tags, framework assertions polling for 5 s, and screenshots (no tracing). Browsers: installed Chrome, Edge or Firefox (each session is a new browser).

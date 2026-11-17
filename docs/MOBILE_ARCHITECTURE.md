@@ -84,10 +84,8 @@ For device selection commands and clearing stale overrides, see [mobile troubles
 2. **Test:** add `<App>/<Feature>Tests.cs` deriving from `MobileTestBase`, with the same labels as the other suites:
 
    ```csharp
-   [AllureParentSuite("UI Mobile")]
-   [AllureSuite("<App>")]
-   [AllureSubSuite("<Feature>")]
-   [AllureTag("ui", "mobile", "<app>", "<feature>", "<category>")]
+   [ReportSuite("UI Mobile", "<App>", "<Feature>")]
+   [ReportTags("ui", "mobile", "<app>", "<feature>", "<category>")]
    [Trait("Category", "smoke")]   // and/or "regression"
    public class <Feature>Tests : MobileTestBase
    {

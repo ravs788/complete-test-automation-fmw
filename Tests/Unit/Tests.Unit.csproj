@@ -33,6 +33,9 @@
     <ProjectReference Include="..\..\Core\Ui\Selenium\Core.Ui.Selenium.csproj" />
     <ProjectReference Include="..\..\Domain\Domain.csproj" />
     <ProjectReference Include="..\..\Pages\Pages.csproj" />
+    <!-- Metadata only (TestHostBoundaryTests, R48): the scenario test projects, to check their host-layer boundary. -->
+    <ProjectReference Include="..\Tests.csproj" />
+    <ProjectReference Include="..\UI\Mobile\Tests.UI.Mobile.csproj" />
     <ProjectReference Include="..\..\Core\Mobile\Core.Mobile.csproj" />
   </ItemGroup>
 

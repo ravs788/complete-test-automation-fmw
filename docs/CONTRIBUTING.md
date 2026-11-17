@@ -50,8 +50,9 @@ Every external library belongs behind a framework contract, in its own adapter p
 - For transient failures use `Core.Resilience`: `RetryPolicies` (transient HTTP for idempotent requests only, navigation, UI actions; implemented by the `"Resilience"` provider in `providers.json`, `polly` or `builtin`) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
 - Wrap every test body in the base class's `RunAsync(...)` / `Run(...)` so it gets logging, Allure timing, failure screenshots and results publishing.
 - Give each test class the same labels:
-  - `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`
-  - `[AllureTag(<layer>, [mobile,] <app>, <feature>, <categories>…)]`, e.g. `("ui", "saucedemo", "checkout", "regression")`
+  - `[ReportSuite("API" | "UI Web" | "UI Mobile", "<App>", "<Feature>")]` (from `Core.Reporting`)
+  - `[ReportTags(<layer>, [mobile,] <app>, <feature>, <categories>…)]`, e.g. `("ui", "saucedemo", "checkout", "regression")`
+- Test classes use xUnit only through `[Fact]` / `[Theory]` / `[Trait]` and `Assert` (the host layer, R48): lifecycle interfaces (`IAsyncLifetime`, `IClassFixture`) belong in fixtures and base classes, and no test class imports a reporting, driver or HTTP library. `TestHostBoundaryTests` checks this.
   - `[Trait("Category", ...)]`: `smoke` for the PR set, `regression` for everything
 - Models are `sealed record`s with PascalCase properties and `[JsonPropertyName("…")]` for the wire name. Don't use lowercase C# properties or `Dictionary<string, …>` bodies.
 

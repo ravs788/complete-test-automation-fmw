@@ -11,6 +11,23 @@ public sealed class AllureTestReporter : ITestReporter
     public void UpdateTestName(Func<string, string> update) =>
         TryUpdateTestCase(tc => tc.name = update(tc.name));
 
+    /// <summary>
+    /// Replaces the suite labels Allure.Xunit derived from the class with the framework's and adds the tags, so test
+    /// classes need no Allure attributes (R48).
+    /// </summary>
+    public void SetSuite(string parentSuite, string suite, string subSuite, IReadOnlyList<string> tags) =>
+        TryUpdateTestCase(tc =>
+        {
+            tc.labels.RemoveAll(l => l.name is "parentSuite" or "suite" or "subSuite");
+            tc.labels.Add(Label.ParentSuite(parentSuite));
+            tc.labels.Add(Label.Suite(suite));
+            tc.labels.Add(Label.SubSuite(subSuite));
+            foreach (var tag in tags)
+            {
+                tc.labels.Add(Label.Tag(tag));
+            }
+        });
+
     public void AddParameter(string name, string value) =>
         TryUpdateTestCase(tc => tc.parameters.Add(new Parameter { name = name, value = value }));
 
