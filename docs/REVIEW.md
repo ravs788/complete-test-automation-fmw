@@ -14,7 +14,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
+| R36 | P4 | Open (partly done) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
@@ -401,7 +401,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r36"></a>
 ### R36. No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader
 
-- **Status:** Open
+- **Status:** Open (partly done). In `f0e6b65` (2026-11-17): `Core/Security` with `ISecretProvider` and an environment-variable provider; `SettingsLoader` resolves `secret://NAME` placeholders and fails clearly when a secret is missing (4 unit tests; API suite passes with the Restful Booker password supplied as a secret placeholder). **Still open:** an actual vault provider (e.g. Azure Key Vault via `Azure.Security.KeyVault.Secrets` + `DefaultAzureCredential`) as a separate add-on, once there is a vault to use and verify against.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** `Core/Configuration/SettingsLoader.cs`.
 - **Problem:** secrets (Elastic and API credentials) come from environment variables (R1, R6). That's fine for CI and local runs, but enterprise setups usually pull credentials at runtime from Azure Key Vault, AWS Secrets Manager or HashiCorp Vault, and there's no seam for that.
