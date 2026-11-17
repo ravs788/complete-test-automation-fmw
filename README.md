@@ -36,6 +36,7 @@ TestAutomationProj/
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Messaging/                     # MessageCollector<T> + ReceivedMessage (broker-neutral; fed by the add-ons)
 │   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
 │   ├── Security/                      # ISecretProvider + EnvironmentSecretProvider (secret://NAME placeholders)
 │   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
@@ -51,6 +52,8 @@ TestAutomationProj/
 │   ├── Driver/                        # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
 │   └── Interactions/                  # WaitHelper, GestureHelper
 │
+├── Core.Messaging.Kafka/              # Optional add-on: KafkaListener (manual partition assignment, no commits)
+├── Core.Messaging.RabbitMq/           # Optional add-on: RabbitMqListener (exclusive auto-delete queue)
 ├── Core.Secrets.AzureKeyVault/        # Optional add-on: ISecretProvider for Azure Key Vault (on when KEYVAULT_URI is set)
 │
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
@@ -86,7 +89,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -96,10 +99,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -436,6 +439,20 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 
 1. Reference the ADO.NET provider package in the test project (e.g. `Npgsql`, `Microsoft.Data.SqlClient`) and put the connection string in settings, with the password as `secret://NAME`.
 2. Create `new DbConnectionFactory(NpgsqlFactory.Instance, connectionString)` and, per test, `await using var db = await factory.BeginScopeAsync();`. Seed or check rows with `db.ExecuteAsync` / `db.ScalarAsync<T>` (or Dapper on `db.Connection`). The scope **rolls back** when the test ends, unless you call `CommitAsync()`. For anything committed or created outside the transaction, register a cleanup with `Cleanup.Add(...)`.
+
+### Message checks (when a system under test publishes to a broker)
+
+Reference the add-on for your broker from the test project and start a listener **before** triggering the behaviour:
+
+```csharp
+await using var events = await RabbitMqListener.StartAsync(rabbitUri, exchange: "bookings", routingKey: "booking.*");
+// or: await using var events = await KafkaListener.StartAsync("broker:9092", topic: "bookings");
+await Client.PostAsync<CreatedBooking>("booking", booking);
+var created = await events.WaitForAsync(m => m.Key == "booking.created", TimeSpan.FromSeconds(10));
+Assert.Equal(booking.LastName, created.BodyAs<Booking>()!.LastName);
+```
+
+The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener reads from the end offsets with no consumer-group commits. Either way, nothing is left on the broker after the test. The broker tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (see GETTING_STARTED).
 
 ### Mobile
 

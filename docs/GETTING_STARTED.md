@@ -230,6 +230,15 @@ Environment values override JSON. Removing the environment override restores the
 
 **Secrets from Azure Key Vault.** If settings use `secret://NAME` placeholders kept in Key Vault, run `az login` and set `KEYVAULT_URI=https://<vault>.vault.azure.net/` (Windows: `set` / `$env:`). Environment variables with the same name still take precedence.
 
+**Broker integration tests (optional).** `Tests/Unit` has RabbitMQ and Kafka listener tests that are skipped unless a broker is configured. To run them locally with Docker:
+
+```bash
+docker run -d --name rabbit -p 5672:5672 rabbitmq:3.13
+docker run -d --name kafka -p 9092:9092 apache/kafka:3.8.0
+RABBITMQ_URI=amqp://guest:guest@localhost:5672/ KAFKA_BOOTSTRAP=localhost:9092 \
+  dotnet test Tests/Unit/Tests.Unit.csproj --filter "Category=integration"
+```
+
 **"Elasticsearch connection refused".** No action needed: logging falls back to the console. To log to a cluster, run `docker compose up -d` (Elasticsearch on `localhost:9200`, Kibana on `localhost:5601`, no password). For another cluster, set `ELASTIC_URL`, plus `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` if it needs them. Don't put credentials in `logging-config.json`.
 
 ---

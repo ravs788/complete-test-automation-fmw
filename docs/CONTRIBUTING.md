@@ -20,6 +20,8 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`); secrets as `secret://NAME`, never literal values |
 | Database access in a test | `Core.Data.DbConnectionFactory` + `DbTestScope` (rolls back by default); the provider package goes in the test project, never in Core |
 | Anything a test creates outside a transaction | register its removal with `Cleanup.Add(...)` (`Core.Testing.CleanupTracker`) |
+| Waiting for a broker message | `RabbitMqListener` / `KafkaListener` (add-ons) started before the action, then `WaitForAsync(match, timeout)`; never sleep-and-read |
+| A test that needs external infrastructure (broker, vault) | `[RequiresEnvironmentFact("VARIABLE")]` + `[Trait("Category", "integration")]`, so it is skipped unless the variable is set |
 | Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.

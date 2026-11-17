@@ -54,13 +54,14 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
 │   Security/       ISecretProvider (secret://NAME) · env-var provider     │
 │   Data/           DbConnectionFactory · DbTestScope (rollback by default)│
+│   Messaging/      MessageCollector<T> (+ RabbitMq / Kafka add-ons)       │
 │   Testing/        TestRunner + TestRunInfo · CleanupTracker              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Secrets.AzureKeyVault` → `Core` is an optional add-on (R36). Nothing depends on `Tests`.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Secrets.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional add-ons (R36, R37). Nothing depends on `Tests`.
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
 - `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`).
 - Selenium remains a package only because Appium's .NET client is built on it.
@@ -69,7 +70,7 @@ Dependency rules:
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -178,7 +179,7 @@ GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)
 
 Stage: BuildAndValidate
  ├─ Job Tests (ubuntu; web/API and framework checks)
-      .NET 10 → build ci.slnf (Core, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
+      .NET 10 → build ci.slnf (Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
       → dotnet test Tests/Unit (framework unit tests, ~1 s)
       → dotnet test Tests/Tests.csproj, BROWSER=chrome (preinstalled Chrome, no download)
           PR           → --filter "FullyQualifiedName!~.SauceDemo.|Category=smoke"

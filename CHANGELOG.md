@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-17: Message-broker listeners (R37)
+
+- New `Core/Messaging`: `ReceivedMessage` (broker-neutral, `BodyAs<T>()`) and `MessageCollector<T>` (thread-safe buffer + `WaitForAsync(match, timeout)` on `Poll`).
+- New optional add-ons: **`Core.Messaging.RabbitMq`** (`RabbitMqListener`: exclusive, auto-delete queue bound to an exchange; RabbitMQ.Client 7.2.2) and **`Core.Messaging.Kafka`** (`KafkaListener`: manual partition assignment at the end offsets, no commits, so no stored state; Confluent.Kafka 2.16.0).
+- `RequiresEnvironmentFact`: broker integration tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (otherwise reported as skipped). Verified against RabbitMQ 3.13 and Kafka 3.8 in Docker (3 runs in a row, nothing left on either broker).
+
 ## 2026-11-17: Azure Key Vault secrets (R36)
 
 - New optional add-on **`Core.Secrets.AzureKeyVault`** (Azure.Security.KeyVault.Secrets 4.12.0, Azure.Identity 1.21.0): `AzureKeyVaultSecretProvider` resolves `secret://NAME` from the vault in `KEYVAULT_URI` with `DefaultAzureCredential`, caches each secret for the run, returns null for a missing secret and surfaces access errors.
