@@ -2,7 +2,7 @@
 
 ## 2026-11-17: Flow diagrams (Mermaid)
 
-- New `docs/DIAGRAMS.md` with six Mermaid diagrams that GitHub renders: project dependencies, a web UI test run, an API test run (retries and cleanup), a mobile test run, settings and secrets resolution, and the CI pipeline. Linked from README, ARCHITECTURE and CONTRIBUTING.
+- New `docs/DIAGRAMS.md` with six Mermaid diagrams that GitHub renders: projects and layers, a web UI test run, an API test run (retries and cleanup), a mobile test run, settings and secrets resolution, and the CI pipeline. Each shows one idea and only the main path (about eight boxes at most, one arrow per group); details are in tables under each diagram. Linked from README, ARCHITECTURE and CONTRIBUTING.
 
 ## 2026-11-17: Chromedriver keeps Chrome's data on Android (R33)
 
