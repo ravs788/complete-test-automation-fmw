@@ -16,7 +16,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
 | R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
-| R38 | P4 | Open | – | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
+| R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
 | R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R34 | P3 | Closed | 2026-11-17 · `d01fbf0` | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
 | R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
@@ -419,7 +419,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r38"></a>
 ### R38. Mobile driver bootstrapping can't be reused outside the mobile test project
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `cf18aa0`. New Core.Mobile library (settings + provider, driver factory/options, interaction helpers), referenced only by mobile suites, so Core has no Appium/Selenium dependency; page objects and tests stay in Tests/UI/Mobile. Boundary tests check that Core doesn't reference Appium and Core.Mobile doesn't reference Domain/Pages/test projects. Unit 67/67, Playwright 15/15, mobile test discovered.
 - **Source:** external architecture feedback, 2026-11-17 (its checklist lists `MobileDriverFactory` among the bootstrapping that belongs in Core).
 - **Where:** `Tests/UI/Mobile/Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`), `Tests/UI/Mobile/Configuration/`.
 - **Problem:** the Appium bootstrapping and its settings live inside the mobile test project, so another team or project can't reuse them. Moving them into Core as it is would make every Core consumer depend on Appium and Selenium.
