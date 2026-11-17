@@ -4,7 +4,7 @@ The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
 - **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; its first hosted execution is pending. Results and diagnostics are published as `mobile-results`. See [GETTING_STARTED.md](GETTING_STARTED.md).
-- **Hosted emulator:** `scripts/unix/run_mobile_ci.sh` boots it headless (`-no-window -gpu swiftshader_indirect`) with 2 cores and 3 GB, because hosted agents have fewer than 6 cores and the emulator would otherwise give Android a single core. The boot budget is `BOOT_TIMEOUT_SECONDS` (default 600), and progress is logged to `boot-progress.log` in the `mobile-results` artifact.
+- **Hosted emulator:** `scripts/unix/run_mobile_ci.sh` boots it headless (`-no-window -gpu swiftshader_indirect`) with 2 cores and 3 GB, because hosted agents have fewer than 6 cores and the emulator would otherwise give Android a single core. The boot budget is `BOOT_TIMEOUT_SECONDS` (default 600), and progress is logged to `boot-progress.log` in the `mobile-results` artifact. After boot it waits for background app compilation to settle, then pre-installs Appium's helper apps (`[settle]` / `[preinstall]` lines in `boot-progress.log`), because on one core Appium's 20 s install limit is too short (R33).
 
 ---
 
@@ -65,7 +65,7 @@ The file is copied to the output directory. Property names match the C# records.
 | (root) | `Platform`, `AppType`, `BaseUrl` | `Android` / `iOS`; `Web` / `Native`; `BaseUrl` is opened for Web |
 | `Server` | `Url`, `CommandTimeoutSec`, `NewCommandTimeoutSec` | Default Appium URL `http://127.0.0.1:4723/` |
 | `Device` | `DeviceName`, `PlatformVersion`, `Udid`, `Orientation` | `Udid` selects an Android serial from `adb devices -l`; override it with `MOBILE_Device__Udid`. `DEVICE_NAME` changes only `DeviceName`, not `Udid`. The shared UDID default is empty |
-| `Android` | `AutomationName`, `App`, `AppPackage`, `AppActivity`, `BrowserName`, `ChromedriverExecutable`, `ChromedriverExecutableDir`, `ChromedriverArgs`, `GeckodriverExecutable`, `FirefoxPackage`, `FirefoxActivity` | Leave both Chromedriver settings empty to let Appium download a matching Chromedriver |
+| `Android` | `AutomationName`, `App`, `AppPackage`, `AppActivity`, `BrowserName`, `ChromedriverExecutable`, `ChromedriverExecutableDir`, `ChromedriverArgs`, `GeckodriverExecutable`, `FirefoxPackage`, `FirefoxActivity`, `AdbExecTimeoutMs`, `ServerInstallTimeoutMs`, `ServerLaunchTimeoutMs` | Leave both Chromedriver settings empty to let Appium download a matching Chromedriver The three timeouts are Appium's UiAutomator2 limits (defaults 20 s / 20 s / 30 s); CI raises them to 120 s. |
 | `IOS` | `AutomationName`, `App`, `BundleId`, `BrowserName` | Needs macOS + Xcode |
 | `Behavior` | `NoReset`, `FullReset`, `AcceptAlertsAutomatically` | |
 

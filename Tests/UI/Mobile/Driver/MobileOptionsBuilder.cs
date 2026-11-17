@@ -35,6 +35,9 @@ public static class MobileOptionsBuilder
         if (platform == MobilePlatform.Android)
         {
             opts.AutomationName = string.IsNullOrWhiteSpace(cfg.Android.AutomationName) ? "UiAutomator2" : cfg.Android.AutomationName;
+            opts.AddAdditionalAppiumOption("adbExecTimeout", cfg.Android.AdbExecTimeoutMs);
+            opts.AddAdditionalAppiumOption("uiautomator2ServerInstallTimeout", cfg.Android.ServerInstallTimeoutMs);
+            opts.AddAdditionalAppiumOption("uiautomator2ServerLaunchTimeout", cfg.Android.ServerLaunchTimeoutMs);
 
             if (appType == MobileAppType.Native)
             {
