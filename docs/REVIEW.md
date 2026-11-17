@@ -14,7 +14,6 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R41 | P3 | Open | – | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
 | R42 | P3 | Open | – | [The web UI layer is Playwright-specific end to end](#r42) | Architecture / web UI |
 | R44 | P3 | Open (partly done) | – | [Core references seven vendor packages; the target is none](#r44) | Architecture |
 | R45 | P3 | Open | – | [Polly types are part of Core's public resilience API](#r45) | Architecture / resilience |
@@ -22,6 +21,7 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R47 | P4 | Open | – | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
 | R48 | P4 | Open | – | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
+| R41 | P3 | Closed | 2026-11-17 · `1de545d` | [Playwright types are part of the API client's public surface](#r41) | Architecture / API |
 | R39 | P3 | Closed | 2026-11-17 · `be94933` | [Allure is called directly from the shared runner, the base classes and every test](#r39) | Architecture / reporting |
 | R40 | P3 | Closed | 2026-11-17 · `659a228` | [Providers are chosen three different ways; there is no composition root or plugin model](#r40) | Architecture |
 | R43 | P3 | Closed | 2026-11-17 · `0a3cd2a` | [No dependency inventory, contract list or provider guide](#r43) | Documentation / architecture |
@@ -404,7 +404,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r41"></a>
 ### R41. Playwright types are part of the API client's public surface
 
-- **Status:** Open.
+- **Status:** Closed, 2026-11-17 · `1de545d`. Core/Http (IHttpTransport, IHttpTransportFactory, HttpRequestData/HttpResponseData, built-in HttpClient transport) and the Core.Http.Playwright adapter, selected with "Http" in providers.json; ApiClient keeps JSON, status and retries; SendRawAsync returns HttpResponseData; ApiFixture no longer owns Playwright. Verified: the 7 API tests pass with PROVIDERS_Http=playwright and =httpclient; Allure results identical to the baseline; HttpTransportContractTests (status, body, headers incl. Cookie, relative URLs, 404 returned, HttpRequestException when no response) pass for both transports.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 3.**
 - **Where:** `Core/Api/ApiClient.cs`: `CreateAsync(IPlaywright playwright, …)` and `SendRawAsync(…)` returning Playwright's `IAPIResponse`; `Tests/Fixtures/ApiFixture.cs` owns an `IPlaywright`; raw-response assertions read `IAPIResponse`.
 - **Problem:** the transport isn't behind a contract, so replacing Playwright's `APIRequestContext` changes the client's signatures and every raw-response assertion, and API-only runs need Playwright installed.
@@ -434,7 +434,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r44"></a>
 ### R44. Core references seven vendor packages; the target is none
 
-- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Elastic.Clients.Elasticsearch` moved out of `Core` into the `Core.Logging.Elastic` adapter; `AdapterBoundaryTests` keeps Elastic, Azure, RabbitMQ and Kafka assemblies out of `Core`. Remaining in `Core`: Playwright (R41, R42), Allure (R39), Polly (R45), Microsoft.Extensions.Configuration behind a settings source. Phase 2 (`be94933`): `Allure.Net.Commons` moved into the `Core.Reporting.Allure` adapter. Remaining in `Core`: Playwright (R41, R42), Polly (R45), Microsoft.Extensions.Configuration behind a settings source.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Elastic.Clients.Elasticsearch` moved out of `Core` into the `Core.Logging.Elastic` adapter; `AdapterBoundaryTests` keeps Elastic, Azure, RabbitMQ and Kafka assemblies out of `Core`. Remaining in `Core`: Playwright (R41, R42), Allure (R39), Polly (R45), Microsoft.Extensions.Configuration behind a settings source. Phase 2 (`be94933`): `Allure.Net.Commons` moved into the `Core.Reporting.Allure` adapter. Remaining in `Core`: Playwright (R41, R42), Polly (R45), Microsoft.Extensions.Configuration behind a settings source. Phase 3 (`1de545d`): `ApiClient` no longer uses Playwright (transport adapter `Core.Http.Playwright`); `Core` still references Playwright for the browser driver and `RetryPolicies`' navigation error check (R42, R45).
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1–4 (umbrella).**
 - **Where:** `Core/Core.csproj`: `Microsoft.Playwright`, `Allure.Net.Commons`, `Elastic.Clients.Elasticsearch`, `Polly.Core`, `Microsoft.Extensions.Configuration.{Binder,EnvironmentVariables,Json}`; public signatures exposing them: `ApiClient` (R41), `PlaywrightDriverFactory` (R42), `RetryPolicies` returning `ResiliencePipeline` (R45), `SettingsLoader.ResolveSecrets(IConfiguration, …)`.
 - **Problem:** anything that uses `Core` pulls in all of these, and their types reach callers, so a swap ripples beyond one project.
@@ -454,7 +454,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r46"></a>
 ### R46. No guardrail or contract tests that prove adapters are replaceable
 
-- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Tests/Unit/Architecture/AdapterBoundaryTests`: `Core` doesn't reference adapter vendors (Elastic, Azure, RabbitMQ, Kafka); each adapter depends on `Core` only among framework projects. Checked that it fails when `Core` references Elasticsearch. Remaining: vendor-namespace checks for `Pages`/`Domain`/tests as later phases remove them, "two implementations per contract", and shared contract test suites. Phase 2 (`be94933`): the guardrail also keeps Allure out of `Core`, and `Core.Reporting.Allure` is in the adapter list.
+- **Status:** Open (partly done). Phase 1 (`659a228`, 2026-11-17): `Tests/Unit/Architecture/AdapterBoundaryTests`: `Core` doesn't reference adapter vendors (Elastic, Azure, RabbitMQ, Kafka); each adapter depends on `Core` only among framework projects. Checked that it fails when `Core` references Elasticsearch. Remaining: vendor-namespace checks for `Pages`/`Domain`/tests as later phases remove them, "two implementations per contract", and shared contract test suites. Phase 2 (`be94933`): the guardrail also keeps Allure out of `Core`, and `Core.Reporting.Allure` is in the adapter list. Phase 3 (`1de545d`): first shared contract suite, `Tests/Unit/Http/HttpTransportContractTests`, run for both transports; `Core.Http.Playwright` added to the adapter guardrail.
 - **Source:** external architecture feedback on replaceable adapters + owner goal "plug and play: every external library replaceable", 2026-11-17. Roadmap: [Plug-and-play roadmap](#plug-and-play-roadmap). **Phase 1 onwards (grows with each phase).**
 - **Where:** `Tests/Unit/Architecture/CoreBoundaryTests.cs` (checks project references and app-named namespaces only).
 - **Problem:** nothing stops vendor namespaces creeping back into `Core`, `Pages`, `Domain` or tests, and nothing checks that two adapters of one contract behave the same; without that, "replaceable" is an assumption.
