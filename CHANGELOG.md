@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17: Mobile CI session start (R32, R33)
+
+- `run_mobile_ci.sh` now pre-downloads the Chromedriver matching the device's Chrome (legacy index below 115, Chrome for Testing from 115; falls back to Appium's own download if the lookup fails), pre-warms Chrome once with first-run screens disabled, and raises the .NET client's command timeout to 300 s. In run 118 these two steps happened inside the session and ran past the client's 120 s timeout.
+
 ## 2026-11-17: Cleanup tracking and database helpers (R37)
 
 - `Core.Testing.CleanupTracker`: register how to remove what a test created; cleanups run last-first after the test, and failures are logged without failing the test. `ApiTestBase` now registers booking deletions on it (`Cleanup`), and tests can add their own.
