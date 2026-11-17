@@ -77,10 +77,9 @@ image="system-images;android-34;google_apis;$abi"
 printf 'y\n%.0s' {1..100} | "$sdkmanager" --licenses > "$logs/sdk-licenses.log" 2>&1
 "$sdkmanager" --install platform-tools emulator "$image" > "$logs/sdk-install.log" 2>&1
 printf 'no\n' | "$avdmanager" create avd -n ci_android_14 -k "$image" --force > "$logs/avd-create.log" 2>&1
-# Hosted agents have fewer than 6 logical cores, so the emulator would give the guest a single vCPU,
-# which is too slow to boot Android 14 (R32). Ask for 2 cores and 3 GB in the AVD as well as on the command line.
+# Note: hosted agents have fewer than 6 logical cores, and the emulator then always gives the guest 1 vCPU
+# (run 110: -cores 2 and hw.cpu.ncore=2 were both overridden). Memory and devices can still be set.
 cat >> "$ANDROID_AVD_HOME/ci_android_14.avd/config.ini" <<'AVD'
-hw.cpu.ncore=2
 hw.ramSize=3072
 hw.camera.back=none
 hw.camera.front=none
@@ -106,9 +105,9 @@ if adb devices | awk '{print $1}' | grep -qx "$serial"; then
   exit 1
 fi
 emulator -accel-check > "$logs/acceleration.log" 2>&1
-# Headless, software rendering without a window, 2 cores / 3 GB, cold boot (R32).
+# Headless, software rendering without a window, 3 GB, cold boot (R32).
 emulator -avd ci_android_14 -port 5554 -no-window -no-snapshot -no-audio -no-boot-anim -no-metrics \
-  -gpu swiftshader_indirect -cores 2 -memory 3072 > "$logs/emulator.log" 2>&1 &
+  -gpu swiftshader_indirect -memory 3072 > "$logs/emulator.log" 2>&1 &
 emulator_pid=$!
 boot_timeout="${BOOT_TIMEOUT_SECONDS:-600}"
 boot_start=$SECONDS
@@ -124,9 +123,10 @@ until [[ "$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -
     exit 1
   fi
   if (( SECONDS >= next_report )); then
-    # Shows how far boot got if it times out: adb state, boot animation service, package manager readiness.
+    # Shows how far boot got if it times out. The device is often offline here, so these adb calls must never
+    # fail the script: with set -e and pipefail, a failing adb inside $(...) would exit silently (run 110).
     state="$(adb -s "$serial" get-state 2>/dev/null || echo offline)"
-    anim="$(adb -s "$serial" shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')"
+    anim="$( (adb -s "$serial" shell getprop init.svc.bootanim 2>/dev/null || true) | tr -d '\r')"
     echo "[boot] $((SECONDS - boot_start))s: adb=$state bootanim=${anim:-?}" | tee -a "$logs/boot-progress.log"
     next_report=$((SECONDS + 30))
   fi
