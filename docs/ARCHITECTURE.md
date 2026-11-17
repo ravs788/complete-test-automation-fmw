@@ -32,7 +32,8 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Tests.csproj (Playwright)                   UI/Mobile (Tests.UI.Mobile)│
 │     Api/        → ApiTestBase + ApiFixture      Infrastructure/          │
 │     UI/Web/<App>/ → <App>TestBase : UiTestBase    MobileTestBase         │
-│                   + PlaywrightFixture           Configuration/ Driver/   │
+│                   + PlaywrightFixture           (Core.Mobile: config,    │
+│                                                  driver, interactions)   │
 │     testsettings.json                           Pages/<App>/ <App>/      │
 │                                                 mobilesettings.json      │
 ├──────────────────────────────────────────────────────────────────────────┤
@@ -57,7 +58,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core`. Nothing depends on `Tests`.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). Nothing depends on `Tests`.
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
 - `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`).
 - Selenium remains a package only because Appium's .NET client is built on it.
@@ -66,7 +67,7 @@ Dependency rules:
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Mobile`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
 
@@ -79,7 +80,7 @@ Conventions (the same in every project):
 - **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases.
 - **Playwright tests:** `ConfigurationProvider.Current`: `Tests/testsettings.json` from the output directory, `TESTS_*`, aliases `BROWSER` / `HEADLESS`. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
 - **Logging:** `LoggingConfigProvider.Current`: `logging-config.json` (found by walking up from the run directory), `LOGGING_*`, aliases `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT`. Credentials only come from the environment.
-- **Mobile:** `MobileSettingsProvider.Current` (in the mobile project): `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.
+- **Mobile:** `Core.Mobile.Configuration.MobileSettingsProvider.Current`: `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.
 
 ### 3.2 Browsers
 
@@ -159,7 +160,7 @@ MobileTestBase.Run(body) → TestRunner: create driver → navigate (Web) / laun
                 → body → (failure: screenshot) → Allure timing → log → publish LogMetadata → quit
    ▼
 Pages: Common/MobileBasePage · <App>/…Page
-Helpers: Interactions/GestureHelper · Interactions/WaitHelper
+Helpers: Core.Mobile/Interactions/GestureHelper · WaitHelper  (settings + driver: Core.Mobile)
 ```
 
 The full design, config reference, and local Appium/emulator setup are in [MOBILE_ARCHITECTURE.md](MOBILE_ARCHITECTURE.md).
@@ -175,7 +176,7 @@ GitHub (source)  ──push / PR──►  Azure Pipelines (azure-pipelines.yml)
 
 Stage: BuildAndValidate
  ├─ Job Tests (ubuntu; web/API and framework checks)
-      .NET 10 → build ci.slnf (Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
+      .NET 10 → build ci.slnf (Core, Core.Mobile, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile; warnings as errors)
       → dotnet test Tests/Unit (framework unit tests, ~1 s)
       → dotnet test Tests/Tests.csproj, BROWSER=chrome (preinstalled Chrome, no download)
           PR           → --filter "FullyQualifiedName!~.SauceDemo.|Category=smoke"
@@ -231,3 +232,4 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 | 2026-11-13 | Consistency pass: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity for every app in `Domain/TestData/<App>/` (JSON test data removed; `TestDataLoader` kept for large tables); namespaces match folders (`Core.Utilities` removed); `LoggingConfigProvider`; `TodoTestBase`; uniform Allure labels; Mobile restructured (`Configuration/`, `Driver/`, `Pages/<App>/`, `Infrastructure/`, `mobilesettings.json`); projects renamed `Tests.UI.Mobile` / `Tests.Desktop`; LF line endings. |
 | 2026-11-14 | Review P1 fixes: Elastic credentials only from environment variables (and the certificate fingerprint has its own setting); `docker-compose.yml` switched from OpenSearch to Elasticsearch 8 + Kibana; reachability probe cached per URL, loggers and publisher created once per run. |
 | 2026-11-14 | Review R4–R20: traces on failure, navigation retry, API cleanup, one `SettingsLoader`, `Directory.Build.props` (style in build, warnings as errors in CI), pages return next page + test-id locators, test naming, `api-logs-*`, generic `ApiClient` headers, nightly cross-browser run, Allure HTML report artifact, `Tests/Unit`, mobile compiled in CI; Desktop project and `.npmrc` removed. |
+| 2026-11-17 | Core-architecture feedback: app-specific code moved to `Domain` (R34) with `CoreBoundaryTests`; shared retry/polling in `Core/Resilience` with Polly (R35); mobile bootstrapping moved to `Core.Mobile` (R38). |

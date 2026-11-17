@@ -1,6 +1,6 @@
 using Core.Configuration;
 
-namespace Tests.UI.Mobile.Configuration;
+namespace Core.Mobile.Configuration;
 
 /// <summary>
 /// Thread-safe, lazily loaded <see cref="MobileSettings"/>: <c>mobilesettings.json</c> (test output directory), then

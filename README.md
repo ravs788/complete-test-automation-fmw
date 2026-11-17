@@ -44,6 +44,11 @@ TestAutomationProj/
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
 │   └── Testing/                       # TestRunner, TestRunInfo: logging, Allure timing, failure hook, publishing
 │
+├── Core.Mobile/                       # Reusable Appium bootstrapping (Core.Mobile.csproj; only mobile suites use it)
+│   ├── Configuration/                 # MobileSettings (+ sections) + MobileSettingsProvider
+│   ├── Driver/                        # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
+│   └── Interactions/                  # WaitHelper, GestureHelper
+│
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
 │   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
 │   ├── Models/                        # Data shapes per app: RestfulBooker, SauceDemo, Todo
@@ -61,10 +66,7 @@ TestAutomationProj/
 │   │   ├── Web/                       # Playwright web UI tests, one folder per app with a <App>TestBase
 │   │   │   ├── SauceDemo/             # SauceDemoTestBase + SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
 │   │   │   └── Todo/                  # TodoTestBase + TodoTests
-│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj, refs Core)
-│   │       ├── Configuration/         # MobileSettings (+ sections) + MobileSettingsProvider
-│   │       ├── Driver/                # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
-│   │       ├── Interactions/          # WaitHelper, GestureHelper
+│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj, refs Core.Mobile)
 │   │       ├── Pages/                 # Common/MobileBasePage, SauceDemo/LoginPage
 │   │       ├── Infrastructure/        # MobileTestBase
 │   │       ├── SauceDemo/             # SauceDemoTests
@@ -80,7 +82,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core, Core.Mobile, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -90,10 +92,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Core.Mobile, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Mobile`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 

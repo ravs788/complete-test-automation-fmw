@@ -2,24 +2,28 @@
 
 The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. It keeps its own pages (rather than using the top-level `Pages/` project) because `Pages` is built on Playwright and mobile pages use Appium types. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
 
+The reusable Appium bootstrapping (settings + provider, driver factory/options, wait and gesture helpers) lives in a separate library, **`Core.Mobile`** (R38), so any mobile suite can reference it while `Core` stays free of Appium/Selenium. Page objects, the test base and the tests stay in `Tests/UI/Mobile`.
+
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
-- **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; its first hosted execution is pending. Results and diagnostics are published as `mobile-results`. See [GETTING_STARTED.md](GETTING_STARTED.md).
-- **Hosted emulator:** `scripts/unix/run_mobile_ci.sh` boots it headless (`-no-window -gpu swiftshader_indirect`) with 2 cores and 3 GB, because hosted agents have fewer than 6 cores and the emulator would otherwise give Android a single core. The boot budget is `BOOT_TIMEOUT_SECONDS` (default 600), and progress is logged to `boot-progress.log` in the `mobile-results` artifact. After boot it waits for background app compilation to settle, then pre-installs Appium's helper apps (`[settle]` / `[preinstall]` lines in `boot-progress.log`), because on one core Appium's 20 s install limit is too short (R33).
+- **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; results and diagnostics are published as `mobile-results`. As of run 118 (2026-11-17) the emulator boots and Appium starts a session, but the job doesn't pass yet: the session times out while Chromedriver is downloaded and Chrome starts for the first time (see R33 in `docs/REVIEW.md`; parked). See [GETTING_STARTED.md](GETTING_STARTED.md).
+- **Hosted emulator:** `scripts/unix/run_mobile_ci.sh` boots it headless (`-no-window -gpu swiftshader_indirect`) with 3 GB. Hosted agents have fewer than 6 cores, so the emulator always gives Android a single vCPU (it ignores `-cores`), which makes the first boot slow (446–505 s). The boot budget is `BOOT_TIMEOUT_SECONDS` (default 600), and progress is logged to `boot-progress.log` in the `mobile-results` artifact. After boot it waits for background app compilation to settle, then pre-installs Appium's helper apps (`[settle]` / `[preinstall]` lines in `boot-progress.log`), because on one core Appium's 20 s install limit is too short (R33).
 
 ---
 
 ## Layout
 
-It follows the same conventions as the Playwright side: namespace = folder (`Tests.UI.Mobile.<Folder>`), one type per file, settings record + provider, pages per app and tests per app.
+It follows the same conventions as the Playwright side: namespace = folder (`Core.Mobile.<Folder>` / `Tests.UI.Mobile.<Folder>`), one type per file, settings record + provider, pages per app and tests per app.
 
 ```text
-Tests/UI/Mobile/
-├── Tests.UI.Mobile.csproj
-├── mobilesettings.json            # Appium server, platform, device, android/ios, behavior
-├── Configuration/                 # MobileSettings (+ Server/Device/Android/IOS/Behavior settings records)
+Core.Mobile/                       # reusable Appium bootstrapping (Core.Mobile.csproj → Core)
+├── Configuration/                 # MobileSettings (+ Server/Device/Android/IOS/Behavior/Resilience sections)
 │                                  # MobileSettingsProvider (lazy, cached; reads mobilesettings.json)
 ├── Driver/                        # MobilePlatform, MobileAppType, MobileOptionsBuilder, MobileDriverFactory
-├── Interactions/                  # WaitHelper (explicit waits), GestureHelper (tap/swipe/scroll)
+└── Interactions/                  # WaitHelper (explicit waits), GestureHelper (tap/swipe/scroll)
+
+Tests/UI/Mobile/                   # the mobile test suite (Tests.UI.Mobile.csproj → Core.Mobile)
+├── Tests.UI.Mobile.csproj
+├── mobilesettings.json            # Appium server, platform, device, android/ios, behavior, resilience
 ├── Pages/
 │   ├── Common/MobileBasePage.cs   # waits + retrying SafeClick/SafeType/SafeGetText, Load, GetPageTitle
 │   └── SauceDemo/LoginPage.cs
@@ -31,8 +35,8 @@ Tests/UI/Mobile/
 
 | Playwright side | Mobile equivalent |
 |---|---|
-| `Core.Configuration.TestSettings` + `ConfigurationProvider` (`testsettings.json`) | `MobileSettings` + `MobileSettingsProvider` (`mobilesettings.json`) |
-| `Core.Driver.PlaywrightDriverFactory` | `Driver/MobileDriverFactory` (+ `MobileOptionsBuilder`) |
+| `Core.Configuration.TestSettings` + `ConfigurationProvider` (`testsettings.json`) | `Core.Mobile.Configuration.MobileSettings` + `MobileSettingsProvider` (`mobilesettings.json`) |
+| `Core.Driver.PlaywrightDriverFactory` | `Core.Mobile.Driver.MobileDriverFactory` (+ `MobileOptionsBuilder`) |
 | `Pages.Common.BasePage`, `Pages/<App>/` | `Pages/Common/MobileBasePage`, `Pages/<App>/` |
 | `Tests/Infrastructure/UiTestBase` (`RunAsync`) | `Infrastructure/MobileTestBase` (`Run`) |
 | `Tests/UI/Web/<App>/<Feature>Tests.cs` | `Tests/UI/Mobile/<App>/<Feature>Tests.cs` |
@@ -58,7 +62,7 @@ SauceDemoTests.LoginPage_Should_Load()
 
 ## Configuration: `mobilesettings.json`
 
-The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
+The file is copied to the output directory. Property names match the C# records. Missing values fall back to the defaults in `Core.Mobile/Configuration/*.cs`. Any value can be overridden from the environment with the `MOBILE_` prefix (`MOBILE_Device__Udid`, `MOBILE_Platform=iOS`), and `APPIUM_URL` / `DEVICE_NAME` are short aliases for `Server.Url` / `Device.DeviceName`.
 
 | Section | Keys | Notes |
 |---|---|---|

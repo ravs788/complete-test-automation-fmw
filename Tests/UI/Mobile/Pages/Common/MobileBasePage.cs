@@ -1,10 +1,10 @@
 using Core.Logging;
+using Core.Mobile.Configuration;
+using Core.Mobile.Interactions;
 using Core.Resilience;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using Polly;
-using Tests.UI.Mobile.Configuration;
-using Tests.UI.Mobile.Interactions;
 
 namespace Tests.UI.Mobile.Pages.Common;
 

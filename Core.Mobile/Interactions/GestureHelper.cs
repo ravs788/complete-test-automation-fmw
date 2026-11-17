@@ -1,7 +1,7 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 
-namespace Tests.UI.Mobile.Interactions;
+namespace Core.Mobile.Interactions;
 
 /// <summary>
 /// Gesture helpers using Appium mobile commands (Appium v2, W3C actions).

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Reusable mobile bootstrapping in Core.Mobile (R38)
+
+- New **`Core.Mobile`** library: `Configuration/` (`MobileSettings` + `MobileSettingsProvider`), `Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`, `MobilePlatform`, `MobileAppType`) and `Interactions/` (`WaitHelper`, `GestureHelper`), moved from `Tests/UI/Mobile` (namespaces `Tests.UI.Mobile.*` → `Core.Mobile.*`). Only mobile suites reference it, so `Core` keeps no Appium/Selenium dependency. Page objects, the test base and tests stay in `Tests/UI/Mobile`.
+- `Tests/Unit` references `Core.Mobile` instead of the mobile test project. New boundary tests: `Core` doesn't depend on Appium, and `Core.Mobile` doesn't reference `Domain`, `Pages` or test projects.
+
 ## 2026-11-17: Shared retry and polling (R35)
 
 - New `Core/Resilience` (Polly.Core 8.8.1): `RetryPolicies.TransientHttp` (502/503/504 and network errors; `ApiClient` applies it to idempotent methods only, never POST/PATCH), `RetryPolicies.Navigation` (`net::ERR_*`), `RetryPolicies.Transient` (sync/async, e.g. mobile UI glitches), and `Poll.UntilAsync` for eventually consistent backends. Exponential backoff with jitter; each retry is logged.

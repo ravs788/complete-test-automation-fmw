@@ -1,4 +1,4 @@
-namespace Tests.UI.Mobile.Driver;
+namespace Core.Mobile.Driver;
 
 public enum MobileAppType
 {

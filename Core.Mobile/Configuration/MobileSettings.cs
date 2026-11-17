@@ -1,6 +1,6 @@
 using Core.Configuration;
 
-namespace Tests.UI.Mobile.Configuration;
+namespace Core.Mobile.Configuration;
 
 /// <summary>
 /// Settings for the Appium suite. Loaded from <c>mobilesettings.json</c> in the test output directory by
