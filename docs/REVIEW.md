@@ -14,10 +14,10 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R35 | P3 | Open | – | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
-| R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
-| R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
-| R38 | P4 | Open | – | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
+| R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
+| R37 | P4 | Closed | 2026-11-17 · `8a6dc6d` | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
+| R38 | P4 | Closed | 2026-11-17 · `cf18aa0` | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
+| R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R34 | P3 | Closed | 2026-11-17 · `d01fbf0` | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
 | R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
@@ -212,7 +212,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r33"></a>
 ### R33. Appium's 20 s helper-app install timeout is too short for the hosted emulator
 
-- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes. **Run 118 (manual, 2026-11-17):** the fix worked (helpers pre-installed in 19/34/9 s; Appium found them, `sameVersionInstalled`, and started UiAutomator2 in 30 s; boot took 446 s). The session then failed at the next step: Appium auto-downloaded Chromedriver for the device's Chrome 113 and was starting Chrome for the first time when the .NET client's 120 s command timeout (`Server.CommandTimeoutSec`) expired. **Next (parked by the owner on 2026-11-17):** raise `MOBILE_Server__CommandTimeoutSec` on CI and pre-download Chromedriver 113 (`Android.ChromedriverExecutable`).
+- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes. **Run 118 (manual, 2026-11-17):** the fix worked (helpers pre-installed in 19/34/9 s; Appium found them, `sameVersionInstalled`, and started UiAutomator2 in 30 s; boot took 446 s). The session then failed at the next step: Appium auto-downloaded Chromedriver for the device's Chrome 113 and was starting Chrome for the first time when the .NET client's 120 s command timeout (`Server.CommandTimeoutSec`) expired. **Next (parked by the owner on 2026-11-17):** raise `MOBILE_Server__CommandTimeoutSec` on CI and pre-download Chromedriver 113 (`Android.ChromedriverExecutable`). **Follow-up `41d50c8` (2026-11-17, owner asked to resume):** the CI script pre-downloads the Chromedriver matching the device's Chrome, pre-warms Chrome with first-run screens disabled, and raises the client timeout to 300 s (checked locally with a fake `adb` for Chrome 113/131/unknown). **Verify:** a manual run where the smoke test passes; that closes R33, R32 and R16.
 - **Where:** `Tests/UI/Mobile/Driver/MobileOptionsBuilder.cs`, `Tests/UI/Mobile/Configuration/AndroidSettings.cs`, `scripts/unix/run_mobile_ci.sh`.
 - **Problem:** manual run 115 (2026-11-17) was the first where the emulator booted (505 s) and the smoke test ran, but session creation failed: `adb install … appium-uiautomator2-server-v7.7.1.apk timed out after 20000ms`. Appium installs two helper apps when the session starts: `io.appium.settings` took 16.1 s, and the UiAutomator2 server hit the 20 s default. Android was still compiling apps in the background after boot (355 `dex2oat` lines in logcat) on its single vCPU (see R32).
 - **Fix:** make the UiAutomator2 timeouts configurable (`adbExecTimeout`, `uiautomator2ServerInstallTimeout`, `uiautomator2ServerLaunchTimeout`; normal defaults locally, about 120 s on CI through `MOBILE_Android__*`). In the CI script, wait for background compilation to settle after boot, turn off install verification, and pre-install Appium's helper apps with plain `adb install` before the session starts, so the session doesn't have to.
@@ -348,7 +348,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r35"></a>
 ### R35. No central retry / polling policy; retries are hand-written per class
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `1b8f9d3`. Core/Resilience (Polly.Core 8.8.1): RetryPolicies.TransientHttp (idempotent methods only in ApiClient), Navigation, Transient, and Poll.UntilAsync; the three hand-written loops now use them; retry counts in Resilience settings. Checked with 18 unit tests and against real Playwright (GET retried twice on 503 then 200, POST not retried; navigation recovered from 2 routed resets); Playwright suite 15/15.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** `Pages/Common/BasePage.cs` (`GotoAsync` retry loop, R20), `Tests/UI/Mobile/Pages/Common/MobileBasePage.cs` (two `while (attempts++ < 3)` loops), `Core/Api/ApiClient.cs` (no retry).
 - **Problem:** each retry is hand-written with its own attempts, backoff and exception filter, and `ApiClient` doesn't retry transient `502/503/504` responses or network errors from slow-starting test environments. There's no shared "poll until a condition holds" helper for eventually consistent backends, so future tests are likely to add ad-hoc loops or sleeps. (Playwright's auto-waiting already covers most UI waits.)
@@ -401,7 +401,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r36"></a>
 ### R36. No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader
 
-- **Status:** Open
+- **Status:** Implemented (verification pending), 2026-11-17. Seam and environment provider in `f0e6b65`; Azure Key Vault add-on in `b97d9c7` (`Core.Secrets.AzureKeyVault`, on when `KEYVAULT_URI` is set, environment variables first; 5 unit tests with a `SecretClient` test double). **Verify:** resolve a `secret://` placeholder from a real vault (needs a vault and an identity with *Get* on secrets; not available here).
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** `Core/Configuration/SettingsLoader.cs`.
 - **Problem:** secrets (Elastic and API credentials) come from environment variables (R1, R6). That's fine for CI and local runs, but enterprise setups usually pull credentials at runtime from Azure Key Vault, AWS Secrets Manager or HashiCorp Vault, and there's no seam for that.
@@ -410,7 +410,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r37"></a>
 ### R37. No data / infrastructure helpers (database, message queue) with cleanup tracking
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `8a6dc6d`. Cleanup tracker and database helpers in `292c4c8` (SQLite-verified); message listeners in `8a6dc6d`: `Core/Messaging` (`MessageCollector<T>`) plus `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` add-ons, verified against RabbitMQ 3.13 and Kafka 3.8 in Docker (3/3 runs, no queues or topics left). Broker tests are skipped unless `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** would be `Core/Data/` (doesn't exist).
 - **Problem:** end-to-end tests of an owned system often need to seed state or check persistence in a database or queue. The current apps under test are public demo sites without database or queue access, so nothing needs this today, but there's no pattern ready for it.
@@ -419,7 +419,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r38"></a>
 ### R38. Mobile driver bootstrapping can't be reused outside the mobile test project
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `cf18aa0`. New Core.Mobile library (settings + provider, driver factory/options, interaction helpers), referenced only by mobile suites, so Core has no Appium/Selenium dependency; page objects and tests stay in Tests/UI/Mobile. Boundary tests check that Core doesn't reference Appium and Core.Mobile doesn't reference Domain/Pages/test projects. Unit 67/67, Playwright 15/15, mobile test discovered.
 - **Source:** external architecture feedback, 2026-11-17 (its checklist lists `MobileDriverFactory` among the bootstrapping that belongs in Core).
 - **Where:** `Tests/UI/Mobile/Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`), `Tests/UI/Mobile/Configuration/`.
 - **Problem:** the Appium bootstrapping and its settings live inside the mobile test project, so another team or project can't reuse them. Moving them into Core as it is would make every Core consumer depend on Appium and Selenium.

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reusable Appium bootstrapping for mobile suites (R38): settings + provider, driver factory/options and
+    interaction helpers. Kept out of Core so Core consumers don't depend on Appium/Selenium. No page objects
+    or tests here: those stay in the mobile test project.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Appium.WebDriver" />
+    <PackageReference Include="Selenium.WebDriver" />
+    <PackageReference Include="Selenium.Support" />
+    <PackageReference Include="DotNetSeleniumExtras.WaitHelpers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+</Project>

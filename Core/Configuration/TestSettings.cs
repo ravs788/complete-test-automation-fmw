@@ -20,6 +20,9 @@ public sealed record TestSettings
     /// </summary>
     public string Trace { get; init; } = TraceModes.OnFailure;
 
+    /// <summary>Retries for transient failures (API 5xx/network, navigation, UI glitches). Env: TESTS_Resilience__Http__MaxRetries, …</summary>
+    public ResilienceSettings Resilience { get; init; } = new();
+
     public WebAppSettings TodoMvc { get; init; } = new() { BaseUrl = "https://demo.playwright.dev/todomvc/" };
 
     public WebAppSettings SauceDemo { get; init; } = new() { BaseUrl = "https://www.saucedemo.com/" };

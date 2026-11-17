@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,8 +22,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Core.csproj" />
+    <ProjectReference Include="..\..\Core.Messaging.RabbitMq\Core.Messaging.RabbitMq.csproj" />
+    <ProjectReference Include="..\..\Core.Messaging.Kafka\Core.Messaging.Kafka.csproj" />
+    <ProjectReference Include="..\..\Core.Secrets.AzureKeyVault\Core.Secrets.AzureKeyVault.csproj" />
     <ProjectReference Include="..\..\Domain\Domain.csproj" />
-    <ProjectReference Include="..\UI\Mobile\Tests.UI.Mobile.csproj" />
+    <ProjectReference Include="..\..\Core.Mobile\Core.Mobile.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,12 +11,17 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | An API test | `Tests/Api/` (inherit `ApiTestBase`) |
 | A unit test for framework code (`Core`) | `Tests/Unit/<Area>/` (plain xUnit; no browser or external services; isolated loopback fixtures are allowed for transport checks) |
 | A mobile page / test | `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`) |
+| Reusable mobile infrastructure (settings, driver setup, interaction helpers) | `Core.Mobile/<Area>/` (no page objects or tests) |
 | A model (API contract or test-data shape) | `Domain/Models/<App>/` |
 | Test data for an entity | `Domain/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |
 | `[Theory]` cases | a `[MemberData]` source in the test class, built from Builders/Mothers (plain values, so each case is its own test) |
 | Large scenario tables, captured payloads, data owned outside the code | `Tests/test-data/<App>/<TestClass>/<Scenario>.json`, loaded with `TestDataLoader` (the exception, not the default) |
 | An API-specific helper (auth, …) | `Domain/Api/<Service>/` |
-| Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`) |
+| Settings | a `sealed record` + a cached `…Provider` (see `Core/Configuration`); secrets as `secret://NAME`, never literal values |
+| Database access in a test | `Core.Data.DbConnectionFactory` + `DbTestScope` (rolls back by default); the provider package goes in the test project, never in Core |
+| Anything a test creates outside a transaction | register its removal with `Cleanup.Add(...)` (`Core.Testing.CleanupTracker`) |
+| Waiting for a broker message | `RabbitMqListener` / `KafkaListener` (add-ons) started before the action, then `WaitForAsync(match, timeout)`; never sleep-and-read |
+| A test that needs external infrastructure (broker, vault) | `[RequiresEnvironmentFact("VARIABLE")]` + `[Trait("Category", "integration")]`, so it is skipped unless the variable is set |
 | Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.
@@ -35,6 +40,7 @@ Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 - A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Page)`, `new TodoPage(Page)`) and get every other page from the step before it.
 - Locate elements by test id (`TestId("…")`, from `BasePage`), role, label or placeholder (`GetByRole`, `GetByLabel`, `GetByPlaceholder`), never by CSS class. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
 - Prefer Playwright's auto-retrying `Assertions.Expect(...)` over reading values and asserting on them; never add fixed sleeps.
+- For transient failures use `Core.Resilience`: `RetryPolicies` (Polly; transient HTTP for idempotent requests only, navigation, UI actions) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
 - Wrap every test body in the base class's `RunAsync(...)` / `Run(...)` so it gets logging, Allure timing, failure screenshots and results publishing.
 - Give each test class the same labels:
   - `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`

@@ -1,6 +1,6 @@
+using Core.Mobile.Configuration;
+using Core.Mobile.Driver;
 using OpenQA.Selenium.Appium;
-using Tests.UI.Mobile.Configuration;
-using Tests.UI.Mobile.Driver;
 
 namespace Tests.Unit.Mobile;
 

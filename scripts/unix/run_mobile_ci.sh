@@ -177,6 +177,58 @@ for apk in "${helper_apks[@]}"; do
   fi
 done
 
+# R33 (run 118): inside the session Appium spent most of its time downloading a Chromedriver for the device's
+# Chrome and starting Chrome for the first time, and the client's 120 s timeout ran out. Do both here instead.
+# sed quits after the first match (no head -1, which could SIGPIPE under pipefail).
+chrome_version="$( (adb -s "$serial" shell dumpsys package com.android.chrome 2>/dev/null || true) | sed -n '/versionName=/{s/.*versionName=\([0-9.]*\).*/\1/p;q;}')"
+echo "[chrome] device Chrome $chrome_version" | tee -a "$logs/boot-progress.log"
+case "$(uname -m)" in arm64) cft_platform=mac-arm64; legacy_zip=chromedriver_mac_arm64.zip ;; *) cft_platform=mac-x64; legacy_zip=chromedriver_mac64.zip ;; esac
+# Chrome for Testing ships Chromedriver from 115 on; older versions are on the legacy index (same source Appium uses).
+chromedriver_url="$(python3 - "$chrome_version" "$cft_platform" "$legacy_zip" <<'PY'
+import json, sys, urllib.request
+version, platform, legacy_zip = sys.argv[1:4]
+parts = version.split(".")
+try:
+    if int(parts[0]) >= 115:
+        builds = json.load(urllib.request.urlopen(
+            "https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-build-with-downloads.json", timeout=30))["builds"]
+        entry = builds[".".join(parts[:3])]
+        print(next(d["url"] for d in entry["downloads"]["chromedriver"] if d["platform"] == platform))
+    else:
+        latest = urllib.request.urlopen(f"https://chromedriver.storage.googleapis.com/LATEST_RELEASE_{parts[0]}", timeout=30).read().decode().strip()
+        print(f"https://chromedriver.storage.googleapis.com/{latest}/{legacy_zip}")
+except Exception as error:
+    print(f"lookup failed: {error}", file=sys.stderr)
+PY
+)" || true
+if [[ -n "$chromedriver_url" ]] && curl --silent --fail --location --max-time 120 -o "$work/chromedriver.zip" "$chromedriver_url"; then
+  mkdir -p "$work/chromedriver"
+  unzip -q -o "$work/chromedriver.zip" -d "$work/chromedriver"
+  chromedriver_bin="$(find "$work/chromedriver" -type f -name chromedriver -print -quit)"
+fi
+if [[ -n "${chromedriver_bin:-}" ]]; then
+  chmod +x "$chromedriver_bin"
+  export MOBILE_Android__ChromedriverExecutable="$chromedriver_bin"
+  echo "[chrome] Chromedriver $("$chromedriver_bin" --version 2>/dev/null | awk '{print $2}') from $chromedriver_url" | tee -a "$logs/boot-progress.log"
+else
+  # Not fatal: Appium falls back to downloading one itself (slower).
+  echo "[chrome] could not pre-download a Chromedriver for $chrome_version (url: ${chromedriver_url:-none}); Appium will try" | tee -a "$logs/boot-progress.log"
+fi
+
+# Pre-warm Chrome: skip its first-run screens and let it create its profile now, not inside the session.
+adb -s "$serial" shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+adb -s "$serial" shell am set-debug-app --persistent com.android.chrome
+warm_start=$SECONDS
+adb -s "$serial" shell am start -W -a android.intent.action.VIEW -d about:blank com.android.chrome > "$logs/chrome-warmup.log" 2>&1 || true
+warm_deadline=$((SECONDS + ${CHROME_WARMUP_TIMEOUT_SECONDS:-180}))
+until adb -s "$serial" shell dumpsys window 2>/dev/null | grep -q 'mCurrentFocus=.*com.android.chrome'; do
+  if (( SECONDS >= warm_deadline )); then break; fi
+  sleep 3
+done
+sleep 5
+adb -s "$serial" shell am force-stop com.android.chrome
+echo "[chrome] warm-up took $((SECONDS - warm_start)) s" | tee -a "$logs/boot-progress.log"
+
 if lsof -iTCP:4723 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Port 4723 is already in use; refusing to attach to an unrelated server" >&2
   exit 1
@@ -201,6 +253,8 @@ export LOGGING_PROVIDER=console
 export MOBILE_Android__AdbExecTimeoutMs=120000
 export MOBILE_Android__ServerInstallTimeoutMs=120000
 export MOBILE_Android__ServerLaunchTimeoutMs=120000
+# R33 (run 118): the .NET client's own command timeout must cover a slow session start (default 120 s).
+export MOBILE_Server__CommandTimeoutSec=300
 
 dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --configuration "$configuration" --no-build \
   --filter 'Category=smoke' --results-directory "$MOBILE_CI_RESULTS/trx" \

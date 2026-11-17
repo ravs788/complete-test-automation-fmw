@@ -1,5 +1,6 @@
 using System.Reflection;
 using Core.Api;
+using Core.Mobile.Driver;
 
 namespace Tests.Unit.Architecture;
 
@@ -33,5 +34,21 @@ public class CoreBoundaryTests
             .ToList();
 
         Assert.Empty(appSpecific);
+    }
+
+    [Theory]
+    [InlineData("Domain")]
+    [InlineData("Pages")]
+    [InlineData("Tests")]
+    [InlineData("Tests.UI.Mobile")]
+    public void CoreMobile_Should_NotReference_HigherLayers(string assemblyName)
+    {
+        Assert.DoesNotContain(typeof(MobileDriverFactory).Assembly.GetReferencedAssemblies(), a => a.Name == assemblyName);
+    }
+
+    [Fact]
+    public void Core_Should_NotDependOn_Appium()
+    {
+        Assert.DoesNotContain(Core.GetReferencedAssemblies(), a => a.Name is "Appium.Net" or "WebDriver");
     }
 }

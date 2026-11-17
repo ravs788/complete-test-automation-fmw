@@ -36,12 +36,25 @@ TestAutomationProj/
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Messaging/                     # MessageCollector<T> + ReceivedMessage (broker-neutral; fed by the add-ons)
+│   ├── Data/                          # DbConnectionFactory (any ADO.NET provider) + DbTestScope (rolls back by default)
+│   ├── Security/                      # ISecretProvider + EnvironmentSecretProvider (secret://NAME placeholders)
+│   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
 │   │   ├── Console/                   # console provider
 │   │   └── Elastic/                   # Elasticsearch provider
 │   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
-│   └── Testing/                       # TestRunner, TestRunInfo: logging, Allure timing, failure hook, publishing
+│   └── Testing/                       # TestRunner, TestRunInfo (logging, Allure timing, failure hook, publishing), CleanupTracker
+│
+├── Core.Mobile/                       # Reusable Appium bootstrapping (Core.Mobile.csproj; only mobile suites use it)
+│   ├── Configuration/                 # MobileSettings (+ sections) + MobileSettingsProvider
+│   ├── Driver/                        # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
+│   └── Interactions/                  # WaitHelper, GestureHelper
+│
+├── Core.Messaging.Kafka/              # Optional add-on: KafkaListener (manual partition assignment, no commits)
+├── Core.Messaging.RabbitMq/           # Optional add-on: RabbitMqListener (exclusive auto-delete queue)
+├── Core.Secrets.AzureKeyVault/        # Optional add-on: ISecretProvider for Azure Key Vault (on when KEYVAULT_URI is set)
 │
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
 │   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
@@ -60,10 +73,7 @@ TestAutomationProj/
 │   │   ├── Web/                       # Playwright web UI tests, one folder per app with a <App>TestBase
 │   │   │   ├── SauceDemo/             # SauceDemoTestBase + SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
 │   │   │   └── Todo/                  # TodoTestBase + TodoTests
-│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj, refs Core)
-│   │       ├── Configuration/         # MobileSettings (+ sections) + MobileSettingsProvider
-│   │       ├── Driver/                # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
-│   │       ├── Interactions/          # WaitHelper, GestureHelper
+│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj, refs Core.Mobile)
 │   │       ├── Pages/                 # Common/MobileBasePage, SauceDemo/LoginPage
 │   │       ├── Infrastructure/        # MobileTestBase
 │   │       ├── SauceDemo/             # SauceDemoTests
@@ -79,7 +89,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -89,10 +99,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Core.Messaging.*, Core.Mobile, Core.Secrets.AzureKeyVault, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Secrets.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -166,6 +176,12 @@ All three settings files load the same way (`Core.Configuration.SettingsLoader`,
 
 Keys are case-insensitive. Secrets (passwords, tokens) should come only from the environment or a CI secret variable.
 
+**Secret placeholders.** Any setting can hold `secret://NAME` instead of a value, e.g. `"Password": "secret://booker-password"` or `TESTS_RestfulBooker__Password=secret://booker-password`. `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`). A missing secret fails the run with the setting and secret named.
+
+- **Default:** environment variables: `booker-password`, then `BOOKER_PASSWORD`.
+- **Azure Key Vault:** set `KEYVAULT_URI=https://<vault>.vault.azure.net/`. The test projects then use environment variables first and Key Vault second (`Core.Secrets.AzureKeyVault`, signed in with `DefaultAzureCredential`: `az login` locally, a service connection or managed identity in CI). The identity needs *Get* permission on secrets (the "Key Vault Secrets User" role). Key Vault secret names allow letters, digits and dashes, so use names like `booker-password`.
+- **Another vault:** implement `ISecretProvider` in an add-on project and assign it in the test project's `TestRunSetup` module initializer.
+
 ### Playwright tests: `Tests/testsettings.json`
 
 ```json
@@ -189,6 +205,7 @@ Keys are case-insensitive. Secrets (passwords, tokens) should come only from the
 | `Headless` | `true` / `false` | `HEADLESS` |
 | `DefaultTimeoutMs` | Playwright's default timeout per page | `TESTS_DefaultTimeoutMs` |
 | `Trace` | `off`, `on-failure` (default: attach a Playwright trace to Allure when a test fails), `on` (every test) | `TRACE` |
+| `Resilience.Http` / `.Navigation` / `.UiAction` | `MaxRetries` (default 2), `BaseDelayMs` (500/500/250): retries for API 502/503/504 and network errors (idempotent methods only), navigation `net::ERR_*`, and mobile UI glitches | `TESTS_Resilience__Http__MaxRetries`, … |
 | `<App>.BaseUrl`, `RestfulBooker.Username/Password` | | `TESTS_SauceDemo__BaseUrl`, `TESTS_RestfulBooker__Password`, … |
 
 Base URLs end with `/`, and entry pages open `./` (the context's `BaseURL`), so an app can live under a sub-path such as `/todomvc/`.
@@ -392,7 +409,7 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 - Uses `ApiFixture`: one Playwright instance per class, no browser
 - Gives each test its own `ApiClient` (a Playwright `APIRequestContext` with `BaseURL` and `Accept: application/json`), disposed afterwards
 - `GetAuthHeadersAsync()` gets a Restful Booker token and returns it as request headers (the `token` cookie), which tests pass to PUT, PATCH and DELETE. `ApiClient` itself knows nothing about any API's auth scheme: it just sends the headers it's given.
-- `CreateBookingAsync(booking)` POSTs a booking and records its ID; after the test, `DisposeAsync` deletes every recorded booking (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data
+- `CreateBookingAsync(booking)` POSTs a booking and registers its deletion on `Cleanup` (a `Core.Testing.CleanupTracker`); after the test, `DisposeAsync` runs every registered cleanup, last first (a failed cleanup is logged, never fails the test), so the shared demo API isn't left with test data. Tests can register their own cleanups with `Cleanup.Add(description, action)`
 - `ApiClient` throws `ApiException` (with `StatusCode`) on non-2xx responses; `SendRawAsync` returns the raw response when a test wants to assert on the status itself (e.g. `404` after delete)
 
 ### `Tests/UI/Mobile/Infrastructure/MobileTestBase.cs` (Appium)
@@ -417,6 +434,25 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 
 1. Add models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Domain/Api/<Service>/`.
 2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Domain/Api/<Service>/` and return headers the same way).
+
+### Database checks (when a system under test has a database)
+
+1. Reference the ADO.NET provider package in the test project (e.g. `Npgsql`, `Microsoft.Data.SqlClient`) and put the connection string in settings, with the password as `secret://NAME`.
+2. Create `new DbConnectionFactory(NpgsqlFactory.Instance, connectionString)` and, per test, `await using var db = await factory.BeginScopeAsync();`. Seed or check rows with `db.ExecuteAsync` / `db.ScalarAsync<T>` (or Dapper on `db.Connection`). The scope **rolls back** when the test ends, unless you call `CommitAsync()`. For anything committed or created outside the transaction, register a cleanup with `Cleanup.Add(...)`.
+
+### Message checks (when a system under test publishes to a broker)
+
+Reference the add-on for your broker from the test project and start a listener **before** triggering the behaviour:
+
+```csharp
+await using var events = await RabbitMqListener.StartAsync(rabbitUri, exchange: "bookings", routingKey: "booking.*");
+// or: await using var events = await KafkaListener.StartAsync("broker:9092", topic: "bookings");
+await Client.PostAsync<CreatedBooking>("booking", booking);
+var created = await events.WaitForAsync(m => m.Key == "booking.created", TimeSpan.FromSeconds(10));
+Assert.Equal(booking.LastName, created.BodyAs<Booking>()!.LastName);
+```
+
+The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener reads from the end offsets with no consumer-group commits. Either way, nothing is left on the broker after the test. The broker tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (see GETTING_STARTED).
 
 ### Mobile
 

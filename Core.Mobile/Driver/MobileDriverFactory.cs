@@ -1,13 +1,13 @@
 using System.Net;
 using Core.Logging;
+using Core.Mobile.Configuration;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Android;
 using OpenQA.Selenium.Appium.iOS;
 using OpenQA.Selenium.Remote;
-using Tests.UI.Mobile.Configuration;
 
-namespace Tests.UI.Mobile.Driver;
+namespace Core.Mobile.Driver;
 
 /// <summary>Creates an Android or iOS Appium session from <see cref="MobileSettings"/>.</summary>
 public static class MobileDriverFactory

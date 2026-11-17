@@ -1,7 +1,10 @@
 using Core.Logging;
+using Core.Mobile.Configuration;
+using Core.Mobile.Interactions;
+using Core.Resilience;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
-using Tests.UI.Mobile.Interactions;
+using Polly;
 
 namespace Tests.UI.Mobile.Pages.Common;
 
@@ -58,52 +61,45 @@ public abstract class MobileBasePage
 
     // Actions (resilient)
 
+    // Momentary UI glitches worth retrying; anything else fails straight away.
+    private static bool IsTransientUiError(Exception ex) =>
+        ex is StaleElementReferenceException or ElementClickInterceptedException or InvalidElementStateException or WebDriverException;
+
+    private ResiliencePipeline UiActionRetry =>
+        RetryPolicies.Transient(MobileSettingsProvider.Current.Resilience.UiAction, IsTransientUiError, message => Logger.Debug(message));
+
     protected void SafeClick(By locator, int timeoutSeconds = WaitHelper.DefaultTimeoutSeconds)
     {
-        var attempts = 0;
-        Exception? last = null;
-        while (attempts++ < 3)
+        try
         {
-            try
-            {
-                var el = WaitForClickable(locator, timeoutSeconds);
-                el.Click();
-                Logger.Info($"[Click] Clicked element: {locator}");
-                return;
-            }
-            catch (Exception ex) when (ex is StaleElementReferenceException || ex is ElementClickInterceptedException || ex is WebDriverException)
-            {
-                last = ex;
-                Logger.Debug($"[Click] Retry {attempts} for {locator} due to: {ex.Message}");
-            }
+            UiActionRetry.Execute(() => WaitForClickable(locator, timeoutSeconds).Click());
+            Logger.Info($"[Click] Clicked element: {locator}");
         }
-        Logger.Error($"[Click] Failed to click element: {locator} after retries. Reason: {last?.Message}");
-        throw last ?? new WebDriverException("Unknown click failure");
+        catch (Exception ex) when (IsTransientUiError(ex))
+        {
+            Logger.Error($"[Click] Failed to click element: {locator} after retries. Reason: {ex.Message}");
+            throw;
+        }
     }
 
     protected void SafeType(By locator, string text, bool clearFirst = true, int timeoutSeconds = WaitHelper.DefaultTimeoutSeconds)
     {
-        var attempts = 0;
-        Exception? last = null;
-        while (attempts++ < 3)
+        try
         {
-            try
+            UiActionRetry.Execute(() =>
             {
                 var el = WaitForVisible(locator, timeoutSeconds);
                 if (clearFirst)
                     el.Clear();
                 el.SendKeys(text);
-                Logger.Info($"[Type] Typed into element: {locator} | text length: {text?.Length ?? 0}");
-                return;
-            }
-            catch (Exception ex) when (ex is StaleElementReferenceException || ex is InvalidElementStateException || ex is WebDriverException)
-            {
-                last = ex;
-                Logger.Debug($"[Type] Retry {attempts} for {locator} due to: {ex.Message}");
-            }
+            });
+            Logger.Info($"[Type] Typed into element: {locator} | text length: {text?.Length ?? 0}");
         }
-        Logger.Error($"[Type] Failed to type into element: {locator} after retries. Reason: {last?.Message}");
-        throw last ?? new WebDriverException("Unknown type failure");
+        catch (Exception ex) when (IsTransientUiError(ex))
+        {
+            Logger.Error($"[Type] Failed to type into element: {locator} after retries. Reason: {ex.Message}");
+            throw;
+        }
     }
 
     protected string SafeGetText(By locator, int timeoutSeconds = WaitHelper.DefaultTimeoutSeconds)

@@ -27,9 +27,13 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
     protected ILoggingService Logger { get; }
     protected ApiClient Client { get; private set; } = null!;
 
-    private readonly List<int> _createdBookingIds = [];
+    /// <summary>Things this test created; removed after the test (bookings are registered automatically).</summary>
+    protected CleanupTracker Cleanup { get; } = new();
 
-    public async Task InitializeAsync() => Client = await ApiClient.CreateAsync(Fixture.Playwright, Api.BaseUrl);
+    private Task<IReadOnlyDictionary<string, string>>? _cleanupAuth;
+
+    public async Task InitializeAsync() =>
+        Client = await ApiClient.CreateAsync(Fixture.Playwright, Api.BaseUrl, Fixture.Settings.Resilience.Http, message => Logger.Info(message));
 
     public async Task DisposeAsync()
     {
@@ -38,7 +42,7 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
             return;
         }
 
-        await DeleteCreatedBookingsAsync();
+        await Cleanup.RunAsync(message => Logger.Error(message));
         await Client.DisposeAsync();
     }
 
@@ -50,32 +54,16 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
     {
         var created = await Client.PostAsync<CreatedBooking>("booking", booking)
                       ?? throw new InvalidOperationException("POST booking returned no body.");
-        _createdBookingIds.Add(created.BookingId);
+        var id = created.BookingId;
+        Cleanup.Add($"DELETE booking/{id}", async () =>
+        {
+            // One token for all of this test's cleanups.
+            var auth = await (_cleanupAuth ??= GetAuthHeadersAsync());
+            var response = await Client.SendRawAsync("DELETE", $"booking/{id}", headers: auth);
+            // 404/405: the test already deleted it.
+            Logger.Info($"[Cleanup] DELETE booking/{id} -> {response.Status}");
+        });
         return created;
-    }
-
-    private async Task DeleteCreatedBookingsAsync()
-    {
-        if (_createdBookingIds.Count == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            var auth = await GetAuthHeadersAsync();
-            foreach (var id in _createdBookingIds)
-            {
-                var response = await Client.SendRawAsync("DELETE", $"booking/{id}", headers: auth);
-                // 404/405: the test already deleted it.
-                Logger.Info($"[Cleanup] DELETE booking/{id} -> {response.Status}");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Cleanup must never fail the test.
-            Logger.Error($"[Cleanup] Could not delete bookings {string.Join(", ", _createdBookingIds)}: {ex.Message}");
-        }
     }
 
     /// <summary>Headers that authenticate PUT, PATCH and DELETE (a fresh Restful Booker token).</summary>

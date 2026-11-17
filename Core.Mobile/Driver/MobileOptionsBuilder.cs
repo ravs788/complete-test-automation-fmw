@@ -1,7 +1,7 @@
+using Core.Mobile.Configuration;
 using OpenQA.Selenium.Appium;
-using Tests.UI.Mobile.Configuration;
 
-namespace Tests.UI.Mobile.Driver;
+namespace Core.Mobile.Driver;
 
 /// <summary>Turns <see cref="MobileSettings"/> into Appium capabilities.</summary>
 public static class MobileOptionsBuilder

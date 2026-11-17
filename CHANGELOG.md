@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-17: Message-broker listeners (R37)
+
+- New `Core/Messaging`: `ReceivedMessage` (broker-neutral, `BodyAs<T>()`) and `MessageCollector<T>` (thread-safe buffer + `WaitForAsync(match, timeout)` on `Poll`).
+- New optional add-ons: **`Core.Messaging.RabbitMq`** (`RabbitMqListener`: exclusive, auto-delete queue bound to an exchange; RabbitMQ.Client 7.2.2) and **`Core.Messaging.Kafka`** (`KafkaListener`: manual partition assignment at the end offsets, no commits, so no stored state; Confluent.Kafka 2.16.0).
+- `RequiresEnvironmentFact`: broker integration tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (otherwise reported as skipped). Verified against RabbitMQ 3.13 and Kafka 3.8 in Docker (3 runs in a row, nothing left on either broker).
+
+## 2026-11-17: Azure Key Vault secrets (R36)
+
+- New optional add-on **`Core.Secrets.AzureKeyVault`** (Azure.Security.KeyVault.Secrets 4.12.0, Azure.Identity 1.21.0): `AzureKeyVaultSecretProvider` resolves `secret://NAME` from the vault in `KEYVAULT_URI` with `DefaultAzureCredential`, caches each secret for the run, returns null for a missing secret and surfaces access errors.
+- `Core.Security.CompositeSecretProvider` chains providers. When `KEYVAULT_URI` is set, the test projects' module initializers use environment variables first, then Key Vault. Core itself has no Azure dependency.
+
+## 2026-11-17: Mobile CI session start (R32, R33)
+
+- `run_mobile_ci.sh` now pre-downloads the Chromedriver matching the device's Chrome (legacy index below 115, Chrome for Testing from 115; falls back to Appium's own download if the lookup fails), pre-warms Chrome once with first-run screens disabled, and raises the .NET client's command timeout to 300 s. In run 118 these two steps happened inside the session and ran past the client's 120 s timeout.
+
+## 2026-11-17: Cleanup tracking and database helpers (R37)
+
+- `Core.Testing.CleanupTracker`: register how to remove what a test created; cleanups run last-first after the test, and failures are logged without failing the test. `ApiTestBase` now registers booking deletions on it (`Cleanup`), and tests can add their own.
+- New `Core/Data`: `DbConnectionFactory` (any ADO.NET provider passed in by the test project, so Core has no database package) and `DbTestScope` (connection + transaction, **rolled back by default**, `ExecuteAsync` / `ScalarAsync<T>` / `CommitAsync`). Verified against a temporary SQLite database in `Tests/Unit` (Microsoft.Data.Sqlite, test-only).
+- Not added: message-queue listeners (Kafka/RabbitMQ); there is no broker to use them with yet.
+
+## 2026-11-17: Secret placeholders (R36)
+
+- New `Core/Security`: `ISecretProvider` and `EnvironmentSecretProvider`. Any setting can be `secret://NAME`; `SettingsLoader` resolves it through `SettingsLoader.SecretProvider` (environment variables by default: `NAME`, then `NAME` upper-cased with `-`/`.` → `_`). A missing secret fails with the setting and secret named. A vault provider (e.g. Azure Key Vault) can be plugged in without changing Core; none is included yet.
+
+## 2026-11-17: Reusable mobile bootstrapping in Core.Mobile (R38)
+
+- New **`Core.Mobile`** library: `Configuration/` (`MobileSettings` + `MobileSettingsProvider`), `Driver/` (`MobileDriverFactory`, `MobileOptionsBuilder`, `MobilePlatform`, `MobileAppType`) and `Interactions/` (`WaitHelper`, `GestureHelper`), moved from `Tests/UI/Mobile` (namespaces `Tests.UI.Mobile.*` → `Core.Mobile.*`). Only mobile suites reference it, so `Core` keeps no Appium/Selenium dependency. Page objects, the test base and tests stay in `Tests/UI/Mobile`.
+- `Tests/Unit` references `Core.Mobile` instead of the mobile test project. New boundary tests: `Core` doesn't depend on Appium, and `Core.Mobile` doesn't reference `Domain`, `Pages` or test projects.
+
+## 2026-11-17: Shared retry and polling (R35)
+
+- New `Core/Resilience` (Polly.Core 8.8.1): `RetryPolicies.TransientHttp` (502/503/504 and network errors; `ApiClient` applies it to idempotent methods only, never POST/PATCH), `RetryPolicies.Navigation` (`net::ERR_*`), `RetryPolicies.Transient` (sync/async, e.g. mobile UI glitches), and `Poll.UntilAsync` for eventually consistent backends. Exponential backoff with jitter; each retry is logged.
+- The hand-written retry loops in `BasePage.GotoAsync` and `MobileBasePage.SafeClick/SafeType` now use these policies. Retry counts are settings (`Resilience.Http/Navigation/UiAction` in testsettings.json and mobilesettings.json).
+
 ## 2026-11-17: Core is domain-agnostic (R34)
 
 - App-specific code moved out of Core into a new **`Domain`** project, keeping `<Layer>/<App>/`: `Domain/Api/RestfulBooker` (auth), `Domain/Models/{RestfulBooker,SauceDemo,Todo}`, `Domain/TestData/{RestfulBooker,SauceDemo,Todo}` (Builders / Object Mothers). Namespaces change from `Core.` to `Domain.`. Core keeps the generic `ApiClient`, `TestDataLoader`, configuration, logging, drivers and `TestRunner`.

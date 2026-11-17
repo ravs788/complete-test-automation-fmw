@@ -2,7 +2,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
 
-namespace Tests.UI.Mobile.Interactions;
+namespace Core.Mobile.Interactions;
 
 /// <summary>
 /// Explicit wait helpers for both Mobile Web (IWebDriver) and Native (AppiumDriver implements IWebDriver).

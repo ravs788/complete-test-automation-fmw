@@ -1,4 +1,4 @@
-namespace Tests.UI.Mobile.Configuration;
+namespace Core.Mobile.Configuration;
 
 public sealed record IOSSettings
 {

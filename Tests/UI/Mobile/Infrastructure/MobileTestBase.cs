@@ -1,11 +1,11 @@
 using System.Runtime.CompilerServices;
 using Allure.Net.Commons;
 using Core.Logging;
+using Core.Mobile.Configuration;
+using Core.Mobile.Driver;
 using Core.Testing;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
-using Tests.UI.Mobile.Configuration;
-using Tests.UI.Mobile.Driver;
 
 namespace Tests.UI.Mobile.Infrastructure;
 
