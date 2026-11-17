@@ -85,7 +85,7 @@ TestAutomationProj/
 ├── scripts/
 │   ├── windows/                       # .bat run scripts, Appium env check/fix (.ps1)
 │   └── unix/                          # .sh equivalents for macOS/Linux
-├── docs/                              # ARCHITECTURE, DIAGRAMS (Mermaid flows), MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
+├── docs/                              # ARCHITECTURE, DIAGRAMS (Mermaid flows), PLUGIN_ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
 ├── ci.slnf                            # Solution filter CI builds: Core (+ its add-ons), Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
@@ -471,7 +471,7 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ## 📖 Architecture
 
-See [docs/DIAGRAMS.md](docs/DIAGRAMS.md) for flow diagrams (project dependencies, a web/API/mobile test run step by step, settings and secrets, the CI pipeline), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the text reference and the design decisions behind the UI stacks. The mobile layer has its own design doc: [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md). Release notes are in [CHANGELOG.md](CHANGELOG.md). Open review findings (not yet fixed) are tracked in [docs/REVIEW.md](docs/REVIEW.md).
+See [docs/DIAGRAMS.md](docs/DIAGRAMS.md) for flow diagrams (project dependencies, a web/API/mobile test run step by step, settings and secrets, the CI pipeline), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the text reference and the design decisions behind the UI stacks. The mobile layer has its own design doc: [docs/MOBILE_ARCHITECTURE.md](docs/MOBILE_ARCHITECTURE.md). The plan to make every external library replaceable (contracts, adapters, dependency inventory, how to write a provider) is in [docs/PLUGIN_ARCHITECTURE.md](docs/PLUGIN_ARCHITECTURE.md). Release notes are in [CHANGELOG.md](CHANGELOG.md). Open review findings (not yet fixed) are tracked in [docs/REVIEW.md](docs/REVIEW.md).
 
 ---
 

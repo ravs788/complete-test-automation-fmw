@@ -29,6 +29,10 @@ Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 
 When a change alters a dependency, a step in a test run, how settings load or the CI flow, update the matching Mermaid diagram in [DIAGRAMS.md](DIAGRAMS.md) in the same PR (preview it in the [Mermaid Live Editor](https://mermaid.live/) or a Markdown preview with Mermaid support).
 
+## Adding or replacing a library
+
+Every external library belongs behind a framework contract, in its own adapter project under `Core/<Area>/<Vendor>/`. Before adding a package, check the inventory and rules in [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md); to add a provider for an existing contract, follow its [Writing a provider](PLUGIN_ARCHITECTURE.md#5-writing-a-provider) steps (project layout, registration, the guarantees each kind of provider must keep, contract tests, docs). Don't import a vendor namespace in `Tests`, `Pages` or `Domain`, and don't add a vendor package to `Core/Core.csproj`.
+
 ## Code Style
 
 - **Always use `using` imports and never fully qualified names in the code.**

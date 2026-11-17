@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Plug-and-play architecture doc (R43)
+
+- New `docs/PLUGIN_ARCHITECTURE.md`: target shape (contracts in `Core`, one adapter project per library, a composition root selecting adapters from a `Providers` section), the contract list, a dependency inventory (role, kind, where each library's types leak today, realistic replacement, review item), design rules, a provider guide with the guarantees each kind of provider must keep, and the accepted host/platform dependencies (xUnit, Microsoft.Extensions, ADO.NET). Phase 0 of the roadmap in `docs/REVIEW.md`; no code changes.
+- `docs/CONTRIBUTING.md`: "Adding or replacing a library" section; README and ARCHITECTURE link to the new doc.
+
 ## 2026-11-17: Flow diagrams (Mermaid)
 
 - New `docs/DIAGRAMS.md` with six Mermaid diagrams that GitHub renders: projects and layers, a web UI test run, an API test run (retries and cleanup), a mobile test run, settings and secrets resolution, and the CI pipeline. Each shows one idea and only the main path (about eight boxes at most, one arrow per group); details are in tables under each diagram. Linked from README, ARCHITECTURE and CONTRIBUTING.

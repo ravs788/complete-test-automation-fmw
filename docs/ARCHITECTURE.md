@@ -6,6 +6,8 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 
 **Diagrams:** rendered flow diagrams of the same material (project dependencies, each kind of test run, settings and secrets, CI) are in [DIAGRAMS.md](DIAGRAMS.md).
 
+**Replaceable libraries:** the target design (contracts in `Core`, one adapter project per library, a composition root), the dependency inventory and the provider guide are in [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md).
+
 | Area | Location | Driver/Client | In CI |
 |------|----------|---------------|-------|
 | API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
@@ -242,3 +244,4 @@ Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), wh
 | 2026-11-17 | Core-architecture feedback: app-specific code moved to `Domain` (R34) with `CoreBoundaryTests`; shared retry/polling in `Core/Resilience` with Polly (R35); mobile bootstrapping moved to `Core.Mobile` (R38). |
 | 2026-11-17 | Core add-ons moved inside `Core/` next to the area they extend (`Core/Mobile`, `Core/Messaging/{Kafka,RabbitMq}`, `Core/Security/AzureKeyVault`), still separate projects excluded from `Core.csproj`; `Core.Secrets.AzureKeyVault` renamed `Core.Security.AzureKeyVault`; solution groups them under `/Core/`. |
 | 2026-11-17 | Mermaid flow diagrams added in `docs/DIAGRAMS.md`: project dependencies, web UI / API / mobile test runs, settings and secrets, CI pipeline. |
+| 2026-11-17 | `docs/PLUGIN_ARCHITECTURE.md` added (R43): plug-and-play target shape, contract list, dependency inventory, design rules, provider guide, accepted host/platform dependencies. |
