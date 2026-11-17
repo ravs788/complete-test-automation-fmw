@@ -14,10 +14,10 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
-| R35 | P3 | Open | – | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R36 | P4 | Open | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
 | R37 | P4 | Open | – | [No data / infrastructure helpers (database, message queue) with cleanup tracking](#r37) | Test infrastructure |
 | R38 | P4 | Open | – | [Mobile driver bootstrapping can't be reused outside the mobile test project](#r38) | Architecture / mobile |
+| R35 | P3 | Closed | 2026-11-17 · `1b8f9d3` | [No central retry / polling policy; retries are hand-written per class](#r35) | Resilience |
 | R34 | P3 | Closed | 2026-11-17 · `d01fbf0` | [Core contains app-specific code, so it can't be shared as a domain-agnostic package](#r34) | Architecture |
 | R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
@@ -348,7 +348,7 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 <a id="r35"></a>
 ### R35. No central retry / polling policy; retries are hand-written per class
 
-- **Status:** Open
+- **Status:** Closed, 2026-11-17 · `1b8f9d3`. Core/Resilience (Polly.Core 8.8.1): RetryPolicies.TransientHttp (idempotent methods only in ApiClient), Navigation, Transient, and Poll.UntilAsync; the three hand-written loops now use them; retry counts in Resilience settings. Checked with 18 unit tests and against real Playwright (GET retried twice on 503 then 200, POST not retried; navigation recovered from 2 routed resets); Playwright suite 15/15.
 - **Source:** external architecture feedback, 2026-11-17.
 - **Where:** `Pages/Common/BasePage.cs` (`GotoAsync` retry loop, R20), `Tests/UI/Mobile/Pages/Common/MobileBasePage.cs` (two `while (attempts++ < 3)` loops), `Core/Api/ApiClient.cs` (no retry).
 - **Problem:** each retry is hand-written with its own attempts, backoff and exception filter, and `ApiClient` doesn't retry transient `502/503/504` responses or network errors from slow-starting test environments. There's no shared "poll until a condition holds" helper for eventually consistent backends, so future tests are likely to add ad-hoc loops or sleeps. (Playwright's auto-waiting already covers most UI waits.)
