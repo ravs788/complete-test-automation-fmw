@@ -2,7 +2,7 @@
 
 **Goal:** every external library the framework uses can be replaced or left out by changing configuration and a project reference, without touching test scenarios. This document is the target design, the current dependency inventory, and the rules for adding a provider. The work is tracked as R39–R48 in [REVIEW.md](REVIEW.md#plug-and-play-roadmap), one phase per pull request.
 
-**Status (2026-11-17):** phases 0–5 done. The composition root exists (`Core/Composition`: `Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`, `providers.json`); logging, results publishing and secrets are selected through it; Elasticsearch has moved out of `Core` into the `Core.Logging.Elastic` adapter; the Appium, Key Vault, RabbitMQ and Kafka code is in separate projects; reporting goes through `ITestReporter` with Allure in the `Core.Reporting.Allure` adapter and a built-in console reporter (phase 2); guardrail tests are in `Tests/Unit/Architecture/AdapterBoundaryTests`. API calls go through `IHttpTransport` with the Playwright adapter and a built-in `HttpClient` transport, both passing the same contract tests (phase 3). Retries go through `IRetryPolicy` with a built-in implementation and the `Core.Resilience.Polly` adapter (phase 4), and web UI goes through the UI contract in `Core/Ui` with the `Core.Ui.Playwright` adapter (phase 5), so **`Core` references no vendor package** (only Microsoft.Extensions.Configuration, an accepted platform dependency) and `Pages` doesn't reference Playwright. Still to come: a second UI driver and Appium on the shared contract (phase 6), xUnit kept to a thin host layer (phase 7).
+**Status (2026-11-17):** phases 0–6 done. The composition root exists (`Core/Composition`: `Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`, `providers.json`); logging, results publishing and secrets are selected through it; Elasticsearch has moved out of `Core` into the `Core.Logging.Elastic` adapter; the Appium, Key Vault, RabbitMQ and Kafka code is in separate projects; reporting goes through `ITestReporter` with Allure in the `Core.Reporting.Allure` adapter and a built-in console reporter (phase 2); guardrail tests are in `Tests/Unit/Architecture/AdapterBoundaryTests`. API calls go through `IHttpTransport` with the Playwright adapter and a built-in `HttpClient` transport, both passing the same contract tests (phase 3). Retries go through `IRetryPolicy` with a built-in implementation and the `Core.Resilience.Polly` adapter (phase 4), and web UI goes through the UI contract in `Core/Ui` with the `Core.Ui.Playwright` adapter (phase 5), so **`Core` references no vendor package** (only Microsoft.Extensions.Configuration, an accepted platform dependency) and `Pages` doesn't reference Playwright. Phase 6 added a second web UI driver (`Core.Ui.Selenium`) and put Appium on the same contract (`appium` in `Core.Mobile`), so the mobile suite shares the web page objects. Still to come: xUnit kept to a thin host layer (phase 7).
 
 ---
 
@@ -41,14 +41,16 @@ flowchart TB
   "Reporting": "allure",              // or "console"
   "Http": "playwright",               // or "httpclient"
   "Resilience": "polly",              // or "builtin"
-  "Ui": "playwright",                 // web UI driver
+  "Ui": "playwright",                 // web UI driver: or "selenium"
+  "MobileUi": "appium",               // mobile UI driver
   "Secrets": [ "environment" ]        // e.g. [ "environment", "azure-keyvault" ]
 }
 ```
 
 ```csharp
 // Tests/Infrastructure/TestRunSetup.cs (module initializer)
-Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new PlaywrightHttpPlugin(), new PlaywrightUiPlugin(), new AzureKeyVaultPlugin());
+Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new PlaywrightHttpPlugin(), new PlaywrightUiPlugin(), new SeleniumUiPlugin(),
+    new AzureKeyVaultPlugin());   // the mobile suite also passes new AppiumUiPlugin()
 ```
 
 Replacing a library then means: reference the other adapter project, change one value, done.
@@ -66,7 +68,7 @@ Replacing a library then means: reference the other adapter project, change one 
 | HTTP | `IHttpTransport` (+ `IHttpTransportFactory`) | send a request, return status, headers, body; `HttpRequestException` only when no response arrived | `httpclient` (built in), `playwright` (`Core.Http.Playwright`) | R41 ✓ |
 | Resilience | `IRetryPolicy`, `IRetryPolicy<T>` (+ `IRetryPolicyFactory`; `RetryPolicies` names the framework's policies) | run an action with retries for transient exceptions or results | `builtin` (built in), `polly` (`Core.Resilience.Polly`) | R45 ✓ |
 | Settings source | none: `SettingsLoader` uses Microsoft.Extensions.Configuration directly (an accepted platform dependency, §6) and keeps `IConfiguration` out of its public API | key/value settings from files and environment | – | R44 (decided 2026-11-17) |
-| Web and mobile UI | `IUiDriverFactory` → `IUiDriver` → `IUiSession`; `IElement` (+ `Locate`, `UiRole`); `IElementAssertions` via `Ui.Expect`; `UiException` / `UiAssertionException`; capabilities `IScreenshots`, `ITracing` (later `IMobileGestures`) via `TryGet<T>`; escape hatch `Native<T>()` | launch, session per test, find, act, wait, assert; optional extras per driver | `playwright` (`Core.Ui.Playwright`) → Selenium, Appium (R47) | R42 ✓, R47 |
+| Web and mobile UI | `IUiDriverFactory` → `IUiDriver` → `IUiSession` (`NavigateAsync`, `TitleAsync`, `Find`); `IElement` (+ `Locate`, `UiRole`); `IElementAssertions` via `Ui.Expect`; `UiException` / `UiAssertionException`; capabilities `IScreenshots`, `ITracing`, `IMobileGestures` via `TryGet<T>`; escape hatch `Native<T>()` | launch, session per test, find, act, wait, assert; optional extras per driver | `playwright` (`Core.Ui.Playwright`: screenshots, tracing), `selenium` (`Core.Ui.Selenium`: screenshots), `appium` (`Core.Mobile`: screenshots, gestures) | R42 ✓, R47 ✓ |
 | Messaging | `IMessageListener` *(new; today `MessageCollector<T>` is shared and each listener has its own start method)* | start listening, collect, wait for a match | RabbitMQ, Kafka (add-ons) | R40 |
 | Databases | ADO.NET `DbConnection` / `DbProviderFactory` (already provider-neutral) | connection + transaction scope | any ADO.NET provider, chosen by the test project | – |
 
@@ -86,7 +88,7 @@ Kinds: **move**: in `Core` today, moves to an adapter · **adapter**: already an
 | Polly.Core 8.8.1 | retries | adapter (`Core/Resilience/Polly`, moved out of `Core` in phase 4) | adapter only | none (behind `IRetryPolicyFactory`) | built-in retry | R45 ✓ |
 | Microsoft.Extensions.Configuration.* 10.0.12 | settings loading | platform | `Core/Configuration/SettingsLoader` | none (`ResolveSecrets` is internal since phase 4) | none planned; already an abstraction | R44 ✓ |
 | Microsoft.Extensions.DependencyInjection | composition root | not used so far | – | – | – | R40: a small `ProviderRegistry` covers named providers; DI only if constructor injection becomes useful |
-| Appium.WebDriver 8.0.0, Selenium.WebDriver/Support 4.35.0, DotNetSeleniumExtras.WaitHelpers 3.11.0 | mobile automation | adapter (`Core/Mobile`) | `Core/Mobile` (4 files), mobile pages and base (3 files) | `AppiumDriver`, `IWebElement` in mobile pages | Appium via the shared UI contract | R47 |
+| Appium.WebDriver 8.0.0, Selenium.WebDriver 4.35.0 | web and mobile automation over WebDriver | adapters: `Core.Ui.Selenium` (`selenium`), `Core.Mobile` (`appium`, builds on `Core.Ui.Selenium`) | adapters only; `Selenium.Support` and `DotNetSeleniumExtras.WaitHelpers` removed in phase 6 | none (mobile pages now use the UI contract) | other WebDriver services | R47 ✓ |
 | Azure.Identity 1.21.0, Azure.Security.KeyVault.Secrets 4.12.0 | secrets | adapter (`Core/Security/AzureKeyVault`) | add-on only | none (behind `ISecretProvider`) | AWS Secrets Manager, HashiCorp Vault | – |
 | RabbitMQ.Client 7.2.2 | message listener | adapter (`Core/Messaging/RabbitMq`) | add-on only | listener start signature | any broker via `IMessageListener` | R40 |
 | Confluent.Kafka 2.16.0 | message listener | adapter (`Core/Messaging/Kafka`) | add-on only | listener start signature | as above | R40 |

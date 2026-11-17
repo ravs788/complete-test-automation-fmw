@@ -10,7 +10,7 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | A web UI test | `Tests/UI/Web/<App>/` (inherit `<App>TestBase`, which inherits `UiTestBase`) |
 | An API test | `Tests/Api/` (inherit `ApiTestBase`) |
 | A unit test for framework code (`Core`) | `Tests/Unit/<Area>/` (plain xUnit; no browser or external services; isolated loopback fixtures are allowed for transport checks) |
-| A mobile page / test | `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`) |
+| A mobile page / test | the shared `Pages/<App>/` (same page objects as web) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`, `RunAsync`) |
 | Reusable mobile infrastructure (settings, driver setup, interaction helpers) | `Core/Mobile/<Area>/` (project `Core.Mobile`; no page objects or tests) |
 | A model (API contract or test-data shape) | `Domain/Models/<App>/` |
 | Test data for an entity | `Domain/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |

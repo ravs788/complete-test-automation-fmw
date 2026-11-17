@@ -66,6 +66,9 @@ public static class Framework
     /// <summary>The UI driver factory selected in <c>providers.json</c>; fails listing the registered names if it isn't registered.</summary>
     public static IUiDriverFactory UiDrivers => Providers.Get<IUiDriverFactory>(ProviderKinds.Ui, Settings.Ui);
 
+    /// <summary>The mobile UI driver factory selected in <c>providers.json</c> (<c>"MobileUi"</c>).</summary>
+    public static IUiDriverFactory MobileUiDrivers => Providers.Get<IUiDriverFactory>(ProviderKinds.MobileUi, Settings.MobileUi);
+
     /// <summary>Registers the built-in providers plus <paramref name="plugins"/>, using the selection from <c>providers.json</c>.</summary>
     public static ProviderRegistry Configure(params IFrameworkPlugin[] plugins) =>
         Configure(ProvidersConfigProvider.Current, plugins);
@@ -90,7 +93,7 @@ public static class Framework
         reporter.BeginRun();
         System.Console.WriteLine(
             $"[Providers] {ProviderKinds.Logging}={settings.Logging}, {ProviderKinds.ResultsPublisher}={settings.EffectiveResultsPublisher}, " +
-            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}, {ProviderKinds.Reporting}={settings.Reporting}, {ProviderKinds.Http}={settings.Http}, {ProviderKinds.Resilience}={settings.Resilience}, {ProviderKinds.Ui}={settings.Ui}");
+            $"{ProviderKinds.Secrets}={string.Join(" > ", settings.EffectiveSecrets)}, {ProviderKinds.Reporting}={settings.Reporting}, {ProviderKinds.Http}={settings.Http}, {ProviderKinds.Resilience}={settings.Resilience}, {ProviderKinds.Ui}={settings.Ui}, {ProviderKinds.MobileUi}={settings.MobileUi}");
         return registry;
     }
 

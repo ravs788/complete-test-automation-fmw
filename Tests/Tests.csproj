@@ -29,6 +29,7 @@
     <ProjectReference Include="..\Core\Resilience\Polly\Core.Resilience.Polly.csproj" />
     <ProjectReference Include="..\Core\Security\AzureKeyVault\Core.Security.AzureKeyVault.csproj" />
     <ProjectReference Include="..\Core\Ui\Playwright\Core.Ui.Playwright.csproj" />
+    <ProjectReference Include="..\Core\Ui\Selenium\Core.Ui.Selenium.csproj" />
     <ProjectReference Include="..\Domain\Domain.csproj" />
     <ProjectReference Include="..\Pages\Pages.csproj" />
   </ItemGroup>

@@ -12,6 +12,7 @@
       "Core/Resilience/Polly/Core.Resilience.Polly.csproj",
       "Core/Security/AzureKeyVault/Core.Security.AzureKeyVault.csproj",
       "Core/Ui/Playwright/Core.Ui.Playwright.csproj",
+      "Core/Ui/Selenium/Core.Ui.Selenium.csproj",
       "Domain/Domain.csproj",
       "Pages/Pages.csproj",
       "Tests/Tests.csproj",

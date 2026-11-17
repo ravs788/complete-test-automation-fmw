@@ -9,6 +9,9 @@ public interface IUiSession : IAsyncDisposable
     /// <summary>Opens <paramref name="url"/>, relative to the session's base URL or absolute.</summary>
     Task NavigateAsync(string url);
 
+    /// <summary>The current page's title.</summary>
+    Task<string> TitleAsync();
+
     IElement Find(Locate locate);
 
     /// <summary>

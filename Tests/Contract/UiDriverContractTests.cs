@@ -11,7 +11,7 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
 {
     private const string Html = """
         <!doctype html>
-        <html><body>
+        <html><head><title>Contract page</title></head><body>
           <h1 data-testid="title">Contract page</h1>
           <input data-testid="name" placeholder="Your name">
           <button onclick="document.querySelector('[data-testid=greeting]').textContent = 'Hello ' + document.querySelector('[data-testid=name]').value">Greet</button>
@@ -102,6 +102,12 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     public async Task ActionOnMissingElement_Should_Throw_UiException()
     {
         await Assert.ThrowsAsync<UiException>(() => TestId("does-not-exist").ClickAsync());
+    }
+
+    [Fact]
+    public async Task Title_Should_BeThePagesTitle()
+    {
+        Assert.Equal("Contract page", await _session.TitleAsync());
     }
 
     [Fact]

@@ -28,6 +28,7 @@
   <Project Path="Pages/Pages.csproj" />
   <Folder Name="/Core/Ui/">
     <Project Path="Core/Ui/Playwright/Core.Ui.Playwright.csproj" />
+    <Project Path="Core/Ui/Selenium/Core.Ui.Selenium.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Tests.csproj" />

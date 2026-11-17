@@ -6,7 +6,7 @@
       broker client, Elasticsearch, Allure, Polly or Playwright take those packages (R40-R45, R42).
       Don't compile them here (same pattern as Tests/Tests.csproj).
     -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**;Resilience/Polly/**;Ui/Playwright/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**;Resilience/Polly/**;Ui/Playwright/**;Ui/Selenium/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

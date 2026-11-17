@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Core.csproj" />
     <ProjectReference Include="..\..\Core\Ui\Playwright\Core.Ui.Playwright.csproj" />
+    <ProjectReference Include="..\..\Core\Ui\Selenium\Core.Ui.Selenium.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,6 +11,4 @@ public sealed record ResilienceSettings
     /// <summary>Page navigations that fail with a browser network error (<c>net::ERR_*</c>).</summary>
     public RetryOptions Navigation { get; init; } = new();
 
-    /// <summary>UI actions that hit a momentary glitch (stale element, click intercepted, …).</summary>
-    public RetryOptions UiAction { get; init; } = new() { BaseDelayMs = 250 };
 }

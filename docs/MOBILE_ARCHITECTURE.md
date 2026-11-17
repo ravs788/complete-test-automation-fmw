@@ -1,8 +1,8 @@
 # Mobile Suite (Appium)
 
-The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. It keeps its own pages (rather than using the top-level `Pages/` project) because `Pages` is built on Playwright and mobile pages use Appium types. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
+The mobile suite lives in `Tests/UI/Mobile` as its own project (`Tests.UI.Mobile.csproj`). It uses Appium 2 through the Appium .NET client, which is built on Selenium WebDriver. Since R47 it works on the framework's **UI contract** (`Core.Ui`): `MobileTestBase` opens an `IUiSession` through the mobile UI driver selected in `providers.json` (`"MobileUi": "appium"`), and tests use **the same page objects as the web suite** (`Pages/`, e.g. `Pages.SauceDemo.LoginPage`) and the same `Ui.Expect` assertions. Like every other suite, it uses xUnit and Allure, and gets logging, timing and results publishing from `Core` (`Core.Logging`, `Core.Testing.TestRunner`).
 
-The reusable Appium bootstrapping (settings + provider, driver factory/options, wait and gesture helpers) lives in a separate library, **`Core.Mobile`** (R38), so any mobile suite can reference it while `Core` stays free of Appium/Selenium. Page objects, the test base and the tests stay in `Tests/UI/Mobile`.
+The Appium adapter (settings + provider, driver factory/options, gestures and the `appium` UI driver, `AppiumUiPlugin`) lives in a separate library, **`Core.Mobile`** (R38, R47), so any mobile suite can reference it while `Core` stays free of Appium/Selenium. Appium speaks W3C WebDriver, so its sessions reuse the WebDriver session of the Selenium adapter (`Core.Ui.Selenium`) and add the `IMobileGestures` capability (swipe, scroll, scroll until visible). The test base and the tests stay in `Tests/UI/Mobile`; page objects are shared in `Pages/`.
 
 - **Status:** Android mobile web works (one SauceDemo smoke test). iOS and native apps are supported by the driver code but have no tests yet.
 - **CI:** all runs compile the project in the Linux job. Scheduled/manual runs also execute Android smoke in a separate `macOS-15` job using `scripts/unix/run_mobile_ci.sh`; results and diagnostics are published as `mobile-results`. As of run 118 (2026-11-17) the emulator boots and Appium starts a session; the remaining session timeout (Chromedriver download and Chrome's first start inside the session) is addressed by the Chromedriver pre-download and Chrome warm-up below (R33), pending a manual run to confirm. See [GETTING_STARTED.md](GETTING_STARTED.md).
@@ -15,20 +15,19 @@ The reusable Appium bootstrapping (settings + provider, driver factory/options, 
 It follows the same conventions as the Playwright side: namespace = folder (`Core.Mobile.<Folder>` / `Tests.UI.Mobile.<Folder>`), one type per file, settings record + provider, pages per app and tests per app.
 
 ```text
-Core/Mobile/                       # reusable Appium bootstrapping (Core.Mobile.csproj → Core)
-├── Configuration/                 # MobileSettings (+ Server/Device/Android/IOS/Behavior/Resilience sections)
+Core/Mobile/                       # Appium adapter (Core.Mobile.csproj → Core, Core.Ui.Selenium)
+├── Configuration/                 # MobileSettings (+ Server/Device/Android/IOS/Behavior sections)
 │                                  # MobileSettingsProvider (lazy, cached; reads mobilesettings.json)
 ├── Driver/                        # MobilePlatform, MobileAppType, MobileOptionsBuilder, MobileDriverFactory
-└── Interactions/                  # WaitHelper (explicit waits), GestureHelper (tap/swipe/scroll)
+├── Interactions/                  # GestureHelper (tap/swipe/scroll), used by IMobileGestures
+└── Ui/                            # AppiumUiDriverFactory, AppiumUiSession (WebDriver session + IMobileGestures), AppiumUiPlugin
 
-Tests/UI/Mobile/                   # the mobile test suite (Tests.UI.Mobile.csproj → Core.Mobile)
+Tests/UI/Mobile/                   # the mobile test suite (Tests.UI.Mobile.csproj → Core.Mobile, Pages)
 ├── Tests.UI.Mobile.csproj
-├── mobilesettings.json            # Appium server, platform, device, android/ios, behavior, resilience
-├── Pages/
-│   ├── Common/MobileBasePage.cs   # waits + retrying SafeClick/SafeType/SafeGetText, Load, GetPageTitle
-│   └── SauceDemo/LoginPage.cs
+├── mobilesettings.json            # Appium server, platform, device, android/ios, behavior
 ├── Infrastructure/
-│   └── MobileTestBase.cs          # session lifecycle, screenshot on failure, results publishing
+│   ├── MobileTestBase.cs          # IUiSession per test (RunAsync), screenshot on failure, results publishing
+│   └── TestRunSetup.cs            # composition root (AppiumUiPlugin, …)
 └── SauceDemo/
     └── SauceDemoTests.cs
 ```
@@ -36,9 +35,9 @@ Tests/UI/Mobile/                   # the mobile test suite (Tests.UI.Mobile.cspr
 | Playwright side | Mobile equivalent |
 |---|---|
 | `Core.Configuration.TestSettings` + `ConfigurationProvider` (`testsettings.json`) | `Core.Mobile.Configuration.MobileSettings` + `MobileSettingsProvider` (`mobilesettings.json`) |
-| `Core.Ui.Playwright` (UI driver adapter, selected in `providers.json`) | `Core.Mobile.Driver.MobileDriverFactory` (+ `MobileOptionsBuilder`) |
-| `Pages.Common.BasePage`, `Pages/<App>/` | `Pages/Common/MobileBasePage`, `Pages/<App>/` |
-| `Tests/Infrastructure/UiTestBase` (`RunAsync`) | `Infrastructure/MobileTestBase` (`Run`) |
+| `"Ui": "playwright"` (`Core.Ui.Playwright`) or `"selenium"` | `"MobileUi": "appium"` (`Core.Mobile.Ui`, on `MobileDriverFactory` + `MobileOptionsBuilder`) |
+| `Pages.Common.BasePage`, `Pages/<App>/` | the same: `Pages/<App>/` (shared) |
+| `Tests/Infrastructure/UiTestBase` (`RunAsync`, `Session`) | `Infrastructure/MobileTestBase` (`RunAsync`, `Session`) |
 | `Tests/UI/Web/<App>/<Feature>Tests.cs` | `Tests/UI/Mobile/<App>/<Feature>Tests.cs` |
 
 ---
@@ -81,7 +80,7 @@ For device selection commands and clearing stale overrides, see [mobile troubles
 
 ## Adding tests
 
-1. **Page:** add `Pages/<App>/<Name>Page.cs` deriving from `MobileBasePage`, with locators as private `By` fields and intent methods/queries as public members (keep assertions in tests).
+1. **Page:** use the shared page object in `Pages/<App>/` if the screen already has one (mobile web usually does); otherwise add `Pages/<App>/<Name>Page.cs` deriving from `Pages.Common.BasePage`, with `IElement` members and async intent methods (keep assertions in tests). For native apps, locate by accessibility id or test id through `Locate`.
 2. **Test:** add `<App>/<Feature>Tests.cs` deriving from `MobileTestBase`, with the same labels as the other suites:
 
    ```csharp
@@ -93,11 +92,11 @@ For device selection commands and clearing stale overrides, see [mobile troubles
    public class <Feature>Tests : MobileTestBase
    {
        [Fact]
-       public void Something_Should_Happen() => Run(() => { ... });
+       public Task Something_Should_Happen() => RunAsync(async () => { ... });
    }
    ```
 
-3. **Native or iOS:** switch `Platform` / `AppType` (and the `Android.App*` / `IOS.*` values) in `mobilesettings.json`. The same base classes apply. Use `GestureHelper` for swipes and scrolls.
+3. **Native or iOS:** switch `Platform` / `AppType` (and the `Android.App*` / `IOS.*` values) in `mobilesettings.json`. The same base classes apply. For swipes and scrolls use the `IMobileGestures` capability: `if (Session.TryGet<IMobileGestures>(out var gestures)) await gestures.ScrollUntilVisibleAsync(element);`.
 
 ---
 

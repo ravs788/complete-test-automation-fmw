@@ -21,7 +21,7 @@ Read top to bottom: each layer uses only the layers below it. `Core` uses none o
 flowchart TB
     TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit · Tests.Contract"]
     APP["<b>App-specific code</b><br/>Pages (page objects) · Domain (models, test data, auth)"]
-    ADDONS["<b>Optional adapters</b> in Core/<br/>Mobile · Ui · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
+    ADDONS["<b>Optional adapters</b> in Core/<br/>Ui (Playwright, Selenium) · Mobile (Appium) · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
     CORE["<b>Core</b><br/>domain-agnostic engine"]
 
     TESTS --> APP
@@ -41,12 +41,13 @@ Exact references:
 
 | Project | Uses |
 |---|---|
-| `Tests` (API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright` |
-| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
+| `Tests` (API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Ui.Selenium` |
+| `Tests.UI.Mobile` (Appium) | `Pages`, `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
 | `Tests.Unit` (framework self-tests) | `Core`, `Domain`, `Pages` and every adapter, so it can test them |
-| `Tests.Contract` (UI driver contract tests) | `Core` and each UI driver adapter |
+| `Tests.Contract` (UI driver contract tests) | `Core`, `Core.Ui.Playwright`, `Core.Ui.Selenium` |
 | `Pages`, `Domain` | `Core` |
-| `Core.Mobile`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Ui.Selenium`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Mobile` (Appium) | `Core`, `Core.Ui.Selenium` (Appium reuses the WebDriver session) |
 
 ---
 
@@ -120,19 +121,19 @@ sequenceDiagram
 
 ## 4. A mobile test run
 
-The Android suite drives Chrome on an emulator or device through Appium.
+The Android suite drives Chrome on an emulator or device through Appium, on the same UI contract and page objects as the web suite (R47).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant B as MobileTestBase
+    participant B as MobileTestBase<br/>(appium UI driver)
     participant AP as Appium server
     participant DEV as Device + Chrome
 
     B->>AP: create session (capabilities)
     AP->>DEV: start UiAutomator2, Chromedriver, Chrome
     AP-->>B: session ready
-    B->>DEV: open BaseUrl, run the test steps
+    B->>DEV: open BaseUrl, run the test steps<br/>(shared page objects, Ui.Expect)
     alt test failed
         B->>B: screenshot to report
     end

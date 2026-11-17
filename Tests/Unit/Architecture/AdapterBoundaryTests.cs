@@ -9,6 +9,7 @@ using Core.Reporting.Allure;
 using Core.Resilience.Polly;
 using Core.Security.AzureKeyVault;
 using Core.Ui.Playwright;
+using Core.Ui.Selenium;
 
 namespace Tests.Unit.Architecture;
 
@@ -27,6 +28,7 @@ public class AdapterBoundaryTests
         typeof(AllureReportingPlugin).Assembly.GetName().Name!,
         typeof(PollyResiliencePlugin).Assembly.GetName().Name!,
         typeof(PlaywrightUiPlugin).Assembly.GetName().Name!,
+        typeof(SeleniumUiPlugin).Assembly.GetName().Name!,
         typeof(AzureKeyVaultPlugin).Assembly.GetName().Name!,
         typeof(RabbitMqListener).Assembly.GetName().Name!,
         typeof(KafkaListener).Assembly.GetName().Name!,
@@ -53,9 +55,13 @@ public class AdapterBoundaryTests
         var frameworkReferences = Assembly.Load(adapter).GetReferencedAssemblies()
             .Select(a => a.Name!)
             .Where(name => name.StartsWith("Core", StringComparison.Ordinal) || name is "Domain" or "Pages" || name.StartsWith("Tests", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
             .ToList();
 
-        Assert.Equal(["Core"], frameworkReferences);
+        // The one deliberate exception: Appium speaks W3C WebDriver, so the Appium adapter builds on the WebDriver
+        // session of the Selenium adapter (R47).
+        string[] expected = adapter == "Core.Mobile" ? ["Core", "Core.Ui.Selenium"] : ["Core"];
+        Assert.Equal(expected, frameworkReferences);
     }
 
     [Fact]

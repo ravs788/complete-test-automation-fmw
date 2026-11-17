@@ -1,7 +1,8 @@
 using Allure.Net.Commons.Attributes;
 using Core.Reporting;
+using Core.Ui;
+using Pages.SauceDemo;
 using Tests.UI.Mobile.Infrastructure;
-using Tests.UI.Mobile.Pages.SauceDemo;
 
 namespace Tests.UI.Mobile.SauceDemo;
 
@@ -13,14 +14,14 @@ namespace Tests.UI.Mobile.SauceDemo;
 public class SauceDemoTests : MobileTestBase
 {
     [Fact]
-    public void LoginPage_Should_Load() => Run(() =>
+    public Task LoginPage_Should_Load() => RunAsync(async () =>
     {
-        // MobileTestBase has already opened BaseUrl (mobilesettings.json).
-        var login = new LoginPage(Driver, Logger);
+        // MobileTestBase has already opened BaseUrl (mobilesettings.json). Same page object as the web suite (R47).
+        var login = new LoginPage(Session);
 
-        Report.Step("Assert username field is visible", () =>
-            Assert.True(login.IsUsernameVisible(), "Username field not visible"));
-        Report.Step("Assert page title contains 'Swag Labs'", () =>
-            Assert.Contains("Swag Labs", login.GetPageTitle()));
+        await Report.Step("Assert username field is visible", () =>
+            Ui.Expect(login.Username).ToBeVisibleAsync());
+        await Report.Step("Assert page title contains 'Swag Labs'", async () =>
+            Assert.Contains("Swag Labs", await Session.TitleAsync()));
     });
 }

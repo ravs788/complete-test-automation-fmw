@@ -4,7 +4,8 @@ namespace Pages.SauceDemo;
 
 public sealed class LoginPage(IUiSession session) : SauceDemoPage(session)
 {
-    private IElement Username => TestId("username");
+    /// <summary>The username field (public so suites can check the login page loaded, e.g. the mobile smoke test).</summary>
+    public IElement Username => TestId("username");
     private IElement Password => TestId("password");
     private IElement LoginButton => TestId("login-button");
 

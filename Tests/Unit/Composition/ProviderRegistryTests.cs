@@ -66,4 +66,29 @@ public class ProviderRegistryTests
         Assert.Equal(["httpclient"], registry.Names<Core.Http.IHttpTransportFactory>());
         Assert.Equal(["builtin"], registry.Names<Core.Resilience.IRetryPolicyFactory>());
     }
+
+    [Fact]
+    public void EveryContract_Should_HaveAtLeastTwoImplementations()
+    {
+        // R46: a contract with one implementation hasn't shown it is replaceable.
+        var registry = Framework.CreateRegistry(
+        [
+            new Core.Logging.Elastic.ElasticLoggingPlugin(),
+            new Core.Reporting.Allure.AllureReportingPlugin(),
+            new Core.Http.Playwright.PlaywrightHttpPlugin(),
+            new Core.Resilience.Polly.PollyResiliencePlugin(),
+            new Core.Ui.Playwright.PlaywrightUiPlugin(),
+            new Core.Ui.Selenium.SeleniumUiPlugin(),
+            new Core.Mobile.Ui.AppiumUiPlugin(),
+            new Core.Security.AzureKeyVault.AzureKeyVaultPlugin(),
+        ]);
+
+        Assert.True(registry.Names<Core.Logging.ILoggingProviderFactory>().Count >= 2);
+        Assert.True(registry.Names<Core.Logging.IResultsPublisherFactory>().Count >= 2);
+        Assert.True(registry.Names<ISecretProvider>().Count >= 2);
+        Assert.True(registry.Names<Core.Reporting.ITestReporter>().Count >= 2);
+        Assert.True(registry.Names<Core.Http.IHttpTransportFactory>().Count >= 2);
+        Assert.True(registry.Names<Core.Resilience.IRetryPolicyFactory>().Count >= 2);
+        Assert.Equal(["appium", "playwright", "selenium"], registry.Names<Core.Ui.IUiDriverFactory>());
+    }
 }

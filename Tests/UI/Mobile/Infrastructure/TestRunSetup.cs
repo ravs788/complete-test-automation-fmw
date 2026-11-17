@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Core.Composition;
 using Core.Logging.Elastic;
+using Core.Mobile.Ui;
 using Core.Reporting.Allure;
 using Core.Resilience.Polly;
 using Core.Security.AzureKeyVault;
@@ -19,6 +20,6 @@ internal static class TestRunSetup
         // Composition root (R40): the adapters this test project references. Which one is used for each contract is
         // chosen by name in providers.json (e.g. "Logging": "elastic", "Reporting": "allure"). The selected reporter clears the
         // previous run's results here (R23).
-        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new AzureKeyVaultPlugin());
+        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new AppiumUiPlugin(), new AzureKeyVaultPlugin());
     }
 }

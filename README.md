@@ -54,12 +54,14 @@ TestAutomationProj/
 │   ├── Reporting/                     # ITestReporter, Report.Step (what tests call), ConsoleTestReporter (built in)
 │   │   └── Allure/                    # Adapter project Core.Reporting.Allure ("allure" in providers.json)
 │   ├── Ui/                            # UI contract: IUiDriverFactory/IUiDriver/IUiSession, IElement, Locate, Ui.Expect, capabilities
-│   │   └── Playwright/                # Adapter project Core.Ui.Playwright ("playwright" in providers.json; browsers chromium/chrome/msedge/firefox/webkit)
+│   │   ├── Playwright/                # Adapter project Core.Ui.Playwright ("playwright" in providers.json; browsers chromium/chrome/msedge/firefox/webkit)
+│   │   └── Selenium/                  # Adapter project Core.Ui.Selenium ("selenium"; WebDriver session reused by the Appium adapter)
 │   ├── Testing/                       # TestRunner, TestRunInfo (logging, report timing, failure hook, publishing), CleanupTracker
-│   └── Mobile/                        # Add-on project Core.Mobile: reusable Appium bootstrapping (only mobile suites use it)
+│   └── Mobile/                        # Adapter project Core.Mobile: Appium ("appium" UI driver for mobile suites; builds on Core.Ui.Selenium)
 │       ├── Configuration/             # MobileSettings (+ sections) + MobileSettingsProvider
 │       ├── Driver/                    # MobileDriverFactory, MobileOptionsBuilder, MobilePlatform, MobileAppType
-│       └── Interactions/              # WaitHelper, GestureHelper
+│       ├── Interactions/              # GestureHelper (behind the IMobileGestures capability)
+│       └── Ui/                        # AppiumUiDriverFactory, AppiumUiSession, AppiumUiPlugin
 │
 ├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
 │   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
@@ -78,8 +80,7 @@ TestAutomationProj/
 │   │   ├── Web/                       # Playwright web UI tests, one folder per app with a <App>TestBase
 │   │   │   ├── SauceDemo/             # SauceDemoTestBase + SauceDemo, AddToCart, RemoveFromCart, CheckoutFlow, NegativeLogin
 │   │   │   └── Todo/                  # TodoTestBase + TodoTests
-│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj, refs Core.Mobile)
-│   │       ├── Pages/                 # Common/MobileBasePage, SauceDemo/LoginPage
+│   │   └── Mobile/                    # Appium suite (own project: Tests.UI.Mobile.csproj; shared Pages/ on the UI contract, refs Core.Mobile)
 │   │       ├── Infrastructure/        # MobileTestBase
 │   │       ├── SauceDemo/             # SauceDemoTests
 │   │       ├── mobilesettings.json    # Appium server, platform, device, android/ios, behavior
@@ -101,7 +102,7 @@ TestAutomationProj/
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
 ├── Directory.Packages.props           # Central NuGet versions for every project
 ├── allure-categories.json             # Allure categories (UI vs API by tag)
-├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Http, Resilience, Ui, Secrets)
+├── providers.json                     # Which provider implements each contract (Logging, ResultsPublisher, Reporting, Http, Resilience, Ui, MobileUi, Secrets)
 ├── logging-config.json                # Logging provider settings (Elasticsearch URL, TLS fingerprint)
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
@@ -109,7 +110,7 @@ TestAutomationProj/
 └── TestAutomationPlatform.slnx        # The solution; Core and its add-ons under one /Core/ solution folder
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core.Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile`, `Tests/Unit` and `Tests/Contract` folders, which are separate projects; in the same way `Core.csproj` excludes its add-on projects (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`), which live inside `Core/` but are built separately so only the suites that need Appium, a broker client or the Azure SDK take those packages. Every project's assembly name equals its root namespace, which matches its folder (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Pages`, `Core.Mobile` → `Core.Ui.Selenium` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile`, `Tests/Unit` and `Tests/Contract` folders, which are separate projects; in the same way `Core.csproj` excludes its add-on projects (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`), which live inside `Core/` but are built separately so only the suites that need Appium, a broker client or the Azure SDK take those packages. Every project's assembly name equals its root namespace, which matches its folder (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -213,7 +214,7 @@ Keys are case-insensitive. Secrets (passwords, tokens) should come only from the
 | `Headless` | `true` / `false` | `HEADLESS` |
 | `DefaultTimeoutMs` | Playwright's default timeout per page | `TESTS_DefaultTimeoutMs` |
 | `Trace` | `off`, `on-failure` (default: attach a Playwright trace to Allure when a test fails), `on` (every test) | `TRACE` |
-| `Resilience.Http` / `.Navigation` / `.UiAction` | `MaxRetries` (default 2), `BaseDelayMs` (500/500/250): retries for API 502/503/504 and network errors (idempotent methods only), navigation `net::ERR_*`, and mobile UI glitches | `TESTS_Resilience__Http__MaxRetries`, … |
+| `Resilience.Http` / `.Navigation` | `MaxRetries` (default 2), `BaseDelayMs` (500/500): retries for API 502/503/504 and network errors (idempotent methods only), navigation `net::ERR_*`, and mobile UI glitches | `TESTS_Resilience__Http__MaxRetries`, … |
 | `<App>.BaseUrl`, `RestfulBooker.Username/Password` | | `TESTS_SauceDemo__BaseUrl`, `TESTS_RestfulBooker__Password`, … |
 
 Base URLs end with `/`, and entry pages open `./` (the context's `BaseURL`), so an app can live under a sub-path such as `/todomvc/`.
@@ -254,7 +255,7 @@ Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matchi
 
 ## 🧾 Logging (Pluggable Providers)
 
-Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`; `"Http": "playwright"` or `"httpclient"` for API tests; `"Resilience": "polly"` or `"builtin"` for retries; `"Ui": "playwright"` for web UI), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
+Which provider is used is chosen in **`providers.json`** at the repo root (`"Logging": "elastic"` or `"console"`; `ResultsPublisher` follows it unless set; `"Reporting": "allure"` or `"console"`; `"Http": "playwright"` or `"httpclient"` for API tests; `"Resilience": "polly"` or `"builtin"` for retries; `"Ui": "playwright"` or `"selenium"` for web UI; `"MobileUi": "appium"`), overridable with `PROVIDERS_Logging=console`. Each test project registers the providers it can use in its `TestRunSetup` (`Framework.Configure(new ElasticLoggingPlugin(), …)`); console is built in. At startup the run prints the selection, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`.
 
 The Playwright tests (`Tests/`) and the Mobile suite read the provider settings from `logging-config.json`. `LoggingConfigProvider.Current` loads it once, finding the file by walking up from the test run directory until it reaches a folder containing `logging-config.json`, and then applies environment overrides.
 
@@ -426,7 +427,7 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 - `Run(body)` reads `MobileSettingsProvider.Current`; `MobileOptionsBuilder` builds the `AppiumOptions` and `MobileDriverFactory` the Android or iOS driver
 - For mobile web, navigates to `BaseUrl`. For native apps, launches the configured app or package.
 - Records timing, logging, result publishing, and a failure screenshot through `TestRunner`
-- Pages inherit `Pages/Common/MobileBasePage`. `GestureHelper` and `WaitHelper` (in `Interactions/`) handle swipes, taps, and waits.
+- Tests use the shared page objects in `Pages/` and `Ui.Expect` on the session from the `appium` UI driver (R47). Waits are built into the UI contract; swipes and scrolls use the `IMobileGestures` capability (`Session.TryGet<IMobileGestures>(...)`).
 
 ---
 
@@ -465,8 +466,8 @@ The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener 
 
 ### Mobile
 
-1. Add a page in `Tests/UI/Mobile/Pages/<App>/`, inheriting `MobileBasePage`.
-2. Add a test class in `Tests/UI/Mobile/<App>/` that inherits `MobileTestBase`, with `[AllureParentSuite("UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "mobile", "<app>", ...)]` and `[Trait("Category", ...)]`. Write each test as `[Fact] public void X() => Run(() => { ... });`.
+1. Reuse the page object in `Pages/<App>/`, or add one there (inherit `BasePage`; it works on mobile and web).
+2. Add a test class in `Tests/UI/Mobile/<App>/` that inherits `MobileTestBase`, with `[AllureParentSuite("UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "mobile", "<app>", ...)]` and `[Trait("Category", ...)]`. Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });`.
 
 See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 

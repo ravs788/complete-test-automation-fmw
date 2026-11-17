@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Core\Mobile\Core.Mobile.csproj" />
+    <ProjectReference Include="..\..\..\Pages\Pages.csproj" />
     <ProjectReference Include="..\..\..\Core\Logging\Elastic\Core.Logging.Elastic.csproj" />
     <ProjectReference Include="..\..\..\Core\Reporting\Allure\Core.Reporting.Allure.csproj" />
     <ProjectReference Include="..\..\..\Core\Resilience\Polly\Core.Resilience.Polly.csproj" />

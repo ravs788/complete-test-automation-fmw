@@ -9,6 +9,8 @@ public sealed class PlaywrightUiSession(IBrowserContext context, IPage page) : I
     public Task NavigateAsync(string url) =>
         PlaywrightErrors.Wrap($"navigate to {url}", () => page.GotoAsync(url));
 
+    public Task<string> TitleAsync() => page.TitleAsync();
+
     public IElement Find(Locate locate) => new PlaywrightElement(page, PlaywrightElement.Resolve(page, locate), locate.ToString());
 
     public bool TryGet<TCapability>(out TCapability capability) where TCapability : class

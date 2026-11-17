@@ -136,6 +136,8 @@ BROWSERS="chromium webkit" scripts/unix/run_ui_web_all_browsers.sh
 BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
 ```
 
+**Another UI driver.** The web tests run on the UI driver selected in `providers.json` (`"Ui": "playwright"`). To run them on Selenium instead (installed Chrome, Edge or Firefox; Selenium Manager fetches the matching driver), set `PROVIDERS_Ui=selenium` with `BROWSER=chrome`, `msedge` or `firefox`, e.g. `PROVIDERS_Ui=selenium BROWSER=chrome dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~Tests.UI.Web."`. Known limitation: SauceDemo's cart link ignores WebDriver's native clicks (plain Selenium behaves the same), so the three SauceDemo tests that open the cart pass only on Playwright. `dotnet test Tests/Contract/Tests.Contract.csproj` checks every UI driver against the same contract.
+
 ### Mobile on macOS
 
 - **Android:** install Android Studio and set `ANDROID_HOME=~/Library/Android/sdk`. Add `platform-tools` and `emulator` to `PATH`. Then run `npm i -g appium && appium driver install uiautomator2`, start an emulator and `appium`, and run `scripts/unix/run_mobile_android_web.sh`. On Apple Silicon, use an **arm64** system image for the emulator.

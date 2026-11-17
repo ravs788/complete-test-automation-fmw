@@ -7,6 +7,7 @@
   "Reporting": "allure",
   "Http": "playwright",              // API tests: "playwright" or "httpclient" (built in)
   "Resilience": "polly",             // retries: "polly" or "builtin"
-  "Ui": "playwright",                // web UI driver
+  "Ui": "playwright",                // web UI driver: "playwright" or "selenium"
+  "MobileUi": "appium",              // mobile UI driver
   "Secrets": [ "environment" ]
 }

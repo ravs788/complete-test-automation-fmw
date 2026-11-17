@@ -4,18 +4,22 @@ using Core.Logging;
 using Core.Mobile.Configuration;
 using Core.Mobile.Driver;
 using Core.Testing;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Appium;
+using Core.Ui;
+using Core.Ui.Capabilities;
 
 namespace Tests.UI.Mobile.Infrastructure;
 
 /// <summary>
-/// Base for mobile tests. Wrap each test body in <see cref="Run"/>: it starts the Appium session (and opens
-/// <see cref="MobileSettings.BaseUrl"/> for Web), attaches a screenshot to the report on failure, publishes the
-/// result and quits the driver (via Core's <see cref="TestRunner"/>).
+/// Base for mobile tests (R47). <see cref="RunAsync"/> opens a <see cref="Session"/> through the mobile UI driver
+/// selected in <c>providers.json</c> (<c>"MobileUi": "appium"</c>), opens <see cref="MobileSettings.BaseUrl"/> for
+/// Web, attaches a screenshot to the report on failure, publishes the result and ends the session. Tests use the same
+/// page objects and <see cref="Ui.Expect"/> assertions as the web suite.
 /// </summary>
-public abstract class MobileTestBase : IDisposable
+public abstract class MobileTestBase
 {
+    /// <summary>Action timeout on the device (slower than a desktop browser).</summary>
+    private const float DefaultTimeoutMs = 20_000;
+
     protected MobileTestBase()
     {
         Logger = LoggingServiceFactory.CreateLogger("ui-mobile-logs-{0:yyyy.MM.dd}");
@@ -23,29 +27,40 @@ public abstract class MobileTestBase : IDisposable
 
     protected MobileSettings Settings => MobileSettingsProvider.Current;
     protected ILoggingService Logger { get; }
-    protected AppiumDriver Driver { get; private set; } = null!;
 
-    protected void Run(Action test, [CallerMemberName] string testName = "") =>
-        TestRunner.Run(
+    /// <summary>This test's device session.</summary>
+    protected IUiSession Session { get; private set; } = null!;
+
+    protected Task RunAsync(Func<Task> test, [CallerMemberName] string testName = "") =>
+        TestRunner.RunAsync(
             new TestRunInfo(Logger, "ui-mobile", GetType(), testName, Browser: "mobile"),
-            body: () =>
+            body: async () =>
             {
-                StartSession();
-                test();
+                await StartSessionAsync();
+                try
+                {
+                    await test();
+                }
+                catch (UiException ex)
+                {
+                    // Report UI failures as test failures (Allure "failed", not "broken"), like the web suite.
+                    Assert.Fail($"{ex.Message}{Environment.NewLine}{ex.InnerException?.StackTrace ?? ex.StackTrace}");
+                }
             },
-            onFailure: AttachScreenshot,
-            cleanup: QuitDriver);
+            onFailureAsync: AttachScreenshotAsync,
+            cleanupAsync: EndSessionAsync);
 
-    private void StartSession()
+    private async Task StartSessionAsync()
     {
         var (platform, appType) = MobileOptionsBuilder.Parse(Settings);
         Logger.Info($"[Device] {platform} ({appType}) Name={Settings.Device.DeviceName}, PlatformVersion={Settings.Device.PlatformVersion}, UDID={Settings.Device.Udid}");
 
-        Driver = MobileDriverFactory.CreateDriver(Settings, Logger);
+        var driver = await Framework.MobileUiDrivers.LaunchAsync(new UiLaunchOptions(Settings.Android.BrowserName, Headless: false));
+        Session = await driver.NewSessionAsync(new UiSessionOptions(Settings.BaseUrl, DefaultTimeoutMs));
 
         if (appType == MobileAppType.Web && !string.IsNullOrWhiteSpace(Settings.BaseUrl))
         {
-            Driver.Navigate().GoToUrl(Settings.BaseUrl);
+            await Session.NavigateAsync(Settings.BaseUrl);
             Logger.Info($"[SetUp] Navigated to {Settings.BaseUrl} on {platform} {appType}");
         }
 
@@ -53,33 +68,21 @@ public abstract class MobileTestBase : IDisposable
         Framework.Reporter.UpdateTestName(name => $"{name} ({platform} {appType})");
     }
 
-    private void AttachScreenshot()
+    private async Task AttachScreenshotAsync()
     {
-        if (Driver is ITakesScreenshot taker)
+        if (Session != null && Session.TryGet<IScreenshots>(out var screenshots))
         {
-            var png = taker.GetScreenshot().AsByteArray;
+            var png = await screenshots.CaptureAsync();
             Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
         }
     }
 
-    private void QuitDriver()
+    private async Task EndSessionAsync()
     {
-        try
+        if (Session != null)
         {
-            Driver?.Quit();
-            Driver?.Dispose();
+            await Session.DisposeAsync();
+            Session = null!;
         }
-        catch
-        {
-            // Best effort: the session may already be gone.
-        }
-        Driver = null!;
-    }
-
-    /// <summary>Safety net in case a test didn't go through <see cref="Run"/>.</summary>
-    public void Dispose()
-    {
-        QuitDriver();
-        GC.SuppressFinalize(this);
     }
 }
