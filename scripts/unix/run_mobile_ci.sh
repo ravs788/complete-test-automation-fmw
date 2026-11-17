@@ -142,6 +142,41 @@ adb -s "$serial" shell settings put global transition_animation_scale 0
 adb -s "$serial" shell settings put global animator_duration_scale 0
 adb -s "$serial" shell pm path com.android.chrome | grep -q '^package:'
 
+# R33: right after boot, Android keeps compiling apps (dex2oat) on its single vCPU, so app installs are slow and
+# Appium's 20 s helper-app install timed out in run 115. Let the compilation settle (bounded), skip install
+# verification, and install Appium's helper apps here with plain adb install, which has no 20 s limit.
+settle_start=$SECONDS
+settle_deadline=$((SECONDS + ${SETTLE_TIMEOUT_SECONDS:-240}))
+idle_checks=0
+while (( idle_checks < 2 && SECONDS < settle_deadline )); do
+  if adb -s "$serial" shell pidof dex2oat64 dex2oat > /dev/null 2>&1; then
+    idle_checks=0
+  else
+    idle_checks=$((idle_checks + 1))
+  fi
+  sleep 5
+done
+echo "[settle] background compilation $( (( idle_checks >= 2 )) && echo finished || echo 'still running') after $((SECONDS - settle_start)) seconds" | tee -a "$logs/boot-progress.log"
+adb -s "$serial" shell settings put global verifier_verify_adb_installs 0
+adb -s "$serial" shell settings put global package_verifier_enable 0
+
+driver_dir="$APPIUM_HOME/node_modules/appium-uiautomator2-driver"
+helper_apks=()
+while IFS= read -r apk; do helper_apks+=("$apk"); done < <(find "$driver_dir" -path '*/apks/*.apk' | sort)
+if (( ${#helper_apks[@]} == 0 )); then
+  echo "No Appium helper APKs found under $driver_dir" >&2
+  exit 1
+fi
+for apk in "${helper_apks[@]}"; do
+  install_start=$SECONDS
+  if adb -s "$serial" install -r -g --no-incremental "$apk" >> "$logs/preinstall.log" 2>&1; then
+    echo "[preinstall] $(basename "$apk") in $((SECONDS - install_start)) s" | tee -a "$logs/boot-progress.log"
+  else
+    # Not fatal: Appium installs it again during session creation, with the longer timeouts below.
+    echo "[preinstall] $(basename "$apk") FAILED after $((SECONDS - install_start)) s; see preinstall.log" | tee -a "$logs/boot-progress.log"
+  fi
+done
+
 if lsof -iTCP:4723 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Port 4723 is already in use; refusing to attach to an unrelated server" >&2
   exit 1
@@ -162,6 +197,10 @@ export MOBILE_Platform=Android MOBILE_AppType=Web
 export MOBILE_Device__Udid="$serial" MOBILE_Device__DeviceName="$serial"
 export MOBILE_Device__PlatformVersion=14 MOBILE_Android__BrowserName=Chrome
 export LOGGING_PROVIDER=console
+# R33: Appium's defaults (20 s for each adb command and the helper-app install) are too short for this emulator.
+export MOBILE_Android__AdbExecTimeoutMs=120000
+export MOBILE_Android__ServerInstallTimeoutMs=120000
+export MOBILE_Android__ServerLaunchTimeoutMs=120000
 
 dotnet test Tests/UI/Mobile/Tests.UI.Mobile.csproj --configuration "$configuration" --no-build \
   --filter 'Category=smoke' --results-directory "$MOBILE_CI_RESULTS/trx" \

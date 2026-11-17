@@ -11,9 +11,10 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG) and the 2026-11-
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R31 | P2 | Implemented (verification pending) | – | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
+| R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
+| R31 | P2 | Closed | 2026-11-17 · `4304475` | [Allure history download never finds a report, so every build is "partially succeeded"](#r31) | CI / reporting |
 | R25 | P2 | Closed | 2026-11-17 · `5cdb42c` | [Report scripts can succeed after a failed build](#r25) | Run scripts |
 | R24 | P1 | Closed | 2026-11-16 · `5cdb42c` | [Elastic probe bypasses TLS verification](#r24) | Security |
 | R26 | P2 | Closed | 2026-11-16 · `5cdb42c` | [Mobile setup disables proxies process-wide](#r26) | Mobile / networking |
@@ -203,10 +204,18 @@ A TRX report now records 37 passing framework tests, and targeted harness eviden
 - **Problem:** each project repeats `TargetFramework`/`Nullable`/`ImplicitUsings`, and they've drifted apart: only Core and Mobile set `LangVersion`, and Pages has no `IsPackable`. The `.editorconfig` rules are only checked when someone runs `dotnet format`.
 - **Fix:** move the shared properties into a root `Directory.Build.props` and add `EnforceCodeStyleInBuild=true`. Set `TreatWarningsAsErrors=true` for CI builds. First fix the existing nullable warnings in `Tests/UI/Mobile/Driver/MobileDriverFactory.cs` (lines 36, 40, 45; the two in `ElasticClientFactory.cs` were fixed with R1).
 
+<a id="r33"></a>
+### R33. Appium's 20 s helper-app install timeout is too short for the hosted emulator
+
+- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes.
+- **Where:** `Tests/UI/Mobile/Driver/MobileOptionsBuilder.cs`, `Tests/UI/Mobile/Configuration/AndroidSettings.cs`, `scripts/unix/run_mobile_ci.sh`.
+- **Problem:** manual run 115 (2026-11-17) was the first where the emulator booted (505 s) and the smoke test ran, but session creation failed: `adb install … appium-uiautomator2-server-v7.7.1.apk timed out after 20000ms`. Appium installs two helper apps when the session starts: `io.appium.settings` took 16.1 s, and the UiAutomator2 server hit the 20 s default. Android was still compiling apps in the background after boot (355 `dex2oat` lines in logcat) on its single vCPU (see R32).
+- **Fix:** make the UiAutomator2 timeouts configurable (`adbExecTimeout`, `uiautomator2ServerInstallTimeout`, `uiautomator2ServerLaunchTimeout`; normal defaults locally, about 120 s on CI through `MOBILE_Android__*`). In the CI script, wait for background compilation to settle after boot, turn off install verification, and pre-install Appium's helper apps with plain `adb install` before the session starts, so the session doesn't have to.
+
 <a id="r31"></a>
 ### R31. Allure history download never finds a report, so every build is "partially succeeded"
 
-- **Status:** Implemented (verification pending), 2026-11-17, in `4304475`. `allowPartiallySucceededBuilds: true` and history always from `refs/heads/main`. **Verify:** this PR's build should log a history download from a recent `main` build (107/108 have `allure-report`) without the "not found for build 99" warning; after merge, `main` builds should end **succeeded** and the report should show a trend.
+- **Status:** Closed, 2026-11-17 · `4304475`. Verified: PR build 109 downloaded history from #108 and succeeded; push build 114 on `main` downloaded from #111 ("Using previous history") and **succeeded**, the first fully successful `main` push build since 99.
 - **Where:** `azure-pipelines.yml` (`Download Previous Allure History`, `DownloadPipelineArtifact@2` with `buildVersionToDownload: latestFromBranch`).
 - **Problem:** found while checking runs 107 and 108 (2026-11-17). `latestFromBranch` only looks at builds that *succeeded* (plus failed ones, because of `allowFailedBuilds`); *partially succeeded* builds need `allowPartiallySucceededBuilds: true`. The last fully successful `main` build is 99, which ran before the report step existed, so every `main` build since (102–108) downloads from build 99, warns `Artifact allure-report was not found for build 99`, and ends "partially succeeded", which keeps it out of the next build's search too. PR builds (`refs/pull/N/merge`) have no earlier builds at all, so they warn as well. Result: no Allure trends, and no build is ever fully green.
 - **Fix:** set `allowPartiallySucceededBuilds: true` and take the history from `refs/heads/main` for every build (PRs and branches then compare against `main`).
