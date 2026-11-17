@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Chromedriver keeps Chrome's data on Android (R33)
+
+- `MobileOptionsBuilder` now sets `goog:chromeOptions.androidKeepAppDataDir` from `Behavior.NoReset` (default true). Chromedriver otherwise clears Chrome's data before every web session; in run 130 that undid the CI warm-up, and the cold Chrome start on the hosted emulator ended in `chrome not reachable`. Set `NoReset: false` to get a clean Chrome profile per session. Verified locally (Appium 3.6 + UiAutomator2 8.7.3, Android 14 arm64 emulator, Chrome 113): smoke test passes and the device log shows no data clear. The name `androidKeepAppData` (first tried in PR #35) is rejected by Chromedriver.
+- Docs: local mobile setup notes which UiAutomator2 version matches which Appium (Appium 3 needs `uiautomator2@8.x`), and how to set up the Android SDK with Homebrew only.
+
 ## 2026-11-17: Core add-ons grouped under Core/
 
 - The add-on projects now live inside `Core/`, next to the area they extend: `Core.Mobile/` → `Core/Mobile/`, `Core.Messaging.Kafka/` → `Core/Messaging/Kafka/`, `Core.Messaging.RabbitMq/` → `Core/Messaging/RabbitMq/`, `Core.Secrets.AzureKeyVault/` → `Core/Security/AzureKeyVault/`. They stay separate projects (`Core.csproj` excludes their folders), so Appium, the broker clients and the Azure SDK still reach only the suites that reference them.
