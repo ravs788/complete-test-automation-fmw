@@ -179,7 +179,7 @@ Stage: BuildAndValidate
           main/release → all tests + coverage
       → nightly (schedule, main): install Playwright browsers → web UI tests on chromium, firefox, webkit
       → TRX (gate) + allure-results artifact
-      → previous allure-report/history (same branch) + results → Allure CLI → allure-report artifact
+      → latest main allure-report/history + results → Allure CLI → allure-report artifact
         (HTML with trends + single-file allure-report.html)
  ├─ Job MobileSmoke (macOS-15; schedule/manual only)
       .NET 10 + pinned Node/Appium/UiAutomator2 → Android 14 emulator + Chrome

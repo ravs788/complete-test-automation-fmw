@@ -345,7 +345,7 @@ The **Linux job** (`Tests`, `ubuntu-latest`) runs:
 4. `dotnet test Tests/Tests.csproj` with `BROWSER=chrome`, so Playwright drives the Google Chrome already on the hosted image and nothing is downloaded.
 5. Nightly only: install Playwright's browsers and run the web UI tests once per browser (Chromium, Firefox, WebKit).
 6. Publish TRX test results (failures fail the build) and coverage (`main`/`release/*` only).
-7. Allure: publish the raw `allure-results`, then build the **`allure-report`** artifact with the Allure CLI (version pinned in `allureVersion`). The report includes trends: the previous report's `history/` on the same branch is fed into each new one. Download the artifact and open **`allure-report.html`** (a single self-contained file), or serve the folder.
+7. Allure: publish the raw `allure-results`, then build the **`allure-report`** artifact with the Allure CLI (version pinned in `allureVersion`). The report includes trends: the `history/` of the latest `main` build's report is fed into each new one (PRs and branches compare against `main`). Download the artifact and open **`allure-report.html`** (a single self-contained file), or serve the folder.
 
 Web/API and framework checks share the Linux job to avoid repeating setup. The mobile job needs macOS for Android emulator acceleration. With one parallel slot, the jobs queue rather than run simultaneously.
 
