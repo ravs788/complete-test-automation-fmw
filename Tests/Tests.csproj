@@ -24,7 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.csproj" />
-    <ProjectReference Include="..\Core.Secrets.AzureKeyVault\Core.Secrets.AzureKeyVault.csproj" />
+    <ProjectReference Include="..\Core\Security\AzureKeyVault\Core.Security.AzureKeyVault.csproj" />
     <ProjectReference Include="..\Domain\Domain.csproj" />
     <ProjectReference Include="..\Pages\Pages.csproj" />
   </ItemGroup>

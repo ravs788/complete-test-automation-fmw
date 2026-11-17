@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <!--
+      The add-ons are separate projects inside this folder, so only the suites that need Appium, a vault or a
+      broker client take those packages. Don't compile them here (same pattern as Tests/Tests.csproj).
+    -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**</DefaultItemExcludes>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Elastic.Clients.Elasticsearch" />
     <PackageReference Include="Allure.Net.Commons" />

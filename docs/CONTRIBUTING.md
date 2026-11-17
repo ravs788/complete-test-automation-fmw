@@ -11,7 +11,7 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | An API test | `Tests/Api/` (inherit `ApiTestBase`) |
 | A unit test for framework code (`Core`) | `Tests/Unit/<Area>/` (plain xUnit; no browser or external services; isolated loopback fixtures are allowed for transport checks) |
 | A mobile page / test | `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`) |
-| Reusable mobile infrastructure (settings, driver setup, interaction helpers) | `Core.Mobile/<Area>/` (no page objects or tests) |
+| Reusable mobile infrastructure (settings, driver setup, interaction helpers) | `Core/Mobile/<Area>/` (project `Core.Mobile`; no page objects or tests) |
 | A model (API contract or test-data shape) | `Domain/Models/<App>/` |
 | Test data for an entity | `Domain/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |
 | `[Theory]` cases | a `[MemberData]` source in the test class, built from Builders/Mothers (plain values, so each case is its own test) |
@@ -22,6 +22,7 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | Anything a test creates outside a transaction | register its removal with `Cleanup.Add(...)` (`Core.Testing.CleanupTracker`) |
 | Waiting for a broker message | `RabbitMqListener` / `KafkaListener` (add-ons) started before the action, then `WaitForAsync(match, timeout)`; never sleep-and-read |
 | A test that needs external infrastructure (broker, vault) | `[RequiresEnvironmentFact("VARIABLE")]` + `[Trait("Category", "integration")]`, so it is skipped unless the variable is set |
+| An optional add-on that brings a heavy dependency (device driver, vault SDK, broker client) | its own project inside `Core/`, next to the area it extends (`Core/<Area>/<Name>/`, assembly `Core.<Area>.<Name>`, referencing `Core.csproj`); add the folder to `DefaultItemExcludes` in `Core/Core.csproj`, to `ci.slnf`, and to the `/Core/...` folder in the `.slnx` |
 | Other shared framework code (clients, logging, runner) | `Core/<Area>/`: domain-agnostic only. Anything that names an app goes in `Domain/` (enforced by `CoreBoundaryTests`). |
 
 Dependencies only point downwards: `Tests` → `Pages` → `Core`.

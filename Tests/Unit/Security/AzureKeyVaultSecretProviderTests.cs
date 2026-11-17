@@ -2,8 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using Azure;
 using Azure.Core;
 using Azure.Security.KeyVault.Secrets;
-using Core.Secrets.AzureKeyVault;
 using Core.Security;
+using Core.Security.AzureKeyVault;
 
 namespace Tests.Unit.Security;
 

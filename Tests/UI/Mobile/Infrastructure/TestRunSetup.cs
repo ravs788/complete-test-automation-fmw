@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Core.Configuration;
-using Core.Secrets.AzureKeyVault;
 using Core.Security;
+using Core.Security.AzureKeyVault;
 using Core.Testing;
 
 namespace Tests.UI.Mobile.Infrastructure;
