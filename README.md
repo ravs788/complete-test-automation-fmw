@@ -19,7 +19,7 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 - **xUnit + Allure everywhere** (`Allure.Xunit`): suites, tags, steps, timing parameters, a full-page screenshot on failure, and the browser in every UI test name
 - **Three top-level folders**: `Core` (shared framework code), `Pages` (page objects), `Tests` (all tests: `Api/`, `UI/Web/`, `UI/Mobile/`), with one layout rule everywhere: `<Layer>/<App>/`, namespace = folder, one type per file
 - **One configuration mechanism** (`Microsoft.Extensions.Configuration`) for every settings file: JSON, then environment variables, so any value (URLs, credentials, Appium server) can be overridden without editing committed files
-- **Typed test data**: models in `Core/Models/<App>/`, a Builder + Object Mother per entity in `Core/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
+- **Typed test data**: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity in `Domain/TestData/<App>/` for every app, and `TestDataLoader` (JSON) ready for large data-driven scenario tables
 - **Pluggable logging and result publishing**: providers (`console`, `elastic`) are discovered by reflection and picked in `logging-config.json`, with automatic fallback to console
 - **CI/CD on Azure DevOps** (`azure-pipelines.yml`), triggered from GitHub, in a single job. PRs run API, TodoMVC and the SauceDemo smoke test; `main` runs everything.
 - **Run scripts for Windows (`scripts/windows/`) and macOS/Linux (`scripts/unix/`)**: build → test → collect Allure results, including a run-every-browser script
@@ -32,24 +32,21 @@ A modular C# / .NET 10 test automation framework. **Playwright** drives both the
 ```plaintext
 TestAutomationProj/
 │
-├── Core/                              # Shared framework code (Core.csproj; also used by Tests/UI/Mobile)
-│   ├── Api/                           # ApiClient (Playwright APIRequestContext), ApiException
-│   │   └── RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
+├── Core/                              # Domain-agnostic framework engine (Core.csproj; used by every project)
+│   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
 │   │   ├── Console/                   # console provider
 │   │   └── Elastic/                   # Elasticsearch provider
-│   ├── Models/                        # Data shapes, one folder per app
-│   │   ├── RestfulBooker/             # Booking, BookingDates, BookingPatch, CreatedBooking, BookingId, Auth*
-│   │   ├── SauceDemo/                 # User, Product, CheckoutInfo
-│   │   └── Todo/                      # TodoItem
-│   ├── TestData/                      # TestDataLoader (JSON) + Builders / Object Mothers, one folder per app
-│   │   ├── RestfulBooker/             # BookingBuilder, BookingMother
-│   │   ├── SauceDemo/                 # User/Product/CheckoutInfo Builder + Mother
-│   │   └── Todo/                      # TodoItemBuilder, TodoItemMother
+│   ├── TestData/                      # TestDataLoader (JSON) for data-driven tables
 │   └── Testing/                       # TestRunner, TestRunInfo: logging, Allure timing, failure hook, publishing
+│
+├── Domain/                            # App-specific test code (Domain.csproj): never in Core (R34)
+│   ├── Api/RestfulBooker/             # AuthClient (POST /auth → token → Cookie header)
+│   ├── Models/                        # Data shapes per app: RestfulBooker, SauceDemo, Todo
+│   └── TestData/                      # Builders + Object Mothers per app: RestfulBooker, SauceDemo, Todo
 │
 ├── Pages/                             # Playwright page objects (Pages.csproj)
 │   ├── Common/BasePage.cs
@@ -82,7 +79,7 @@ TestAutomationProj/
 │   └── unix/                          # .sh equivalents for macOS/Linux
 ├── docs/                              # ARCHITECTURE, MOBILE_ARCHITECTURE, GETTING_STARTED, CONTRIBUTING, REVIEW
 ├── azure-pipelines.yml                # Azure DevOps pipeline (the only CI)
-├── ci.slnf                            # Solution filter CI builds: Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+├── ci.slnf                            # Solution filter CI builds: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ├── .editorconfig                      # C# code style (file-scoped namespaces, usings, LF)
 ├── .gitattributes                     # Line endings: LF, CRLF for .bat
 ├── Directory.Build.props              # Shared project settings (net10.0, nullable, code style in build, warnings as errors in CI)
@@ -92,10 +89,10 @@ TestAutomationProj/
 ├── docker-compose.yml                 # Local Elasticsearch 8 + Kibana (ports 9200 / 5601, no auth)
 ├── CHANGELOG.md
 ├── LICENSE                            # MIT
-└── TestAutomationPlatform.slnx        # The solution: Core, Pages, Tests, Tests/Unit, Tests/UI/Mobile
+└── TestAutomationPlatform.slnx        # The solution: Core, Domain, Pages, Tests, Tests/Unit, Tests/UI/Mobile
 ```
 
-Dependencies: `Tests` → `Pages` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile` and `Tests/Unit` folders, which are separate projects. Every project's assembly name equals its root namespace (`Core`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -206,9 +203,9 @@ Every app uses the same pieces:
 
 | What | Where | Use it for | Example |
 |---|---|---|---|
-| **Model** | `Core/Models/<App>/` | The shape (API contract or test-data record) | `Booking`, `User`, `TodoItem` |
-| **Builder** | `Core/TestData/<App>/<Entity>Builder.cs` | A valid object by default; `With…` to vary one field | `new BookingBuilder().WithDepositPaid(false).Build()` |
-| **Object Mother** | `Core/TestData/<App>/<Entity>Mother.cs` | Named, ready-made objects built on the builder | `BookingMother.Standard()`, `UserMother.LockedOut()`, `ProductMother.Backpack()`, `TodoItemMother.Completed()` |
+| **Model** | `Domain/Models/<App>/` | The shape (API contract or test-data record) | `Booking`, `User`, `TodoItem` |
+| **Builder** | `Domain/TestData/<App>/<Entity>Builder.cs` | A valid object by default; `With…` to vary one field | `new BookingBuilder().WithDepositPaid(false).Build()` |
+| **Object Mother** | `Domain/TestData/<App>/<Entity>Mother.cs` | Named, ready-made objects built on the builder | `BookingMother.Standard()`, `UserMother.LockedOut()`, `ProductMother.Backpack()`, `TodoItemMother.Completed()` |
 | **`[MemberData]`** | the test class | `[Theory]` cases (input + expected result), built from Builders/Mothers | `NegativeLoginTests.InvalidLogins()` |
 
 ```csharp
@@ -226,7 +223,7 @@ Where uniqueness matters, builders generate it (`BookingBuilder`'s last name, `T
 - large or captured payloads (recorded API responses, contract fixtures),
 - data that differs per environment.
 
-Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matching record in `Core/Models/<App>/`, and load it with `TestDataLoader.Load<T>("<App>/<TestClass>/<Scenario>.json")`. Secrets never go in either. They belong in settings or environment variables.
+Then put it at `Tests/test-data/<App>/<TestClass>/<Scenario>.json` with a matching record in `Domain/Models/<App>/`, and load it with `TestDataLoader.Load<T>("<App>/<TestClass>/<Scenario>.json")`. Secrets never go in either. They belong in settings or environment variables.
 
 ---
 
@@ -412,14 +409,14 @@ public Task Cart_Should_ContainProduct_When_ProductAdded() => RunAsync(async () 
 ### Web UI
 
 1. Add a page object in `Pages/<App>/` (inherit `Pages.Common.BasePage`), exposing `ILocator`s for assertions and async intent methods for actions. Locate elements with `TestId("…")` or `GetByRole`/`GetByLabel`/`GetByPlaceholder`, not CSS classes. Methods that navigate return the next page object (`var cart = await inventory.OpenCartAsync();`). Entry pages open with `BasePage.GotoAsync("./")`, which retries a navigation that fails with a network error (`net::ERR_*`) up to twice.
-2. Add a model in `Core/Models/<App>/` and a Builder + Mother in `Core/TestData/<App>/`. Put `[Theory]` cases in a `[MemberData]` source built from them. Use JSON (`Tests/test-data/<App>/<TestClass>/<Scenario>.json` via `TestDataLoader`) only for large tables or data owned outside the code (see below) cases.
+2. Add a model in `Domain/Models/<App>/` and a Builder + Mother in `Domain/TestData/<App>/`. Put `[Theory]` cases in a `[MemberData]` source built from them. Use JSON (`Tests/test-data/<App>/<TestClass>/<Scenario>.json` via `TestDataLoader`) only for large tables or data owned outside the code (see below) cases.
 3. For a new app, add its URL to `testsettings.json` / `TestSettings` and a `Tests/UI/Web/<App>/<App>TestBase.cs` that inherits `UiTestBase` and overrides `BaseUrl`.
 4. Add a test class in `Tests/UI/Web/<App>/` that inherits the app's test base (takes `PlaywrightFixture`) and carries `[AllureParentSuite("UI Web")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("ui", "<app>", "<feature>", ...)]` and `[Trait("Category", "regression")]` (add `smoke` if it belongs in PR runs). Write each test as `[Fact] public Task X() => RunAsync(async () => { ... });` and assert with `Assertions.Expect(...)`.
 
 ### API
 
-1. Add models in `Core/Models/<Service>/`, a Builder + Mother per entity in `Core/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Core/Api/<Service>/`.
-2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Core/Api/<Service>/` and return headers the same way).
+1. Add models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, and any service-specific helpers (auth, …) in `Domain/Api/<Service>/`.
+2. Add a test class in `Tests/Api/` that inherits `ApiTestBase` (takes `ApiFixture`), with `[AllureParentSuite("API")]`, `[AllureSuite("<Service>")]`, `[AllureSubSuite("<Feature>")]`, `[AllureTag("api", "<service>", ...)]` and `[Trait("Category", ...)]`. Use `Client.GetAsync/PostAsync/PutAsync/PatchAsync/DeleteAsync` and `GetAuthHeadersAsync()` (for another API, put its auth helper in `Domain/Api/<Service>/` and return headers the same way).
 
 ### Mobile
 

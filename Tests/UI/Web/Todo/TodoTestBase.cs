@@ -1,4 +1,4 @@
-using Core.Models.Todo;
+using Domain.Models.Todo;
 using Pages.Todo;
 using Tests.Fixtures;
 using Tests.Infrastructure;

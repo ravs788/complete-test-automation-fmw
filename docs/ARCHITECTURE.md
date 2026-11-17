@@ -40,21 +40,23 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Common/BasePage · SauceDemo/LoginPage, InventoryPage, CartPage,        │
 │   Checkout* · Todo/TodoPage                                              │
 ├──────────────────────────────────────────────────────────────────────────┤
+│ Domain/  (Domain.csproj, app-specific)                                   │
+│   Api/RestfulBooker · Models/<App> · TestData/<App> (Builders/Mothers)   │
+├──────────────────────────────────────────────────────────────────────────┤
 │ Core/   (Core.csproj, shared by everything)                              │
-│   Api/            ApiClient, ApiException · RestfulBooker/AuthClient     │
+│   Api/            ApiClient (auth-agnostic), ApiException                │
 │   Configuration/  TestSettings (+ sections) + ConfigurationProvider      │
 │   Driver/         PlaywrightDriverFactory                                │
 │   Logging/        factories, LogMetadata, LoggingConfig + Provider       │
 │                   Console/ · Elastic/ providers                          │
-│   Models/<App>/   data shapes (RestfulBooker, SauceDemo, Todo)           │
-│   TestData/       TestDataLoader · <App>/ Builders + Object Mothers      │
+│   TestData/       TestDataLoader (JSON)                                  │
 │   Testing/        TestRunner + TestRunInfo                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core`. `Tests/UI/Mobile` → `Core`. Nothing depends on `Tests`.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core`. Nothing depends on `Tests`.
 - `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
 - `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`).
 - Selenium remains a package only because Appium's .NET client is built on it.
@@ -62,7 +64,7 @@ Dependency rules:
 
 Conventions (the same in every project):
 
-- **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Core/Models/RestfulBooker`, `Core/TestData/Todo`, `Core/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
+- **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
 - **Namespace = folder path**, assembly name = root namespace (`Core`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
 - **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
@@ -88,8 +90,8 @@ Conventions (the same in every project):
 
 ### 3.4 Test data
 
-- **Models** (all data shapes) are in `Core/Models/<App>/`: PascalCase properties mapped with `[JsonPropertyName]`, `sealed record`s.
-- **Builders + Object Mothers, for every app** in `Core/TestData/<App>/`: `<Entity>Builder` returns a valid object by default (with generated unique values where collisions matter) and `With…` methods for variations; `<Entity>Mother` names the common cases (`BookingMother.Standard()`, `UserMother.LockedOut()`, `ProductMother.Backpack()`, `TodoItemMother.Completed()`). Tests get their entities from these.
+- **Models** (all data shapes) are in `Domain/Models/<App>/`: PascalCase properties mapped with `[JsonPropertyName]`, `sealed record`s.
+- **Builders + Object Mothers, for every app** in `Domain/TestData/<App>/`: `<Entity>Builder` returns a valid object by default (with generated unique values where collisions matter) and `With…` methods for variations; `<Entity>Mother` names the common cases (`BookingMother.Standard()`, `UserMother.LockedOut()`, `ProductMother.Backpack()`, `TodoItemMother.Completed()`). Tests get their entities from these.
 - **`[Theory]` cases** come from a `[MemberData]` source built with the Builders/Mothers (e.g. `NegativeLoginTests.InvalidLogins()`), as plain values so xUnit v2 reports each case separately.
 - **JSON is the exception**, used for large scenario tables, data owned outside the code, captured payloads or per-environment data. `TestDataLoader.Load<T>("<App>/<TestClass>/<Scenario>.json")` reads from `<output>/test-data/` (source: `Tests/test-data/`). There is none at the moment.
 
@@ -195,8 +197,8 @@ Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests thr
 
 ## 6. Extending the Framework
 
-- **New web app or feature:** page objects in `Pages/<App>/`, models in `Core/Models/<App>/`, a Builder + Mother per entity in `Core/TestData/<App>/`, the app's URL in `testsettings.json` / `TestSettings`, an `<App>TestBase : UiTestBase` and tests in `Tests/UI/Web/<App>/`.
-- **New API:** models in `Core/Models/<Service>/`, a Builder + Mother per entity in `Core/TestData/<Service>/`, service-specific helpers (e.g. auth) in `Core/Api/<Service>/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
+- **New web app or feature:** page objects in `Pages/<App>/`, models in `Domain/Models/<App>/`, a Builder + Mother per entity in `Domain/TestData/<App>/`, the app's URL in `testsettings.json` / `TestSettings`, an `<App>TestBase : UiTestBase` and tests in `Tests/UI/Web/<App>/`.
+- **New API:** models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, service-specific helpers (e.g. auth) in `Domain/Api/<Service>/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
 - **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) and tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
 - **Desktop (later):** add a `Tests/Desktop` project with the same layout as Mobile (Configuration/, Driver/, Pages/<App>/, Infrastructure/DesktopTestBase, <App>/ tests) using FlaUI, and a Windows job (`windows-latest`) to run it.
@@ -225,6 +227,6 @@ Update this document whenever a layer, a dependency direction, or a CI flow chan
 | 2026-11-13 | CI/CD consolidated on Azure Pipelines sourced from GitHub; GitHub Actions retired; Selenium smoke/regression added to the pipeline. |
 | 2026-11-13 | Phase 1 restructure: single `TestAutomationPlatform.slnx`, central package versions, `scripts/{windows,unix}`, docs consolidated under `docs/`, Desktop project flattened. |
 | 2026-11-13 | Merged GitHub `main` (mobile layer, sh scripts, Grid support, OpenSearch compose). Rewritten to match the codebase: .NET 10, Playwright/xUnit stack, NUnit stack internals (config, test data, pluggable logging), Azure DevOps + GitHub Actions flows, roadmap |
-| 2026-11-13 | Consistency pass: models in `Core/Models/<App>/`, a Builder + Object Mother per entity for every app in `Core/TestData/<App>/` (JSON test data removed; `TestDataLoader` kept for large tables); namespaces match folders (`Core.Utilities` removed); `LoggingConfigProvider`; `TodoTestBase`; uniform Allure labels; Mobile restructured (`Configuration/`, `Driver/`, `Pages/<App>/`, `Infrastructure/`, `mobilesettings.json`); projects renamed `Tests.UI.Mobile` / `Tests.Desktop`; LF line endings. |
+| 2026-11-13 | Consistency pass: models in `Domain/Models/<App>/`, a Builder + Object Mother per entity for every app in `Domain/TestData/<App>/` (JSON test data removed; `TestDataLoader` kept for large tables); namespaces match folders (`Core.Utilities` removed); `LoggingConfigProvider`; `TodoTestBase`; uniform Allure labels; Mobile restructured (`Configuration/`, `Driver/`, `Pages/<App>/`, `Infrastructure/`, `mobilesettings.json`); projects renamed `Tests.UI.Mobile` / `Tests.Desktop`; LF line endings. |
 | 2026-11-14 | Review P1 fixes: Elastic credentials only from environment variables (and the certificate fingerprint has its own setting); `docker-compose.yml` switched from OpenSearch to Elasticsearch 8 + Kibana; reachability probe cached per URL, loggers and publisher created once per run. |
 | 2026-11-14 | Review R4–R20: traces on failure, navigation retry, API cleanup, one `SettingsLoader`, `Directory.Build.props` (style in build, warnings as errors in CI), pages return next page + test-id locators, test naming, `api-logs-*`, generic `ApiClient` headers, nightly cross-browser run, Allure HTML report artifact, `Tests/Unit`, mobile compiled in CI; Desktop project and `.npmrc` removed. |

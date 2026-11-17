@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Core is domain-agnostic (R34)
+
+- App-specific code moved out of Core into a new **`Domain`** project, keeping `<Layer>/<App>/`: `Domain/Api/RestfulBooker` (auth), `Domain/Models/{RestfulBooker,SauceDemo,Todo}`, `Domain/TestData/{RestfulBooker,SauceDemo,Todo}` (Builders / Object Mothers). Namespaces change from `Core.` to `Domain.`. Core keeps the generic `ApiClient`, `TestDataLoader`, configuration, logging, drivers and `TestRunner`.
+- `Tests/Unit/Architecture/CoreBoundaryTests` fails the build if Core references `Domain`, `Pages` or test projects, or contains app-named namespaces.
+
 ## 2026-11-14: Review items R21–R23
 
 - **R21:** Elastic is only used when it can really be written to: `GET /` with the configured credentials must return 2xx from Elasticsearch 8+ (not OpenSearch). Otherwise one message explains why, and logging uses the console. If writes fail later, Elastic logging switches to the console once, and results publishing stops after one failure.

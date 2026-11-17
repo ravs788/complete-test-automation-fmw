@@ -1,10 +1,10 @@
 using System.Runtime.CompilerServices;
 using Core.Api;
-using Core.Api.RestfulBooker;
 using Core.Configuration;
 using Core.Logging;
-using Core.Models.RestfulBooker;
 using Core.Testing;
+using Domain.Api.RestfulBooker;
+using Domain.Models.RestfulBooker;
 using Tests.Fixtures;
 
 namespace Tests.Infrastructure;

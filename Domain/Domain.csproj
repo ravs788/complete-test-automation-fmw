@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    App-specific test code for the applications under test: models, Builders / Object Mothers and
+    API helpers, in <Layer>/<App>/ folders. Core stays domain-agnostic (R34); tests reference both.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+</Project>
