@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R45): retries on Polly behind IRetryPolicyFactory. Selected with "Resilience": "polly" in
+    providers.json; the built-in "builtin" policy needs no library.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Polly.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>

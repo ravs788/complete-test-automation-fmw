@@ -1,9 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Core.Configuration;
-using Core.Security;
+using Core.Composition;
+using Core.Http.Playwright;
+using Core.Logging.Elastic;
+using Core.Reporting.Allure;
+using Core.Resilience.Polly;
 using Core.Security.AzureKeyVault;
-using Core.Testing;
+using Core.Ui.Playwright;
+using Core.Ui.Selenium;
 
 namespace Tests.Infrastructure;
 
@@ -15,13 +19,10 @@ internal static class TestRunSetup
         Justification = "A test assembly is the entry point of its own test run; this is the one place that runs before every test.")]
     internal static void Initialize()
     {
-        AllureResults.ClearPreviousRun();
-
-        // R36: with KEYVAULT_URI set, secret://NAME placeholders also resolve from Azure Key Vault
-        // (environment variables still win, so local overrides keep working).
-        if (AzureKeyVaultSecretProvider.FromEnvironment() is { } vault)
-        {
-            SettingsLoader.SecretProvider = new CompositeSecretProvider(new EnvironmentSecretProvider(), vault);
-        }
+        // Composition root (R40): the adapters this test project references. Which one is used for each contract is
+        // chosen by name in providers.json (e.g. "Logging": "elastic", "Reporting": "allure"). The selected reporter clears the
+        // previous run's results here (R23).
+        Framework.Configure(new ElasticLoggingPlugin(), new AllureReportingPlugin(), new PollyResiliencePlugin(), new PlaywrightHttpPlugin(), new PlaywrightUiPlugin(), new SeleniumUiPlugin(),
+            new AzureKeyVaultPlugin());
     }
 }

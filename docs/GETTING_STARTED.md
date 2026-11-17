@@ -9,7 +9,7 @@ For the short version, see "Quick Start" in the root README.
 
 | Suite / tool | Windows | macOS | Linux |
 |---|---|---|---|
-| API tests (`Tests/Api`, Playwright `APIRequestContext`) | ✅ | ✅ | ✅ |
+| API tests (`Tests/Api`; Playwright `APIRequestContext` or `HttpClient`) | ✅ | ✅ | ✅ |
 | Web UI on Playwright's **Chromium** | ✅ | ✅ | ✅ ¹ |
 | Web UI on **Firefox** / **WebKit** (Playwright builds) | ✅ | ✅ ² | ✅ ¹ |
 | Web UI on installed **Google Chrome** (`BROWSER=chrome`) | ✅ | ✅ | ✅ x64 only ³ |
@@ -136,6 +136,8 @@ BROWSERS="chromium webkit" scripts/unix/run_ui_web_all_browsers.sh
 BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
 ```
 
+**Another UI driver.** The web tests run on the UI driver selected in `providers.json` (`"Ui": "playwright"`). To run them on Selenium instead (installed Chrome, Edge or Firefox; Selenium Manager fetches the matching driver), set `PROVIDERS_Ui=selenium` with `BROWSER=chrome`, `msedge` or `firefox`, e.g. `PROVIDERS_Ui=selenium BROWSER=chrome dotnet test Tests/Tests.csproj --filter "FullyQualifiedName~Tests.UI.Web."`. All 8 web tests pass on Selenium. If only the SauceDemo tests that open the cart fail there, check the site first: on 2026-11-17 its cart link briefly ignored WebDriver's native clicks (reproduced with plain Selenium, no framework code); later runs passed. `dotnet test Tests/Contract/Tests.Contract.csproj` checks every UI driver against the same contract.
+
 ### Mobile on macOS
 
 - **Android:** install Android Studio and set `ANDROID_HOME=~/Library/Android/sdk`. Add `platform-tools` and `emulator` to `PATH`. Then run `npm i -g appium && appium driver install uiautomator2`, start an emulator and `appium`, and run `scripts/unix/run_mobile_android_web.sh`. On Apple Silicon, use an **arm64** system image for the emulator.
@@ -238,7 +240,7 @@ Remove-Item Env:MOBILE_Device__Udid -ErrorAction SilentlyContinue
 
 Environment values override JSON. Removing the environment override restores the value from `Tests/UI/Mobile/mobilesettings.json`, so also clear any stale `Device.Udid` there to `""`. The shared default is empty (R29), allowing Appium to choose a matching available device; use an explicit UDID when more than one is connected. See the [mobile configuration reference](MOBILE_ARCHITECTURE.md) for the settings and aliases.
 
-**Secrets from Azure Key Vault.** If settings use `secret://NAME` placeholders kept in Key Vault, run `az login` and set `KEYVAULT_URI=https://<vault>.vault.azure.net/` (Windows: `set` / `$env:`). Environment variables with the same name still take precedence.
+**Secrets from Azure Key Vault.** If settings use `secret://NAME` placeholders kept in Key Vault, run `az login`, add `"azure-keyvault"` to `Secrets` in `providers.json` (e.g. `"Secrets": ["environment", "azure-keyvault"]`, or `PROVIDERS_Secrets__1=azure-keyvault`) and set `KEYVAULT_URI=https://<vault>.vault.azure.net/` (Windows: `set` / `$env:`). Environment variables with the same name still take precedence. To log to the console instead of Elasticsearch, set `PROVIDERS_Logging=console`.
 
 **Broker integration tests (optional).** `Tests/Unit` has RabbitMQ and Kafka listener tests that are skipped unless a broker is configured. To run them locally with Docker:
 

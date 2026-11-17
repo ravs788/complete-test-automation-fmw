@@ -10,8 +10,8 @@ using Tests.Fixtures;
 namespace Tests.Infrastructure;
 
 /// <summary>
-/// Base for Restful Booker API tests. Each test gets its own <see cref="ApiClient"/>
-/// (a Playwright APIRequestContext); wrap the body in <see cref="RunAsync"/>. Bookings created through
+/// Base for Restful Booker API tests. Each test gets its own <see cref="ApiClient"/> (on the HTTP transport selected
+/// in providers.json); wrap the body in <see cref="RunAsync"/>. Bookings created through
 /// <see cref="CreateBookingAsync"/> are deleted after the test.
 /// </summary>
 public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
@@ -33,7 +33,7 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
     private Task<IReadOnlyDictionary<string, string>>? _cleanupAuth;
 
     public async Task InitializeAsync() =>
-        Client = await ApiClient.CreateAsync(Fixture.Playwright, Api.BaseUrl, Fixture.Settings.Resilience.Http, message => Logger.Info(message));
+        Client = await ApiClient.CreateAsync(Api.BaseUrl, Fixture.Settings.Resilience.Http, message => Logger.Info(message));
 
     public async Task DisposeAsync()
     {

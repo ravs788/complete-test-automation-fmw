@@ -2,20 +2,22 @@
 
   <PropertyGroup>
     <!--
-      The add-ons are separate projects inside this folder, so only the suites that need Appium, a vault or a
-      broker client take those packages. Don't compile them here (same pattern as Tests/Tests.csproj).
+      The adapters are separate projects inside this folder, so only the suites that need Appium, a vault, a
+      broker client, Elasticsearch, Allure, Polly or Playwright take those packages (R40-R45, R42).
+      Don't compile them here (same pattern as Tests/Tests.csproj).
     -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Mobile/**;Messaging/Kafka/**;Messaging/RabbitMq/**;Security/AzureKeyVault/**;Http/Playwright/**;Logging/Elastic/**;Reporting/Allure/**;Resilience/Polly/**;Ui/Playwright/**;Ui/Selenium/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Elastic.Clients.Elasticsearch" />
-    <PackageReference Include="Allure.Net.Commons" />
-    <PackageReference Include="Microsoft.Playwright" />
-    <PackageReference Include="Polly.Core" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SettingsLoader.ResolveSecrets is internal (no IConfiguration in Core's public API, R44) but unit-tested. -->
+    <InternalsVisibleTo Include="Tests.Unit" />
   </ItemGroup>
 
 </Project>

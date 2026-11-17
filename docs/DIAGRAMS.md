@@ -19,9 +19,9 @@ Read top to bottom: each layer uses only the layers below it. `Core` uses none o
 
 ```mermaid
 flowchart TB
-    TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit"]
+    TESTS["<b>Test projects</b><br/>Tests · Tests.UI.Mobile · Tests.Unit · Tests.Contract"]
     APP["<b>App-specific code</b><br/>Pages (page objects) · Domain (models, test data, auth)"]
-    ADDONS["<b>Optional add-ons</b> in Core/<br/>Mobile · AzureKeyVault · RabbitMq · Kafka"]
+    ADDONS["<b>Optional adapters</b> in Core/<br/>Ui (Playwright, Selenium) · Mobile (Appium) · Http · Elastic · Allure · Polly · AzureKeyVault · RabbitMq · Kafka"]
     CORE["<b>Core</b><br/>domain-agnostic engine"]
 
     TESTS --> APP
@@ -41,11 +41,13 @@ Exact references:
 
 | Project | Uses |
 |---|---|
-| `Tests` (Playwright API + web UI) | `Pages`, `Domain`, `Core`, `Core.Security.AzureKeyVault` |
-| `Tests.UI.Mobile` (Appium) | `Core.Mobile`, `Core.Security.AzureKeyVault` |
-| `Tests.Unit` (framework self-tests) | `Core`, `Domain` and every add-on, so it can test them |
+| `Tests` (API + web UI) | `Pages`, `Domain`, `Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Ui.Selenium` |
+| `Tests.UI.Mobile` (Appium) | `Pages`, `Core.Mobile`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault` |
+| `Tests.Unit` (framework self-tests) | `Core`, `Domain`, `Pages` and every adapter, so it can test them |
+| `Tests.Contract` (UI driver contract tests) | `Core`, `Core.Ui.Playwright`, `Core.Ui.Selenium` |
 | `Pages`, `Domain` | `Core` |
-| `Core.Mobile`, `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Ui.Selenium`, `Core.Messaging.RabbitMq`, `Core.Messaging.Kafka` | `Core` |
+| `Core.Mobile` (Appium) | `Core`, `Core.Ui.Selenium` (Appium reuses the WebDriver session) |
 
 ---
 
@@ -77,11 +79,11 @@ sequenceDiagram
 
 | Step | Detail |
 |---|---|
-| Before the first test | `TestRunSetup` clears old Allure results; `PlaywrightFixture` reads `testsettings.json` and launches the browser once per class. |
+| Before the first test | `TestRunSetup` calls `Framework.Configure` with the adapters' plugins (providers chosen in `providers.json`), and the selected reporter clears the previous run's results; `BrowserFixture` reads `testsettings.json` and launches the browser once per class through the UI driver selected with `"Ui"` in `providers.json`. |
 | New context + page | Fresh cookies and storage for every test; tracing is on unless `Trace` is `off`. |
-| Test steps | Page objects, Mothers/Builders and `Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
-| Test failed | A Playwright assertion is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
-| Finish | The result goes to Allure and, as `LogMetadata`, to Elasticsearch or the console. With `Trace = on` the trace is attached even on success. |
+| Test steps | `Report.Step(...)` around assertions; page objects (on the UI contract), Mothers/Builders and `Ui.Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
+| Test failed | A `UiException` (missed `Ui.Expect`, element never actionable) is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
+| Finish | The result goes to the selected reporter (Allure by default) and, as `LogMetadata`, to Elasticsearch or the console. With `Trace = on` the trace is attached even on success. |
 
 ---
 
@@ -111,26 +113,27 @@ sequenceDiagram
 | Rule | Detail |
 |---|---|
 | Retries | Only idempotent methods (GET, HEAD, OPTIONS, PUT, DELETE, TRACE), only on 502/503/504 or network errors, settings in `Resilience.Http`. A POST is never retried. |
-| Errors | A non-2xx response throws `ApiException` with the status code; `SendRawAsync` returns the raw response for status checks. |
+| Errors | A non-2xx response throws `ApiException` with the status code; `SendRawAsync` returns the raw `HttpResponseData` for status checks. |
+| Transport | `ApiClient` sends through the transport selected with `"Http"` in `providers.json`: Playwright's `APIRequestContext` (default) or .NET `HttpClient`. Transports only send; JSON, status and retries are `ApiClient`'s. |
 | Cleanup | One auth token per test; a cleanup failure is logged and never fails the test. |
 
 ---
 
 ## 4. A mobile test run
 
-The Android suite drives Chrome on an emulator or device through Appium.
+The Android suite drives Chrome on an emulator or device through Appium, on the same UI contract and page objects as the web suite (R47).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant B as MobileTestBase
+    participant B as MobileTestBase<br/>(appium UI driver)
     participant AP as Appium server
     participant DEV as Device + Chrome
 
     B->>AP: create session (capabilities)
     AP->>DEV: start UiAutomator2, Chromedriver, Chrome
     AP-->>B: session ready
-    B->>DEV: open BaseUrl, run the test steps
+    B->>DEV: open BaseUrl, run the test steps<br/>(shared page objects, Ui.Expect)
     alt test failed
         B->>B: screenshot to report
     end
@@ -153,7 +156,7 @@ Every settings file is loaded the same way and cached for the run. Later sources
 flowchart LR
     J["JSON file"] --> E["env vars"] --> A["aliases"] --> S{"secret://?"}
     S -- no --> OK["settings ready"]
-    S -- yes --> V["env var, then<br/>Key Vault"]
+    S -- yes --> V["secret providers<br/>in listed order"]
     V -- found --> OK
     V -- missing --> F["fail with the<br/>setting named"]
 
@@ -165,11 +168,12 @@ flowchart LR
 
 | Settings | JSON file | Env prefix | Aliases |
 |---|---|---|---|
+| `ProvidersSettings` | `providers.json` | `PROVIDERS_` | – |
 | `TestSettings` | `testsettings.json` | `TESTS_` | `BROWSER`, `HEADLESS`, `TRACE` |
 | `LoggingConfig` | `logging-config.json` | `LOGGING_` | `ELASTIC_URL`, `ELASTIC_USERNAME`, `ELASTIC_PASSWORD`, `ELASTIC_CERT_FINGERPRINT` |
 | `MobileSettings` | `mobilesettings.json` | `MOBILE_` | `APPIUM_URL`, `DEVICE_NAME` |
 
-`__` in an env var name means nesting (`TESTS_Resilience__Http__MaxRetries`). Key Vault is used only when `KEYVAULT_URI` is set; environment variables always win.
+`__` in an env var name means nesting (`TESTS_Resilience__Http__MaxRetries`). Secret providers are the `Secrets` list in `providers.json`, tried in order: `environment` by default; add `azure-keyvault` (with `KEYVAULT_URI` set) to use Key Vault after the environment.
 
 ---
 
@@ -192,7 +196,7 @@ What each job does:
 flowchart LR
     subgraph L["Linux job"]
         direction LR
-        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L4["Allure report"]
+        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L5["UI driver<br/>contract tests"] --> L4["Allure report"]
     end
     subgraph M["Android job"]
         direction LR

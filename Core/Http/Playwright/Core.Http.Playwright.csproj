@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R41): HTTP for API tests over Playwright's APIRequestContext, behind IHttpTransport. Selected with
+    "Http": "playwright" in providers.json. The built-in "httpclient" transport needs no Playwright at all.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Playwright" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>

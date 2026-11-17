@@ -1,27 +1,24 @@
-using Allure.Net.Commons;
-using Allure.Net.Commons.Attributes;
+using Core.Reporting;
+using Core.Ui;
 using Domain.TestData.SauceDemo;
-using Microsoft.Playwright;
 using Tests.Fixtures;
 
 namespace Tests.UI.Web.SauceDemo;
 
-[AllureParentSuite("UI Web")]
-[AllureSuite("SauceDemo")]
-[AllureSubSuite("Login")]
-[AllureTag("ui", "saucedemo", "login", "smoke", "regression")]
+[ReportSuite("UI Web", "SauceDemo", "Login")]
+[ReportTags("ui", "saucedemo", "login", "smoke", "regression")]
 [Trait("Category", "smoke")]
 [Trait("Category", "regression")]
-public class SauceDemoTests(PlaywrightFixture fixture) : SauceDemoTestBase(fixture)
+public class SauceDemoTests(BrowserFixture fixture) : SauceDemoTestBase(fixture)
 {
     [Fact]
     public Task Login_Should_ShowInventory() => RunAsync(async () =>
     {
         var inventory = await LoginAsync(UserMother.Standard());
 
-        await AllureApi.Step("Assert inventory page loaded after login", async () =>
-            await Assertions.Expect(inventory.Title).ToHaveTextAsync("Products"));
-        await AllureApi.Step("Assert inventory shows products", async () =>
-            await Assertions.Expect(inventory.Items.First).ToBeVisibleAsync());
+        await Report.Step("Assert inventory page loaded after login", async () =>
+            await Ui.Expect(inventory.Title).ToHaveTextAsync("Products"));
+        await Report.Step("Assert inventory shows products", async () =>
+            await Ui.Expect(inventory.Items.First).ToBeVisibleAsync());
     });
 }

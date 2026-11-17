@@ -6,11 +6,13 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 
 **Diagrams:** rendered flow diagrams of the same material (project dependencies, each kind of test run, settings and secrets, CI) are in [DIAGRAMS.md](DIAGRAMS.md).
 
+**Replaceable libraries:** the target design (contracts in `Core`, one adapter project per library, a composition root), the dependency inventory and the provider guide are in [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md).
+
 | Area | Location | Driver/Client | In CI |
 |------|----------|---------------|-------|
-| API | `Tests/Api` | Playwright `APIRequestContext` | Yes |
-| Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | Playwright (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
-| Mobile web | `Tests/UI/Mobile` | Appium 2 (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; first CI run pending |
+| API | `Tests/Api` | `ApiClient` on `IHttpTransport`: Playwright `APIRequestContext` (default) or `HttpClient` | Yes |
+| Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | UI contract (`Core/Ui`) on the Playwright adapter (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
+| Mobile web | `Tests/UI/Mobile` | UI contract on the Appium adapter (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; first CI run pending |
 
 Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.visualstudio` is pinned to 2.8.2 because adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter.
 
@@ -20,7 +22,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 - **Transportable:** moves to new applications and environments with minimal setup.
 - **Maintainable:** clear layering (Core → Pages → Tests) and small, single-purpose classes.
-- **One web/API tool:** Playwright for browsers and HTTP, so UI and API tests share fixtures, configuration and reporting.
+- **One web/API tool by default:** Playwright for browsers and (through the `playwright` HTTP transport) API calls, so UI and API tests share configuration and reporting; API tests can switch to the built-in `HttpClient` transport by configuration (R41).
 - **Observable:** Allure reports, TRX for CI dashboards, optional Elasticsearch for logs and trends.
 - **CI/CD ready:** Azure DevOps Pipelines, triggered from GitHub.
 
@@ -34,7 +36,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Tests.csproj (Playwright)                   UI/Mobile (Tests.UI.Mobile)│
 │     Api/        → ApiTestBase + ApiFixture      Infrastructure/          │
 │     UI/Web/<App>/ → <App>TestBase : UiTestBase    MobileTestBase         │
-│                   + PlaywrightFixture           (Core.Mobile: config,    │
+│                   + BrowserFixture              (Core.Mobile: config,    │
 │                                                  driver, interactions)   │
 │     testsettings.json                           Pages/<App>/ <App>/      │
 │                                                 mobilesettings.json      │
@@ -47,17 +49,20 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Api/RestfulBooker · Models/<App> · TestData/<App> (Builders/Mothers)   │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Core/   (Core.csproj, shared by everything)                              │
-│   Api/            ApiClient (auth-agnostic), ApiException                │
+│   Api/            ApiClient (JSON, status, retries), ApiException        │
+│   Http/           IHttpTransport · HttpClient (built in) · Playwright/   │
+│   Composition/    Framework.Configure · IFrameworkPlugin · registry      │
 │   Configuration/  TestSettings (+ sections) + ConfigurationProvider      │
-│   Driver/         PlaywrightDriverFactory                                │
+│   Ui/             UI contract · Ui.Expect · Playwright/ · Selenium/      │
 │   Logging/        factories, LogMetadata, LoggingConfig + Provider       │
-│                   Console/ · Elastic/ providers                          │
+│                   Console/ (built in) · Elastic/ (adapter project)       │
 │   TestData/       TestDataLoader (JSON)                                  │
-│   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
+│   Resilience/     RetryPolicies on IRetryPolicy · Poll · Polly/ adapter  │
 │   Security/       ISecretProvider (secret://NAME) · env-var provider     │
 │                   AzureKeyVault/ (add-on project)                        │
 │   Data/           DbConnectionFactory · DbTestScope (rollback by default)│
 │   Messaging/      MessageCollector<T> · Kafka/, RabbitMq/ (add-ons)      │
+│   Reporting/      ITestReporter · Report.Step · console (Allure/ adapter)│
 │   Testing/        TestRunner + TestRunInfo · CleanupTracker              │
 │   Mobile/         Appium bootstrapping (add-on project Core.Mobile)      │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -65,18 +70,18 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 
 Dependency rules:
 
-- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Core.Mobile` → `Core` (Appium bootstrapping is kept out of Core, R38). `Core.Security.AzureKeyVault`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional add-ons (R36, R37). Nothing depends on `Tests`.
-- `Core` has no dependency on a test framework. It references Playwright, `Allure.Net.Commons` (the framework-neutral Allure core) and the Elasticsearch client.
-- `Tests/UI/Mobile` and `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
-- Selenium remains a package only because Appium's .NET client is built on it.
-- The mobile suite has its own `Pages/` because the shared `Pages` project is built on Playwright types.
+- `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`. **Core is domain-agnostic**: no app models, Builders/Mothers or app auth (those live in `Domain`), no page objects, no tests. `Tests/Unit/Architecture/CoreBoundaryTests` enforces it. `Tests/UI/Mobile` → `Pages`, `Core.Mobile` → `Core.Ui.Selenium` → `Core` (Appium is kept out of Core, R38; mobile shares the page objects, R47). `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Security.AzureKeyVault`, `Core.Ui.Playwright`, `Core.Ui.Selenium`, `Core.Messaging.RabbitMq` and `Core.Messaging.Kafka` → `Core` are optional adapters (R36, R37, R39–R42, R45, R47). `Pages` uses only the UI contract (no Playwright reference, checked by `AdapterBoundaryTests`). Nothing depends on `Tests`.
+- `Core` has no dependency on a test framework. It references only Microsoft.Extensions.Configuration (an accepted platform dependency, kept out of its public API); Elasticsearch (R40), Allure (R39), the Playwright HTTP transport (R41), Polly (R45) and the Playwright UI driver (R42) live in adapter projects (`Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Http.Playwright`, `Core.Resilience.Polly`, `Core.Ui.Playwright`), and `AdapterBoundaryTests` keeps them out of `Core`.
+- `Tests/UI/Mobile`, `Tests/Unit` (framework unit tests: builders, settings loading, `TestRunner`, …) and `Tests/Contract` (UI driver contract tests, need a browser) are separate projects inside the `Tests/` folder; `Tests.csproj` excludes them (`DefaultItemExcludes`). `Core/` works the same way: its add-ons (`Core/Mobile`, `Core/Http/Playwright`, `Core/Logging/Elastic`, `Core/Reporting/Allure`, `Core/Resilience/Polly`, `Core/Ui/Playwright`, `Core/Ui/Selenium`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`) sit next to the area they extend but are separate projects that `Core.csproj` excludes, so Appium, the broker clients and the Azure SDK reach only the suites that reference them. In the solution they are grouped under one `/Core/` solution folder.
+- Selenium is the `Core.Ui.Selenium` adapter (a second web UI driver) and the base of the Appium adapter: `Core.Mobile` references `Core.Ui.Selenium`, the one deliberate adapter-to-adapter dependency (Appium speaks W3C WebDriver).
+- The mobile suite uses the shared `Pages/` and the UI contract (R47): the same `LoginPage` runs on Playwright, Selenium and Appium.
 
 Conventions (the same in every project):
 
 - **`<Layer>/<App>/`**: app-specific code sits in an app folder under its layer (`Pages/SauceDemo`, `Domain/Models/RestfulBooker`, `Domain/TestData/Todo`, `Domain/Api/RestfulBooker`, `Tests/UI/Web/Todo`, `Tests/UI/Mobile/SauceDemo`). Generic code sits at the layer root (`Core/Api/ApiClient`).
-- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
+- **Namespace = folder path**, assembly name = root namespace (`Core`, `Core.Http.Playwright`, `Core.Logging.Elastic`, `Core.Reporting.Allure`, `Core.Resilience.Polly`, `Core.Ui.Playwright`, `Core.Ui.Selenium`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). File-scoped namespaces, one type per file.
 - **Settings = record + cached provider**, all loaded by `SettingsLoader` (JSON → prefixed env vars → aliases): `TestSettings`/`ConfigurationProvider` (`TESTS_`), `LoggingConfig`/`LoggingConfigProvider` (`LOGGING_`), `MobileSettings`/`MobileSettingsProvider` (`MOBILE_`).
-- **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same Allure labels on every class: `ParentSuite` = layer, `Suite` = app, `SubSuite` = feature.
+- **One base class per app** on top of the suite base (`SauceDemoTestBase`, `TodoTestBase`), and the same report labels on every class: `[ReportSuite(layer, app, feature)]` + `[ReportTags(...)]` (framework attributes, R48; the reporter maps them, e.g. to Allure's parentSuite / suite / subSuite).
 
 ---
 
@@ -84,18 +89,19 @@ Conventions (the same in every project):
 
 ### 3.1 Configuration
 
-- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases. Values of the form `secret://NAME` are then resolved by `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`; environment variables by default; with `KEYVAULT_URI` set, the test projects' module initializer chains Azure Key Vault after the environment via the `Core.Security.AzureKeyVault` add-on in `Core/Security/AzureKeyVault/`).
+- **One mechanism:** `SettingsLoader.Load<T>(dir, file, prefix, aliases)` (Microsoft.Extensions.Configuration) binds a record from the JSON file, then environment variables with the prefix (`__` = nesting), then aliases. Values of the form `secret://NAME` are then resolved by `SettingsLoader.SecretProvider` (`Core.Security.ISecretProvider`; chosen by name in `providers.json` `Secrets`, tried in order: `environment` by default, plus `azure-keyvault` from the `Core.Security.AzureKeyVault` adapter in `Core/Security/AzureKeyVault/`).
 - **Playwright tests:** `ConfigurationProvider.Current`: `Tests/testsettings.json` from the output directory, `TESTS_*`, aliases `BROWSER` / `HEADLESS`. `TestSettings` holds `Browser`, `Headless`, `DefaultTimeoutMs` and one section per app (`TodoMvc`, `SauceDemo`, `RestfulBooker` incl. credentials).
+- **Providers (R40):** `ProvidersConfigProvider.Current`: `providers.json` (found by walking up from the run directory), `PROVIDERS_*`. It names the provider for `Logging`, `ResultsPublisher` (default: same as `Logging`) and `Secrets` (ordered list). Each test project's `TestRunSetup` module initializer is the composition root: `Framework.Configure(new ElasticLoggingPlugin(), new AzureKeyVaultPlugin())` registers the adapters it references (plus the built-in console and environment providers) in a `ProviderRegistry`, wires the selected secret providers into `SettingsLoader`, and prints the selection once. Selecting a secret provider that isn't registered fails at startup with the registered names. See [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md).
 - **Logging:** `LoggingConfigProvider.Current`: `logging-config.json` (found by walking up from the run directory), `LOGGING_*`, aliases `ELASTIC_URL` / `ELASTIC_USERNAME` / `ELASTIC_PASSWORD` / `ELASTIC_CERT_FINGERPRINT`. Credentials only come from the environment.
 - **Mobile:** `Core.Mobile.Configuration.MobileSettingsProvider.Current`: `Tests/UI/Mobile/mobilesettings.json`, `MOBILE_*`, aliases `APPIUM_URL` / `DEVICE_NAME`.
 
 ### 3.2 Browsers
 
-`PlaywrightDriverFactory.CreateBrowserAsync(playwright, browser, headless)` maps `chromium` (bundled), `chrome` / `msedge` (installed browsers via Playwright channels, no download), `firefox` and `webkit`. The caller owns and disposes the `IPlaywright` instance.
+Web UI code works on the UI contract in `Core/Ui` (R42): an `IUiDriverFactory` (selected with `"Ui"` in `providers.json`) launches an `IUiDriver` per test class; each test gets an `IUiSession` (isolated cookies and storage, one page) with lazy, auto-waiting `IElement`s found by `Locate` (test id, role, placeholder, CSS), web-first assertions (`Ui.Expect(element).ToHaveTextAsync(...)`) and optional capabilities (`IScreenshots`, `ITracing`) checked with `TryGet<T>`. Driver failures surface as `UiException` / `UiAssertionException`. The `playwright` adapter (`Core.Ui.Playwright`) maps `chromium` (bundled), `chrome` / `msedge` (installed browsers via Playwright channels, no download), `firefox` and `webkit`, and implements elements on Playwright locators and assertions on its `Expect`. `Tests/Contract` runs the same contract tests against every UI driver adapter.
 
 ### 3.3 API client
 
-`ApiClient` wraps a Playwright `IAPIRequestContext` (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json (one set of options for requests and responses; `null` properties are left out) and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw response for status assertions. Every method takes optional per-request `headers`; `ApiClient` has no knowledge of any API's auth scheme. Restful Booker's `AuthClient.GetAuthHeadersAsync` turns a token from `POST /auth` into the `token` cookie header.
+`ApiClient` sends through an `IHttpTransport` (R41) created per client by the `IHttpTransportFactory` selected with `"Http"` in `providers.json`: `playwright` (`Core.Http.Playwright`, a Playwright `APIRequestContext`; one Playwright instance shared by the run) or `httpclient` (built in, .NET `HttpClient`). Transports only send: they return every HTTP response as `HttpResponseData` and throw `HttpRequestException` only when no response arrived, so `ApiClient` owns JSON, status handling and retries for all of them (`BaseURL`, `Accept: application/json`). `GetAsync/PostAsync/PutAsync/PatchAsync` (de)serialize JSON with System.Text.Json (one set of options for requests and responses; `null` properties are left out) and throw `ApiException(StatusCode)` on non-2xx; `DeleteAsync` returns the status; `SendRawAsync` returns the raw `HttpResponseData` (status, status text, headers, body) for status assertions. Every method takes optional per-request `headers`; `ApiClient` has no knowledge of any API's auth scheme. Restful Booker's `AuthClient.GetAuthHeadersAsync` turns a token from `POST /auth` into the `token` cookie header.
 
 ### 3.4 Test data
 
@@ -107,13 +113,13 @@ Conventions (the same in every project):
 ### 3.5 Logging & results publishing
 
 ```text
-            logging-config.json  (found by walking up from the run dir)
+     providers.json (Logging / ResultsPublisher)  +  logging-config.json (Elastic settings)
                        │
         ┌──────────────┴───────────────┐
         ▼                              ▼
 LoggingServiceFactory          ResultsPublisherFactory
-  │ reflection: ILoggingProviderFactory / IResultsPublisherFactory
-  │ 1. configured Provider  → 2. "console"  → 3. any other  → 4. console (direct)
+  │ Framework.Providers (registered by TestRunSetup): ILoggingProviderFactory / IResultsPublisherFactory
+  │ 1. selected provider  → 2. "console"  → 3. console (direct)
   ▼                              ▼
 ILoggingService               IResultsPublisher
  ├─ ConsoleLoggingService      ├─ ConsoleResultsPublisher
@@ -123,7 +129,7 @@ ILoggingService               IResultsPublisher
 ```
 
 - Loggers are cached per index format and the publisher once per run; the reachability probe is cached per URL, credentials, TLS profile/fingerprint, and timeout.
-- To add a provider, implement both factory interfaces in `Core`. The factories discover providers by reflection, so no registration code is needed.
+- To add a provider, implement both factory interfaces in an adapter project, register them in its `IFrameworkPlugin`, pass the plugin to `Framework.Configure` in the test projects' `TestRunSetup`, and select it by name in `providers.json` ([provider guide](PLUGIN_ARCHITECTURE.md#5-writing-a-provider)).
 - Each test publishes one `LogMetadata` document (project, class, method, status, duration, reason, timing, browser, user) from `TestRunner`. A publish failure never fails the test.
 
 ---
@@ -135,25 +141,25 @@ xUnit v2 creates a new test-class instance per test and has no teardown hook tha
 ### 4.1 Web UI (`Tests/UI/Web`)
 
 ```text
-Class start   PlaywrightFixture.InitializeAsync → Playwright.CreateAsync() → launch browser (Settings.Browser)
-Per test      UiTestBase.InitializeAsync → new BrowserContext(BaseURL = app's BaseUrl) → new Page(default timeout)
-                                       → start tracing (Trace = on-failure | on)
+Class start   BrowserFixture.InitializeAsync → Framework.UiDrivers.LaunchAsync → launch browser (Settings.Browser)
+Per test      UiTestBase.InitializeAsync → driver.NewSessionAsync(BaseUrl, default timeout) → IUiSession
+                                       → ITracing.StartAsync (Trace = on-failure | on)
               [Fact] public Task X() => RunAsync(async () => { ... })
                 └─ TestRunner.RunAsync(logger, "ui-web", class, [CallerMemberName], browser)
-                     ├─ log [Start]; Allure name "<test> (<browser>)" + "browser" parameter
-                     ├─ body: page objects + Mothers/Builders + AllureApi.Step + Assertions.Expect
-                     ├─ PlaywrightException → Assert.Fail (Allure shows "failed", not "broken")
-                     ├─ on failure: full-page screenshot + Playwright trace → Allure → rethrow
+                     ├─ log [Start]; report name "<test> (<browser>)" + "browser" parameter
+                     ├─ body: page objects + Mothers/Builders + Report.Step + Ui.Expect
+                     ├─ UiException → Assert.Fail (Allure shows "failed", not "broken")
+                     ├─ on failure: IScreenshots + ITracing → report → rethrow
                      └─ finally: Allure Start/End/Duration → log [Finish] → publish LogMetadata
-              UiTestBase.DisposeAsync → context.CloseAsync()
-Class end     PlaywrightFixture.DisposeAsync → browser.CloseAsync() → playwright.Dispose()
+              UiTestBase.DisposeAsync → session.DisposeAsync()
+Class end     BrowserFixture.DisposeAsync → driver.DisposeAsync() (closes the browser)
 ```
 
 Each test gets fresh cookies and storage while the browser is launched once per class. Test classes run in parallel (xUnit's default).
 
 ### 4.2 API (`Tests/Api`)
 
-`ApiFixture` holds one Playwright instance per class (no browser). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first running its `CleanupTracker` (which deletes every booking created through `CreateBookingAsync`, last first); tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
+`ApiFixture` holds the settings (no browser; the transport is created per test). `ApiTestBase` creates an `ApiClient` per test and disposes it afterwards, first running its `CleanupTracker` (which deletes every booking created through `CreateBookingAsync`, last first); tests use `RunAsync(async () => ...)` and `GetAuthHeadersAsync()` for PUT/PATCH/DELETE.
 
 ### 4.3 Mobile (`Tests/UI/Mobile`)
 
@@ -163,11 +169,11 @@ mobilesettings.json → MobileSettingsProvider.Current (Platform, AppType, Serve
    ▼
 MobileDriverFactory.CreateDriver → AndroidDriver / IOSDriver  (Appium 2 server)
    ▼
-MobileTestBase.Run(body) → TestRunner: create driver → navigate (Web) / launch app (Native)
-                → body → (failure: screenshot) → Allure timing → log → publish LogMetadata → quit
+MobileTestBase.RunAsync(body) → TestRunner: Framework.MobileUiDrivers (appium) → IUiSession (AppiumUiSession)
+                → navigate (Web) / app launched by Appium (Native) → body → (failure: IScreenshots)
+                → report timing → log → publish LogMetadata → end session
    ▼
-Pages: Common/MobileBasePage · <App>/…Page
-Helpers: Core/Mobile/Interactions/GestureHelper · WaitHelper  (settings + driver: Core.Mobile)
+Pages: the shared Pages/<App>/…Page (UI contract) · gestures: IMobileGestures capability
 ```
 
 The full design, config reference, and local Appium/emulator setup are in [MOBILE_ARCHITECTURE.md](MOBILE_ARCHITECTURE.md).
@@ -209,7 +215,7 @@ Locally, `scripts/{windows,unix}/run_*_gen_report` run all / API / web tests thr
 - **New web app or feature:** page objects in `Pages/<App>/`, models in `Domain/Models/<App>/`, a Builder + Mother per entity in `Domain/TestData/<App>/`, the app's URL in `testsettings.json` / `TestSettings`, an `<App>TestBase : UiTestBase` and tests in `Tests/UI/Web/<App>/`.
 - **New API:** models in `Domain/Models/<Service>/`, a Builder + Mother per entity in `Domain/TestData/<Service>/`, service-specific helpers (e.g. auth) in `Domain/Api/<Service>/`, and tests in `Tests/Api/` inheriting `ApiTestBase`.
 - **New logging sink:** implement `ILoggingProviderFactory` and `IResultsPublisherFactory` in `Core`, then select the sink with `Provider` in `logging-config.json`.
-- **New mobile screen:** add a page under `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) and tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
+- **New mobile screen:** reuse or add a page object in `Pages/<App>/` (inherit `BasePage`, UI contract) and add tests in `Tests/UI/Mobile/<App>/` inheriting `MobileTestBase`.
 - **Desktop (later):** add a `Tests/Desktop` project with the same layout as Mobile (Configuration/, Driver/, Pages/<App>/, Infrastructure/DesktopTestBase, <App>/ tests) using FlaUI, and a Windows job (`windows-latest`) to run it.
 
 Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), whenever a layer, a dependency direction, a test-run step or a CI flow changes.
@@ -242,3 +248,11 @@ Update this document, and the matching diagram in [DIAGRAMS.md](DIAGRAMS.md), wh
 | 2026-11-17 | Core-architecture feedback: app-specific code moved to `Domain` (R34) with `CoreBoundaryTests`; shared retry/polling in `Core/Resilience` with Polly (R35); mobile bootstrapping moved to `Core.Mobile` (R38). |
 | 2026-11-17 | Core add-ons moved inside `Core/` next to the area they extend (`Core/Mobile`, `Core/Messaging/{Kafka,RabbitMq}`, `Core/Security/AzureKeyVault`), still separate projects excluded from `Core.csproj`; `Core.Secrets.AzureKeyVault` renamed `Core.Security.AzureKeyVault`; solution groups them under `/Core/`. |
 | 2026-11-17 | Mermaid flow diagrams added in `docs/DIAGRAMS.md`: project dependencies, web UI / API / mobile test runs, settings and secrets, CI pipeline. |
+| 2026-11-17 | `docs/PLUGIN_ARCHITECTURE.md` added (R43): plug-and-play target shape, contract list, dependency inventory, design rules, provider guide, accepted host/platform dependencies. |
+| 2026-11-17 | Composition root (R40): `providers.json` + `Core/Composition` (`Framework.Configure`, `IFrameworkPlugin`, `ProviderRegistry`) replace the reflection scan and the per-project Key Vault wiring; Elasticsearch moved out of `Core` into the `Core.Logging.Elastic` adapter (R44); first adapter guardrail tests (R46). |
+| 2026-11-17 | Reporting contract (R39): `Core/Reporting` (`ITestReporter`, `Report.Step`, built-in console reporter); Allure moved into the `Core.Reporting.Allure` adapter, selected with `"Reporting"` in `providers.json`; `TestRunner`, the base classes and all tests call the contract. |
+| 2026-11-17 | HTTP transport contract (R41): `Core/Http` (`IHttpTransport`, `HttpRequestData`/`HttpResponseData`, built-in `HttpClient` transport) and the `Core.Http.Playwright` adapter, selected with `"Http"` in `providers.json`; `ApiClient` keeps JSON, status and retries; `ApiFixture` no longer owns Playwright; transport contract tests. |
+| 2026-11-17 | Resilience contract (R45): `IRetryPolicy` / `IRetryPolicyFactory` with a built-in retry and the `Core.Resilience.Polly` adapter, selected with `"Resilience"` in `providers.json`; `RetryPolicies` keeps its named policies and no longer references Polly or Playwright; `SettingsLoader.ResolveSecrets` internal (no `IConfiguration` in Core's public API). |
+| 2026-11-17 | UI contract (R42): `Core/Ui` (`IUiDriverFactory`/`IUiDriver`/`IUiSession`, `IElement`, `Locate`, `Ui.Expect`, `UiException`, capabilities `IScreenshots`/`ITracing`); Playwright moved into the `Core.Ui.Playwright` adapter, so `Core` has no vendor package left; page objects, `UiTestBase` and web tests use the contract; `PlaywrightFixture` → `BrowserFixture`; new `Tests/Contract` project with the UI driver contract suite, run in CI. |
+| 2026-11-17 | Second UI drivers (R47): `Core.Ui.Selenium` (WebDriver session/elements with polling waits and stability checks, `selenium` driver) and the `appium` UI driver in `Core.Mobile` (WebDriver session + `IMobileGestures`); `IUiSession.TitleAsync`; the mobile suite uses the shared page objects and `Ui.Expect`; `MobileBasePage`, mobile `LoginPage`, `WaitHelper`, the UI-action retry setting and two Selenium helper packages removed; `providers.json` gains `MobileUi`. |
+| 2026-11-17 | Thin test host (R48): report labels are framework attributes (`[ReportSuite]`, `[ReportTags]`) mapped by the reporter; scenario test classes use xUnit only through attributes and `Assert`; `TestHostBoundaryTests` guards it. Contract suites now exist for every contract (R46). |

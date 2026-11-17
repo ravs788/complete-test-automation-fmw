@@ -1,12 +1,14 @@
 using System.Diagnostics;
-using Allure.Net.Commons;
+using System.Reflection;
+using Core.Composition;
 using Core.Logging;
+using Core.Reporting;
 
 namespace Core.Testing;
 
 /// <summary>
 /// Runs a test body with the bookkeeping every suite needs: timing, start/finish logging,
-/// Allure timing parameters, results publishing, a failure hook (e.g. screenshot) and cleanup.
+/// timing parameters for the report (ITestReporter), results publishing, a failure hook (e.g. screenshot) and cleanup.
 /// </summary>
 /// <remarks>
 /// xUnit v2 has no SetUp/TearDown with access to the test's name or outcome, so base test
@@ -35,6 +37,7 @@ public static class TestRunner
         var target = string.IsNullOrEmpty(info.Browser) ? string.Empty : $" on '{info.Browser}'";
 
         logger.Info($"[Start] {info.TestClass.Name}.{info.TestName}{target}");
+        ApplyReportLabels(info.TestClass);
         try
         {
             await body();
@@ -53,7 +56,7 @@ public static class TestRunner
             var duration = stopwatch.Elapsed.TotalSeconds.ToString("F3");
             logger.Info($"[Finish] {info.TestClass.Name}.{info.TestName}{target} | Outcome: {status} | Duration(s): {duration}");
 
-            TryAddAllureTiming(startTime, endTime, duration);
+            AddTiming(startTime, endTime, duration);
             Publish(info, status, reason, startTime, endTime, duration);
 
             try { if (cleanupAsync is not null) await cleanupAsync(); }
@@ -61,21 +64,23 @@ public static class TestRunner
         }
     }
 
-    private static void TryAddAllureTiming(DateTime startTime, DateTime endTime, string duration)
+    /// <summary>Passes the class's <see cref="ReportSuiteAttribute"/> / <see cref="ReportTagsAttribute"/> to the reporter (R48).</summary>
+    private static void ApplyReportLabels(Type testClass)
     {
-        try
+        if (testClass.GetCustomAttribute<ReportSuiteAttribute>() is { } suite)
         {
-            AllureLifecycle.Instance.UpdateTestCase(tc =>
-            {
-                tc.parameters.Add(new Parameter { name = "Start Time", value = startTime.ToString("yyyy-MM-dd HH:mm:ss.fff") });
-                tc.parameters.Add(new Parameter { name = "End Time", value = endTime.ToString("yyyy-MM-dd HH:mm:ss.fff") });
-                tc.parameters.Add(new Parameter { name = "Duration (s)", value = duration });
-            });
+            var tags = testClass.GetCustomAttribute<ReportTagsAttribute>()?.Tags ?? [];
+            Framework.Reporter.SetSuite(suite.ParentSuite, suite.Suite, suite.SubSuite, tags);
         }
-        catch
-        {
-            // No active Allure test case (e.g. Allure not loaded); reporting is best effort.
-        }
+    }
+
+    private static void AddTiming(DateTime startTime, DateTime endTime, string duration)
+    {
+        // Reporters are best effort (ITestReporter): outside a reported test these calls do nothing.
+        var reporter = Framework.Reporter;
+        reporter.AddParameter("Start Time", startTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+        reporter.AddParameter("End Time", endTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+        reporter.AddParameter("Duration (s)", duration);
     }
 
     private static void Publish(TestRunInfo info, string status, string reason, DateTime startTime, DateTime endTime, string duration)

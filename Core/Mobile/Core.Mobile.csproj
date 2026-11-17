@@ -1,19 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Reusable Appium bootstrapping for mobile suites (R38): settings + provider, driver factory/options and
-    interaction helpers. Kept out of Core so Core consumers don't depend on Appium/Selenium. No page objects
-    or tests here: those stay in the mobile test project.
+    Appium adapter (R38, R47): settings + provider, driver factory/options, gestures, and the "appium" UI driver
+    (AppiumUiPlugin) that puts mobile sessions on the framework's UI contract. Kept out of Core so Core consumers
+    don't depend on Appium/Selenium. No page objects or tests here: suites share the page objects in Pages/.
   -->
   <ItemGroup>
     <PackageReference Include="Appium.WebDriver" />
     <PackageReference Include="Selenium.WebDriver" />
-    <PackageReference Include="Selenium.Support" />
-    <PackageReference Include="DotNetSeleniumExtras.WaitHelpers" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core.csproj" />
+    <!-- Appium speaks W3C WebDriver, so the Appium UI driver reuses the WebDriver session from the Selenium adapter (R47). -->
+    <ProjectReference Include="..\Ui\Selenium\Core.Ui.Selenium.csproj" />
   </ItemGroup>
 
 </Project>

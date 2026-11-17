@@ -1,18 +1,12 @@
 using Core.Configuration;
-using Microsoft.Playwright;
 
 namespace Tests.Fixtures;
-/// <summary>One Playwright instance per API test class; no browser is launched.</summary>
-public class ApiFixture : IAsyncLifetime
+
+/// <summary>
+/// Shared state for one API test class: the settings. The HTTP transport (Playwright or HttpClient) is chosen with
+/// <c>"Http"</c> in <c>providers.json</c> and created per test by <see cref="Core.Api.ApiClient.CreateAsync"/> (R41).
+/// </summary>
+public class ApiFixture
 {
-    public IPlaywright Playwright { get; private set; } = null!;
     public TestSettings Settings => ConfigurationProvider.Current;
-
-    public async Task InitializeAsync() => Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
-
-    public Task DisposeAsync()
-    {
-        Playwright?.Dispose();
-        return Task.CompletedTask;
-    }
 }

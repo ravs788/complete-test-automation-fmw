@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026-11-17: xUnit as a thin host layer; label attributes (R48, R46, phase 7)
+
+- New framework attributes **`[ReportSuite(layer, app, feature)]`** and **`[ReportTags(...)]`** in `Core.Reporting`; `TestRunner` passes them to the reporter (`ITestReporter.SetSuite`; the Allure adapter writes the parentSuite / suite / subSuite and tag labels). All 13 test classes use them instead of `[AllureParentSuite]` / `[AllureSuite]` / `[AllureSubSuite]` / `[AllureTag]`, so **scenario code imports no vendor library**. Verified: Allure results (labels included) identical to the baseline for the 15 Playwright tests and the Android smoke.
+- `TestHostBoundaryTests` (metadata only; no test-project code runs): test classes use xUnit only through `[Fact]` / `[Theory]` / `[Trait]` and `Assert`, xUnit lifecycle interfaces only in fixtures and base classes, and `Tests`, `Tests.UI.Mobile` and `Domain` reference no vendor library besides xUnit. Checked that it fails when a test class gets an Allure attribute or an xUnit interface.
+- R46 contract suites completed: reporting (console, Allure), logging and results publishing (console, Elastic on a closed port), secrets (environment, Key Vault with a fake client); the Key Vault fake moved to `Tests/Unit/Security/FakeKeyVault.cs`.
+- Docs: how to label test classes (README, CONTRIBUTING, MOBILE_ARCHITECTURE), the host layer and migration path (PLUGIN_ARCHITECTURE §6).
+
+## 2026-11-17: Selenium and Appium on the UI contract (R47, phase 6)
+
+- New adapter project **`Core/Ui/Selenium`** (`SeleniumUiPlugin`, `"selenium"`): `WebDriverUiSession` / `WebDriverElement` for any W3C WebDriver, with polling waits, retries on stale or covered elements, a Playwright-like stability check before clicks, ARIA roles mapped to common tags, framework assertions polling for 5 s, and screenshots (no tracing). Browsers: installed Chrome, Edge or Firefox (each session is a new browser).
+- **Appium is a UI driver** (`"appium"`, `AppiumUiPlugin` in `Core.Mobile`): its sessions reuse the WebDriver session and add the new `IMobileGestures` capability (swipe, scroll, scroll until visible). `providers.json` gains `"MobileUi"`. `Core.Mobile` → `Core.Ui.Selenium` is the one deliberate adapter-to-adapter reference.
+- **The mobile suite uses the shared page objects and `Ui.Expect`**: `MobileTestBase` opens an `IUiSession` (`RunAsync`, `Session`), and the smoke test uses `Pages.SauceDemo.LoginPage` (its `Username` element is now public). Removed: `Tests/UI/Mobile/Pages` (`MobileBasePage`, mobile `LoginPage`), `Core.Mobile.Interactions.WaitHelper`, `ResilienceSettings.UiAction` and `MobileSettings.Resilience` (element waits and transient retries are built into the UI drivers), and the `Selenium.Support` / `DotNetSeleniumExtras.WaitHelpers` packages. New `IUiSession.TitleAsync()`.
+- Verified: UI contract suite 18/18 (9 checks × Playwright and Selenium); Android smoke passes through the Appium UI driver with the shared `LoginPage` (Allure result identical to the baseline); web suite with `PROVIDERS_Ui=selenium BROWSER=chrome`: 8 of 8 pass (5 consecutive runs). During development SauceDemo's cart link briefly ignored WebDriver's native clicks (3 runs, reproduced with plain Selenium); it later navigated normally with the same markup, so it was the site, not the adapter. New unit check: every contract has at least two registered implementations.
+
+## 2026-11-17: UI contract; Core has no vendor package left (R42, phase 5)
+
+- New `Core/Ui`: `IUiDriverFactory` / `IUiDriver` / `IUiSession` (one isolated session per test), lazy auto-waiting `IElement` found by `Locate` (test id, role, placeholder, CSS; `WithChild` filter, `First`), web-first assertions `Ui.Expect(element).ToBeVisibleAsync / ToHaveTextAsync / ToContainTextAsync / ToHaveCountAsync / ToHaveClassAsync`, `UiException` / `UiAssertionException`, and optional capabilities `IScreenshots` / `ITracing` (`TryGet<T>`), with `Native<T>()` as a visible escape hatch. Selected with `"Ui"` in `providers.json`.
+- **Playwright moved out of `Core`** into the adapter project `Core/Ui/Playwright` (`PlaywrightUiPlugin`; `PlaywrightDriverFactory` moved there). `Core` now references no vendor package (only Microsoft.Extensions.Configuration). Playwright timeouts and errors become `UiException`, so an element that never appears is now reported as **failed** rather than broken.
+- Page objects (`BasePage(IUiSession)`, `IElement` instead of `ILocator`), `UiTestBase` (`Session` instead of `Page`/`Context`) and web tests (`Ui.Expect` instead of `Assertions.Expect`) use only the contract. **`PlaywrightFixture` is now `BrowserFixture`.** `Tests.csproj` no longer references Playwright directly (its install script and driver still arrive through the adapter).
+- New test project **`Tests/Contract`**: UI driver contract tests (8 checks on a local `data:` page, run per driver adapter, no Allure), run in CI after the Playwright tests (`contract_results.trx`).
+- Verified: 15/15 Playwright tests with Allure results identical to the baseline; contract 8/8; `AdapterBoundaryTests`: `Core` doesn't reference Playwright and `Pages` uses only the contract.
+
+## 2026-11-17: Resilience contract (R45, phase 4)
+
+- New contract in `Core/Resilience`: `IRetryPolicy` (sync/async, with or without a result), `IRetryPolicy<T>` (also retries on a transient result) and `IRetryPolicyFactory`, plus a built-in implementation (**`builtin`**: exponential backoff with jitter). New adapter project **`Core/Resilience/Polly`** (`PollyResiliencePlugin`, `"polly"`). Selected with `"Resilience"` in `providers.json` (`polly` committed). Both log the same `[Retry] attempt N of M after D ms: reason` line.
+- `RetryPolicies.TransientHttp / Navigation / Transient` now return `IRetryPolicy` / `IRetryPolicy<T>` (were Polly `ResiliencePipeline`s) and take an optional `factory`. Network errors are recognised by `HttpRequestException` or by message, so `Core/Resilience` no longer references Playwright. `ApiClient`, `BasePage.GotoAsync` and `MobileBasePage` use the contract.
+- `Core` no longer references `Polly.Core`. `SettingsLoader.ResolveSecrets` is internal, so `IConfiguration` is out of Core's public API; Microsoft.Extensions.Configuration stays as an accepted platform dependency (no `ISettingsSource` wrapper).
+- Tests: the retry tests are now a contract suite run for both implementations (20 tests); Playwright suite 15/15 with `polly` and with `builtin`; `AdapterBoundaryTests` keeps Polly out of `Core`.
+- Docs fix: the project-reference table in `docs/DIAGRAMS.md` listed `Core.Http.Playwright` under the mobile test project (a phase 3 slip); the rows now match the `.csproj` files.
+
+## 2026-11-17: HTTP transport contract (R41, phase 3)
+
+- New `Core/Http`: `IHttpTransport` / `IHttpTransportFactory`, `HttpRequestData`, `HttpResponseData` (status, status text, headers, body; fully read) and a built-in **`httpclient`** transport on .NET `HttpClient`. New adapter project **`Core/Http/Playwright`** (`PlaywrightHttpPlugin`, `"playwright"`; one Playwright instance shared by the run). Selected with `"Http"` in `providers.json` (`playwright` committed).
+- `ApiClient.CreateAsync(baseUrl, retry, log, transports)` no longer takes an `IPlaywright`; it keeps JSON, `ApiException` and retries. **`SendRawAsync` now returns `HttpResponseData`** (was Playwright's `IAPIResponse`; `.Status` works as before). Transports report network failures as `HttpRequestException`, so retries don't depend on the library. `ApiFixture` no longer starts Playwright.
+- Verified: the 7 API tests pass with `PROVIDERS_Http=playwright` and `=httpclient` (no code change); Allure results identical to the earlier baseline; new transport contract tests (5 checks, run against both transports on a loopback server) and `ApiClient` retry tests.
+
+## 2026-11-17: Reporting contract (R39, phase 2)
+
+- New `Core/Reporting`: `ITestReporter` (run start, test name, parameters, attachments, steps), `Report.Step(...)` for tests, and a built-in `console` reporter. Selected with `"Reporting"` in `providers.json` (`allure` committed; `PROVIDERS_Reporting=console` to run without it); an unregistered name falls back to console with one message.
+- **Allure moved out of `Core`** into the adapter project `Core/Reporting/Allure` (`AllureReportingPlugin`); `Core` no longer references `Allure.Net.Commons`, and `Core.Testing.AllureResults` is replaced by the reporter's `BeginRun`.
+- `TestRunner`, `UiTestBase`, `MobileTestBase` and all 13 test classes call the contract (`AllureApi.Step` → `Report.Step`). Class labels (`[AllureSuite]` …) stay as Allure.Xunit attributes.
+- Verified: the Allure results of the 15 Playwright tests and the Android smoke are identical to before (names, status, labels, parameters, steps, attachments; ignoring ids and times); `TRACE=on` still attaches traces. 9 new unit tests; `AdapterBoundaryTests` now also keeps Allure out of `Core`.
+
+## 2026-11-17: Composition root and plugin model (R40, phase 1)
+
+- New `Core/Composition`: `Framework.Configure(params IFrameworkPlugin[])` is the composition root, called once from each test project's `TestRunSetup`; adapters register named providers through `IFrameworkPlugin` into a `ProviderRegistry`. The reflection scan in `LoggingServiceFactory` / `ResultsPublisherFactory` is gone.
+- New **`providers.json`** (repo root, `PROVIDERS_*` overrides) chooses the provider per contract: `Logging`, `ResultsPublisher` (default: same as `Logging`), `Secrets` (ordered list). The run prints the selection once, e.g. `[Providers] Logging=elastic, ResultsPublisher=elastic, Secrets=environment`. Selecting a secret provider that isn't registered stops the run at startup with the registered names.
+- **Elasticsearch moved out of `Core`** into the adapter project `Core/Logging/Elastic` (`Core.Logging.Elastic`, `ElasticLoggingPlugin`); `Core` no longer references `Elastic.Clients.Elasticsearch`. Console logging stays built in. Key Vault registers through `AzureKeyVaultPlugin`.
+- **Behaviour changes:** the logging provider is no longer `Provider` in `logging-config.json` / `LOGGING_PROVIDER`; use `"Logging"` in `providers.json` or `PROVIDERS_Logging`. Key Vault is no longer switched on by `KEYVAULT_URI` alone; list `"azure-keyvault"` in `Secrets` (e.g. `PROVIDERS_Secrets__0=environment PROVIDERS_Secrets__1=azure-keyvault`) and set `KEYVAULT_URI`.
+- Tests: 26 new unit tests (registry, `providers.json` loading, secret and logging selection with fallback, plugins) and `AdapterBoundaryTests` (Core doesn't reference Elastic, Azure, RabbitMQ or Kafka assemblies; each adapter depends on Core only among framework projects).
+- Docs: README (configuration, logging, secrets, structure), ARCHITECTURE, GETTING_STARTED, DIAGRAMS, PLUGIN_ARCHITECTURE updated.
+
+## 2026-11-17: Plug-and-play architecture doc (R43)
+
+- New `docs/PLUGIN_ARCHITECTURE.md`: target shape (contracts in `Core`, one adapter project per library, a composition root selecting adapters from a `Providers` section), the contract list, a dependency inventory (role, kind, where each library's types leak today, realistic replacement, review item), design rules, a provider guide with the guarantees each kind of provider must keep, and the accepted host/platform dependencies (xUnit, Microsoft.Extensions, ADO.NET). Phase 0 of the roadmap in `docs/REVIEW.md`; no code changes.
+- `docs/CONTRIBUTING.md`: "Adding or replacing a library" section; README and ARCHITECTURE link to the new doc.
+
 ## 2026-11-17: Flow diagrams (Mermaid)
 
 - New `docs/DIAGRAMS.md` with six Mermaid diagrams that GitHub renders: projects and layers, a web UI test run, an API test run (retries and cleanup), a mobile test run, settings and secrets resolution, and the CI pipeline. Each shows one idea and only the main path (about eight boxes at most, one arrow per group); details are in tables under each diagram. Linked from README, ARCHITECTURE and CONTRIBUTING.

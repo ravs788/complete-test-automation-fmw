@@ -1,8 +1,8 @@
-using Microsoft.Playwright;
+using Core.Ui;
 
 namespace Pages.SauceDemo;
 
-public sealed class CheckoutCompletePage(IPage page) : SauceDemoPage(page)
+public sealed class CheckoutCompletePage(IUiSession session) : SauceDemoPage(session)
 {
-    public ILocator Header => TestId("complete-header");
+    public IElement Header => TestId("complete-header");
 }

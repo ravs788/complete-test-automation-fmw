@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R47): the UI contract on Selenium WebDriver. WebDriverUiSession / WebDriverElement work on any W3C
+    WebDriver, so the Appium adapter (Core.Mobile) builds on them. Selected with "Ui": "selenium" in providers.json.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Selenium.WebDriver" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>

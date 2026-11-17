@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter (R42): the UI contract (IUiDriverFactory, IUiSession, IElement, assertions, screenshots, tracing) on
+    Playwright. Selected with "Ui": "playwright" in providers.json.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Playwright" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core.csproj" />
+  </ItemGroup>
+
+</Project>

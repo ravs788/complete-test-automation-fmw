@@ -1,18 +1,18 @@
-using Microsoft.Playwright;
+using Core.Ui;
 using Pages.Common;
 
 namespace Pages.Todo;
 
 /// <summary>The Playwright TodoMVC demo (test ids use Playwright's default <c>data-testid</c>).</summary>
-public sealed class TodoPage(IPage page) : BasePage(page)
+public sealed class TodoPage(IUiSession session) : BasePage(session)
 {
-    private ILocator NewTodoInput => Page.GetByPlaceholder("What needs to be done?");
-    private ILocator TodoItems => TestId("todo-item");
+    private IElement NewTodoInput => Session.Find(Locate.Placeholder("What needs to be done?"));
+    private IElement TodoItems => TestId("todo-item");
 
-    public ILocator GetTodoItemByTitle(string title) =>
-        TodoItems.Filter(new() { Has = TestId("todo-title").Filter(new() { HasTextString = title }) });
+    public IElement GetTodoItemByTitle(string title) =>
+        TodoItems.WithChild(ByTestId("todo-title"), title);
 
-    public ILocator TodoCountElement => TestId("todo-count");
+    public IElement TodoCountElement => TestId("todo-count");
 
     /// <summary>Opens the todo app (the context's BaseURL).</summary>
     public async Task OpenAsync() => await GotoAsync("./");
@@ -24,8 +24,8 @@ public sealed class TodoPage(IPage page) : BasePage(page)
     }
 
     public async Task CompleteTodoAsync(string title) =>
-        await GetTodoItemByTitle(title).GetByRole(AriaRole.Checkbox, new() { Name = "Toggle Todo" }).CheckAsync();
+        await GetTodoItemByTitle(title).Find(Locate.Role(UiRole.Checkbox, "Toggle Todo")).CheckAsync();
 
     public async Task ClearCompletedAsync() =>
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Clear completed" }).ClickAsync();
+        await Session.Find(Locate.Role(UiRole.Button, "Clear completed")).ClickAsync();
 }

@@ -10,7 +10,7 @@ One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root 
 | A web UI test | `Tests/UI/Web/<App>/` (inherit `<App>TestBase`, which inherits `UiTestBase`) |
 | An API test | `Tests/Api/` (inherit `ApiTestBase`) |
 | A unit test for framework code (`Core`) | `Tests/Unit/<Area>/` (plain xUnit; no browser or external services; isolated loopback fixtures are allowed for transport checks) |
-| A mobile page / test | `Tests/UI/Mobile/Pages/<App>/` (inherit `MobileBasePage`) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`) |
+| A mobile page / test | the shared `Pages/<App>/` (same page objects as web) / `Tests/UI/Mobile/<App>/` (inherit `MobileTestBase`, `RunAsync`) |
 | Reusable mobile infrastructure (settings, driver setup, interaction helpers) | `Core/Mobile/<Area>/` (project `Core.Mobile`; no page objects or tests) |
 | A model (API contract or test-data shape) | `Domain/Models/<App>/` |
 | Test data for an entity | `Domain/TestData/<App>/`: `<Entity>Builder` (valid by default, `With…` for variations) + `<Entity>Mother` (named common cases) |
@@ -29,25 +29,30 @@ Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 
 When a change alters a dependency, a step in a test run, how settings load or the CI flow, update the matching Mermaid diagram in [DIAGRAMS.md](DIAGRAMS.md) in the same PR (preview it in the [Mermaid Live Editor](https://mermaid.live/) or a Markdown preview with Mermaid support).
 
+## Adding or replacing a library
+
+Every external library belongs behind a framework contract, in its own adapter project under `Core/<Area>/<Vendor>/`. Before adding a package, check the inventory and rules in [PLUGIN_ARCHITECTURE.md](PLUGIN_ARCHITECTURE.md); to add a provider for an existing contract, follow its [Writing a provider](PLUGIN_ARCHITECTURE.md#5-writing-a-provider) steps (project layout, registration, the guarantees each kind of provider must keep, contract tests, docs). Don't import a vendor namespace in `Tests`, `Pages` or `Domain`, and don't add a vendor package to `Core/Core.csproj`.
+
 ## Code Style
 
 - **Always use `using` imports and never fully qualified names in the code.**
-  - ❌ Do NOT: `await Microsoft.Playwright.Assertions.Expect(locator).ToBeVisibleAsync();`
+  - ❌ Do NOT: `await Core.Ui.Ui.Expect(element).ToBeVisibleAsync();`
   - ✅ Do:
     ```csharp
-    using Microsoft.Playwright;
+    using Core.Ui;
     ...
-    await Assertions.Expect(locator).ToBeVisibleAsync();
+    await Ui.Expect(element).ToBeVisibleAsync();
     ```
-- Page objects expose `ILocator`s for assertions and async intent methods (`LoginAsync`, `AddToCartAsync`) for actions. Keep assertions in tests, not in pages.
-- A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Page)`, `new TodoPage(Page)`) and get every other page from the step before it.
-- Locate elements by test id (`TestId("…")`, from `BasePage`), role, label or placeholder (`GetByRole`, `GetByLabel`, `GetByPlaceholder`), never by CSS class. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
-- Prefer Playwright's auto-retrying `Assertions.Expect(...)` over reading values and asserting on them; never add fixed sleeps.
-- For transient failures use `Core.Resilience`: `RetryPolicies` (Polly; transient HTTP for idempotent requests only, navigation, UI actions) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
+- Page objects work on the UI contract (`Core.Ui`: `IUiSession`, `IElement`, `Locate`) and never import a driver's namespace. They expose `IElement`s for assertions and async intent methods (`LoginAsync`, `AddToCartAsync`) for actions. Keep assertions in tests, not in pages.
+- A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Session)`, `new TodoPage(Session)`) and get every other page from the step before it.
+- Locate elements by test id (`TestId("…")` / `ByTestId("…")`, from `BasePage`), role or placeholder (`Locate.Role(UiRole.Button, "Remove")`, `Locate.Placeholder("…")`), and narrow lists with `WithChild(ByTestId("…"), text)`, never by CSS class. If the contract lacks something you need, add it to `Core.Ui` (and to every driver adapter) rather than reaching for `Session.Native<T>()`. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
+- Prefer the auto-retrying `Ui.Expect(...)` assertions over reading values and asserting on them; never add fixed sleeps.
+- For transient failures use `Core.Resilience`: `RetryPolicies` (transient HTTP for idempotent requests only, navigation, UI actions; implemented by the `"Resilience"` provider in `providers.json`, `polly` or `builtin`) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
 - Wrap every test body in the base class's `RunAsync(...)` / `Run(...)` so it gets logging, Allure timing, failure screenshots and results publishing.
 - Give each test class the same labels:
-  - `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`
-  - `[AllureTag(<layer>, [mobile,] <app>, <feature>, <categories>…)]`, e.g. `("ui", "saucedemo", "checkout", "regression")`
+  - `[ReportSuite("API" | "UI Web" | "UI Mobile", "<App>", "<Feature>")]` (from `Core.Reporting`)
+  - `[ReportTags(<layer>, [mobile,] <app>, <feature>, <categories>…)]`, e.g. `("ui", "saucedemo", "checkout", "regression")`
+- Test classes use xUnit only through `[Fact]` / `[Theory]` / `[Trait]` and `Assert` (the host layer, R48): lifecycle interfaces (`IAsyncLifetime`, `IClassFixture`) belong in fixtures and base classes, and no test class imports a reporting, driver or HTTP library. `TestHostBoundaryTests` checks this.
   - `[Trait("Category", ...)]`: `smoke` for the PR set, `regression` for everything
 - Models are `sealed record`s with PascalCase properties and `[JsonPropertyName("…")]` for the wire name. Don't use lowercase C# properties or `Dictionary<string, …>` bodies.
 

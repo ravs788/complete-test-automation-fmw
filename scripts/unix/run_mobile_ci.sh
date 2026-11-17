@@ -248,7 +248,8 @@ export APPIUM_URL=http://127.0.0.1:4723/
 export MOBILE_Platform=Android MOBILE_AppType=Web
 export MOBILE_Device__Udid="$serial" MOBILE_Device__DeviceName="$serial"
 export MOBILE_Device__PlatformVersion=14 MOBILE_Android__BrowserName=Chrome
-export LOGGING_PROVIDER=console
+# No Elasticsearch on the hosted Mac: log and publish results to the console (providers.json, R40).
+export PROVIDERS_Logging=console
 # R33: Appium's defaults (20 s for each adb command and the helper-app install) are too short for this emulator.
 export MOBILE_Android__AdbExecTimeoutMs=120000
 export MOBILE_Android__ServerInstallTimeoutMs=120000

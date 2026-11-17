@@ -4,8 +4,7 @@ namespace Core.Logging;
 
 /// <summary>
 /// Thread-safe, lazily loaded <see cref="LoggingConfig"/>: <c>logging-config.json</c> (repository root, found by
-/// walking up from the current directory), then <c>LOGGING_*</c> environment variables (e.g. <c>LOGGING_PROVIDER</c>,
-/// <c>LOGGING_Elastic__Url</c>), then the aliases <c>ELASTIC_URL</c>, <c>ELASTIC_USERNAME</c>, <c>ELASTIC_PASSWORD</c>,
+/// walking up from the current directory), then <c>LOGGING_*</c> environment variables (e.g. <c>LOGGING_Elastic__Url</c>), then the aliases <c>ELASTIC_URL</c>, <c>ELASTIC_USERNAME</c>, <c>ELASTIC_PASSWORD</c>,
 /// <c>ELASTIC_CERT_FINGERPRINT</c>. Credentials belong in the environment, not in the committed file.
 /// </summary>
 public static class LoggingConfigProvider
@@ -33,15 +32,7 @@ public static class LoggingConfigProvider
         return cfg with { Elastic = cfg.Elastic ?? new ElasticSection() };
     }
 
-    private static string FindRootPath()
-    {
-        var currentDir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(currentDir, FileName)))
-        {
-            var parent = Directory.GetParent(currentDir)
-                         ?? throw new FileNotFoundException($"{FileName} not found in any parent directory");
-            currentDir = parent.FullName;
-        }
-        return currentDir;
-    }
+    private static string FindRootPath() =>
+        ConfigFileLocator.FindDirectoryContaining(FileName)
+        ?? throw new FileNotFoundException($"{FileName} not found in any parent directory");
 }
