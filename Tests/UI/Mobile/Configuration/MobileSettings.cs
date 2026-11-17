@@ -1,3 +1,5 @@
+using Core.Configuration;
+
 namespace Tests.UI.Mobile.Configuration;
 
 /// <summary>
@@ -20,4 +22,7 @@ public sealed record MobileSettings
     public AndroidSettings Android { get; init; } = new();
     public IOSSettings IOS { get; init; } = new();
     public BehaviorSettings Behavior { get; init; } = new();
+
+    /// <summary>Retries for transient failures (R35); mobile UI actions use <c>UiAction</c>. Env: MOBILE_Resilience__UiAction__MaxRetries, …</summary>
+    public ResilienceSettings Resilience { get; init; } = new();
 }

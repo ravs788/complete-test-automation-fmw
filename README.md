@@ -36,6 +36,7 @@ TestAutomationProj/
 │   ├── Api/                           # ApiClient (Playwright APIRequestContext, auth-agnostic), ApiException
 │   ├── Configuration/                 # TestSettings (+ WebAppSettings, ApiSettings) + ConfigurationProvider
 │   ├── Driver/                        # PlaywrightDriverFactory (chromium/chrome/msedge/firefox/webkit)
+│   ├── Resilience/                    # RetryPolicies (Polly: transient HTTP, navigation, UI action), Poll.UntilAsync
 │   ├── Logging/                       # ILoggingService, LoggingServiceFactory, ResultsPublisherFactory, LogMetadata,
 │   │   │                              # LoggingConfig (+ sections) + LoggingConfigProvider (logging-config.json)
 │   │   ├── Console/                   # console provider
@@ -189,6 +190,7 @@ Keys are case-insensitive. Secrets (passwords, tokens) should come only from the
 | `Headless` | `true` / `false` | `HEADLESS` |
 | `DefaultTimeoutMs` | Playwright's default timeout per page | `TESTS_DefaultTimeoutMs` |
 | `Trace` | `off`, `on-failure` (default: attach a Playwright trace to Allure when a test fails), `on` (every test) | `TRACE` |
+| `Resilience.Http` / `.Navigation` / `.UiAction` | `MaxRetries` (default 2), `BaseDelayMs` (500/500/250): retries for API 502/503/504 and network errors (idempotent methods only), navigation `net::ERR_*`, and mobile UI glitches | `TESTS_Resilience__Http__MaxRetries`, … |
 | `<App>.BaseUrl`, `RestfulBooker.Username/Password` | | `TESTS_SauceDemo__BaseUrl`, `TESTS_RestfulBooker__Password`, … |
 
 Base URLs end with `/`, and entry pages open `./` (the context's `BaseURL`), so an app can live under a sub-path such as `/todomvc/`.

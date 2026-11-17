@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Core.Resilience;
 using Microsoft.Playwright;
+using Polly;
 
 namespace Core.Api;
 
@@ -19,17 +21,27 @@ public sealed class ApiClient : IAsyncDisposable
     };
 
     private readonly IAPIRequestContext _request;
+    private readonly ResiliencePipeline<IAPIResponse> _retry;
 
-    private ApiClient(IAPIRequestContext request) => _request = request;
+    private ApiClient(IAPIRequestContext request, ResiliencePipeline<IAPIResponse> retry)
+    {
+        _request = request;
+        _retry = retry;
+    }
 
-    public static async Task<ApiClient> CreateAsync(IPlaywright playwright, string baseUrl)
+    /// <param name="playwright">Playwright instance that owns the request context.</param>
+    /// <param name="baseUrl">Base URL for relative endpoints.</param>
+    /// <param name="retry">Retries for idempotent requests that hit 502/503/504 or a network error (default: 2 retries). POST and PATCH are never retried.</param>
+    /// <param name="log">Optional sink for retry log lines.</param>
+    public static async Task<ApiClient> CreateAsync(IPlaywright playwright, string baseUrl, RetryOptions? retry = null, Action<string>? log = null)
     {
         var request = await playwright.APIRequest.NewContextAsync(new()
         {
             BaseURL = baseUrl,
             ExtraHTTPHeaders = new Dictionary<string, string> { ["Accept"] = "application/json" }
         });
-        return new ApiClient(request);
+        var pipeline = RetryPolicies.TransientHttp<IAPIResponse>(retry ?? new RetryOptions(), r => r.Status, r => r.DisposeAsync(), log);
+        return new ApiClient(request, pipeline);
     }
 
     public Task<T?> GetAsync<T>(string endpoint) => SendAsync<T>("GET", endpoint);
@@ -62,7 +74,9 @@ public sealed class ApiClient : IAsyncDisposable
             options.DataString = JsonSerializer.Serialize(body, body.GetType(), JsonOptions);
             requestHeaders["Content-Type"] = "application/json";
         }
-        return await _request.FetchAsync(endpoint, options);
+        return RetryPolicies.IsIdempotent(method)
+            ? await _retry.ExecuteAsync(async _ => await _request.FetchAsync(endpoint, options))
+            : await _request.FetchAsync(endpoint, options);
     }
 
     private async Task<T?> SendAsync<T>(

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-17: Shared retry and polling (R35)
+
+- New `Core/Resilience` (Polly.Core 8.8.1): `RetryPolicies.TransientHttp` (502/503/504 and network errors; `ApiClient` applies it to idempotent methods only, never POST/PATCH), `RetryPolicies.Navigation` (`net::ERR_*`), `RetryPolicies.Transient` (sync/async, e.g. mobile UI glitches), and `Poll.UntilAsync` for eventually consistent backends. Exponential backoff with jitter; each retry is logged.
+- The hand-written retry loops in `BasePage.GotoAsync` and `MobileBasePage.SafeClick/SafeType` now use these policies. Retry counts are settings (`Resilience.Http/Navigation/UiAction` in testsettings.json and mobilesettings.json).
+
 ## 2026-11-17: Core is domain-agnostic (R34)
 
 - App-specific code moved out of Core into a new **`Domain`** project, keeping `<Layer>/<App>/`: `Domain/Api/RestfulBooker` (auth), `Domain/Models/{RestfulBooker,SauceDemo,Todo}`, `Domain/TestData/{RestfulBooker,SauceDemo,Todo}` (Builders / Object Mothers). Namespaces change from `Core.` to `Domain.`. Core keeps the generic `ApiClient`, `TestDataLoader`, configuration, logging, drivers and `TestRunner`.

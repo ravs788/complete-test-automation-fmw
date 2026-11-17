@@ -35,6 +35,7 @@ Dependencies only point downwards: `Tests` → `Pages` → `Core`.
 - A method that moves to another page returns that page (`Task<CartPage> OpenCartAsync()`). Tests only create entry pages (`new LoginPage(Page)`, `new TodoPage(Page)`) and get every other page from the step before it.
 - Locate elements by test id (`TestId("…")`, from `BasePage`), role, label or placeholder (`GetByRole`, `GetByLabel`, `GetByPlaceholder`), never by CSS class. Set the app's test-id attribute once in its base page (`SauceDemoPage` uses `data-test`; the default is `data-testid`).
 - Prefer Playwright's auto-retrying `Assertions.Expect(...)` over reading values and asserting on them; never add fixed sleeps.
+- For transient failures use `Core.Resilience`: `RetryPolicies` (Polly; transient HTTP for idempotent requests only, navigation, UI actions) and `Poll.UntilAsync(condition, timeout)` for eventually consistent backends. Don't write retry loops or `Thread.Sleep`, and never retry assertions.
 - Wrap every test body in the base class's `RunAsync(...)` / `Run(...)` so it gets logging, Allure timing, failure screenshots and results publishing.
 - Give each test class the same labels:
   - `[AllureParentSuite("API" | "UI Web" | "UI Mobile")]`, `[AllureSuite("<App>")]`, `[AllureSubSuite("<Feature>")]`

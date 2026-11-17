@@ -50,6 +50,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │   Logging/        factories, LogMetadata, LoggingConfig + Provider       │
 │                   Console/ · Elastic/ providers                          │
 │   TestData/       TestDataLoader (JSON)                                  │
+│   Resilience/     RetryPolicies (Polly) · Poll.UntilAsync                │
 │   Testing/        TestRunner + TestRunInfo                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```

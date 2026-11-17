@@ -29,7 +29,8 @@ public abstract class ApiTestBase : IClassFixture<ApiFixture>, IAsyncLifetime
 
     private readonly List<int> _createdBookingIds = [];
 
-    public async Task InitializeAsync() => Client = await ApiClient.CreateAsync(Fixture.Playwright, Api.BaseUrl);
+    public async Task InitializeAsync() =>
+        Client = await ApiClient.CreateAsync(Fixture.Playwright, Api.BaseUrl, Fixture.Settings.Resilience.Http, message => Logger.Info(message));
 
     public async Task DisposeAsync()
     {
