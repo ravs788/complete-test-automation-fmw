@@ -16,11 +16,11 @@ Findings from the 2026-11-18 solution and adapter review (R49–R53), the 2026-1
 | R33 | P2 | Blocked (mobile work deferred) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Blocked (mobile work deferred) | – | [Mobile suite not in CI](#r16) | CI |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
-| R49 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Selenium silently chooses among ambiguous element matches](#r49) | UI / adapter contracts |
-| R50 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Playwright HTTP transport ignores cancellation](#r50) | HTTP / adapter contracts |
-| R51 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [RabbitMQ startup failures leak partially created resources](#r51) | Messaging / cleanup |
-| R52 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Valid duplicate Kafka headers can fault the listener and bypass cleanup](#r52) | Messaging / cleanup |
-| R53 | P3 | Closed | 2026-11-18 · working tree (commit pending) | [Top-level review status and validation summaries are stale](#r53) | Documentation / review ledger |
+| R49 | P2 | Closed | 2026-11-18 · `28b32bf` | [Selenium silently chooses among ambiguous element matches](#r49) | UI / adapter contracts |
+| R50 | P2 | Closed | 2026-11-18 · `28b32bf` | [Playwright HTTP transport ignores cancellation](#r50) | HTTP / adapter contracts |
+| R51 | P2 | Closed | 2026-11-18 · `28b32bf` | [RabbitMQ startup failures leak partially created resources](#r51) | Messaging / cleanup |
+| R52 | P2 | Closed | 2026-11-18 · `28b32bf` | [Valid duplicate Kafka headers can fault the listener and bypass cleanup](#r52) | Messaging / cleanup |
+| R53 | P3 | Closed | 2026-11-18 · `28b32bf` | [Top-level review status and validation summaries are stale](#r53) | Documentation / review ledger |
 | R46 | P3 | Closed | 2026-11-17 · `70afeff` | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
 | R48 | P4 | Closed | 2026-11-17 · `70afeff` | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
 | R47 | P4 | Closed | 2026-11-17 · `1d6fdec` | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
@@ -91,7 +91,7 @@ At the user's request, **R16, R32 and R33 are Blocked (mobile work deferred)** u
 | Closed in earlier reviews | R1–R15, R17–R31, R34–R35, R37–R48 | 44 |
 | Total | R1–R53 | 53 |
 
-R49–R53 are fixed and verified in the working tree on `fix/framework-adapter-contracts`, based on `a45b1d7`; no commit or PR has been created for this fix pass. R25 is closed, as recorded by its existing finding. Mobile work remains blocked until the user resumes it; no mobile tests or CI changes were made in this pass. R36 still requires a real vault/identity; KEYVAULT_URI is not configured.
+R49–R53 are fixed and verified in `28b32bf` on `fix/framework-adapter-contracts`, based on `a45b1d7`; no PR has been created for this fix pass. R25 is closed, as recorded by its existing finding. Mobile work remains blocked until the user resumes it; no mobile tests or CI changes were made in this pass. R36 still requires a real vault/identity; KEYVAULT_URI is not configured.
 
 **Current validation:** Full solution build passed with warnings treated as errors (0 warnings, 0 errors). The final framework suite passed **191 tests, 0 failed, 2 skipped** (193 total); the skipped cases require live Kafka/RabbitMQ brokers. Controlled vendor-interface tests cover the new broker failure paths without external services. The shared UI suite passed **28 tests, 0 failed, 0 skipped** against Playwright and Selenium in headed Chrome, and fixture cleanup closed its owned browsers. Shell/.NET execution used the user's earlier explicit verification exception. `git diff --check` passed.
 
@@ -194,7 +194,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r49"></a>
 ### R49. Selenium silently chooses among ambiguous element matches
 
-- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Status:** Closed, 2026-11-18, verified and committed in `28b32bf` on `fix/framework-adapter-contracts`.
 - **Implementation:** Selenium now requires an unambiguous match before checking enabled/visible state. Single-element actions, text/visibility reads and scalar assertions reject multiple matches; collection operations and explicit First remain supported. The contract is documented in IElement/IElementAssertions.
 - **Where:** `Core/Ui/Selenium/WebDriverElement.cs:85` (`ActAsync`); compare `Core/Ui/Playwright/PlaywrightElement.cs:20`.
 - **Original problem:** When a locator matches multiple actionable elements, the Selenium adapter chooses the first displayed/enabled candidate. The Playwright adapter delegates to a strict locator and rejects ambiguous action targets. Switching the configured driver can therefore turn a selector error into a click or fill on an unintended element. The shared UI contract does not make this difference explicit, and the current contract suite does not exercise ambiguous matches.
@@ -205,7 +205,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r50"></a>
 ### R50. Playwright HTTP transport ignores cancellation
 
-- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Status:** Closed, 2026-11-18, verified and committed in `28b32bf` on `fix/framework-adapter-contracts`.
 - **Implementation:** Playwright HTTP requests now own independent native request contexts. Pre-cancelled tokens are checked before context/request creation; in-flight cancellation aborts and drains the owned native operation. Disposing a transport cancels its active contexts without poisoning another request or later reuse after per-request cancellation. Default headers are snapshotted; implicit cookie jars are not retained, matching HttpClientTransport.
 - **Where:** `Core/Http/Playwright/PlaywrightHttpTransport.cs:8` (`SendAsync`); compare `Core/Http/IHttpTransport.cs` and `Core/Http/HttpClientTransport.cs`.
 - **Original problem:** The Playwright implementation accepts a CancellationToken but never checks or observes it. A request can reach the server even when its token is already cancelled, and cancellation during a request does not interrupt the operation. HttpClientTransport passes the token to send/body-reading operations, so cancellation behavior changes when the transport provider is switched.
@@ -215,7 +215,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r51"></a>
 ### R51. RabbitMQ startup failures leak partially created resources
 
-- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Status:** Closed, 2026-11-18, verified and committed in `28b32bf` on `fix/framework-adapter-contracts`.
 - **Implementation:** RabbitMQ startup retains ownership of partial resources and disposes them on every startup exception. Cleanup independently attempts channel close/dispose and connection close/dispose, preserving the first error; startup cleanup cannot mask the original startup exception.
 - **Where:** `Core/Messaging/RabbitMq/RabbitMqListener.cs:36` (`StartAsync`) and `:64` (`DisposeAsync`).
 - **Original problem:** The connection, channel and temporary queue are acquired before startup completes, with no failure cleanup. If channel creation, queue declaration/binding or BasicConsumeAsync fails (for example, a missing exchange causes binding to fail), StartAsync throws without returning a listener the caller can dispose. The connection and any surviving exclusive queue can remain allocated. During normal disposal, a channel-close exception also skips connection cleanup.
@@ -225,7 +225,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r52"></a>
 ### R52. Valid duplicate Kafka headers can fault the listener and bypass cleanup
 
-- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Status:** Closed, 2026-11-18, verified and committed in `28b32bf` on `fix/framework-adapter-contracts`.
 - **Implementation:** Kafka repeated header keys use an explicitly documented last-value-wins projection; null values become empty strings. Fatal consumption errors are observable through Completion and WaitForAsync. Dispose always attempts consumer close/dispose and cancellation-source disposal even when the worker or close operation fails, preserving the first failure.
 - **Where:** `Core/Messaging/Kafka/KafkaListener.cs:90` (`ConsumeLoop`) and `:103` (`DisposeAsync`); `Core/Messaging/ReceivedMessage.cs`.
 - **Original problem:** Kafka allows repeated header keys, but the listener converts headers directly with ToDictionary. A message with duplicate keys throws ArgumentException, which the KafkaException catch does not handle, terminating the background loop. DisposeAsync then awaits the faulted loop before closing/disposing the consumer and cancellation source, so cleanup is skipped as well. Existing integration coverage uses only a single unique header.
@@ -352,7 +352,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r53"></a>
 ### R53. Top-level review status and validation summaries are stale
 
-- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Status:** Closed, 2026-11-18, verified and committed in `28b32bf` on `fix/framework-adapter-contracts`.
 - **Implementation:** Added a current November 18 status/validation summary reconciled with all 53 finding rows and details. Renamed the old November 16 sections as historical status/coverage snapshots, preserved their original evidence, and recorded the current native test scope separately.
 - **Where:** `docs/REVIEW.md`, sections `Current state — 2026-11-16` and `Coverage state — 2026-11-16`; compare the findings table and individual R25, R32, R33 and R36 entries.
 - **Original problem:** The top-level summary still describes the November 16 state, including R25 awaiting its first Windows run and a 30-finding status breakdown. Before this review, the ledger already contained 48 findings and marked R25 closed. The dated 37-test result is valid historical evidence, but presenting these snapshots as current obscures newer implementation and verification states.
