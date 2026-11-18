@@ -2,9 +2,11 @@
 
 ## Reviews before committing
 
-A request to commit automatically triggers all five skills before Git creates the commit; no separate review request is needed.
+A request to commit automatically triggers all six skills before Git creates the commit; no separate review request is needed.
 
-Follow the [required pre-commit reviews](../AGENTS.md#required-reviews-before-every-commit) on every branch: code, tests, coverage, documentation, and test modernization. Review the staged changes, complete the skills' applicable workflows, and report the outcomes and any remaining findings before the commit handoff. See AGENTS.md for scope, evidence, and exceptions.
+Follow the [required pre-commit reviews](../AGENTS.md#required-reviews-before-every-commit) on every branch: code, tests, coverage, documentation, test modernization, and security. Review the staged changes, complete the skills' applicable workflows, and report the outcomes and any remaining findings before the commit handoff. See AGENTS.md for scope, evidence, and exceptions.
+
+Every standalone or pre-commit use of these skills must record substantive findings and actionable recommendations in [REVIEW.md](REVIEW.md), including items fixed during the review. Reuse existing IDs, identify the originating skills and verification limits, and distinguish defects from optional suggestions. Record no-findings/not-applicable outcomes in a dated summary. See [required review records](../AGENTS.md#required-review-records).
 
 ## Where things go
 

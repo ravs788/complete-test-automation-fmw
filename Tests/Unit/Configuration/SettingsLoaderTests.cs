@@ -1,4 +1,6 @@
+using Core.Composition;
 using Core.Configuration;
+using Core.Security;
 
 namespace Tests.Unit.Configuration;
 
@@ -21,6 +23,18 @@ public sealed class SettingsLoaderTests : IDisposable
     public sealed record Section
     {
         public string Url { get; init; } = "default-url";
+    }
+
+    [Fact]
+    public void ProviderNames_Should_RemainReadable_InDiagnostics()
+    {
+        var name = $"provider-{Guid.NewGuid():N}";
+        WriteJson($$"""{ "Secrets": ["{{name}}"] }""");
+
+        var settings = SettingsLoader.Load<ProvidersSettings>(_dir, "settings.json", _prefix);
+
+        Assert.Equal(name, Assert.Single(settings.Secrets));
+        Assert.Equal(name, DiagnosticRedactor.Redact(name));
     }
 
     [Fact]

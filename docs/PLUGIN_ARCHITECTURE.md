@@ -163,3 +163,7 @@ Role locators use case-insensitive accessible-name substring matching and exclud
 HTTP base URLs are directory paths: both transports append a trailing slash when missing. For example, base `https://host/api` plus `items` resolves to `https://host/api/items`. A root-relative endpoint replaces the base path, and an absolute endpoint replaces the base URL.
 
 Database helpers own a connection until successful handoff. Setup failures dispose acquired connections; scope disposal attempts rollback, transaction disposal and connection disposal independently, preserving the first failure.
+
+### Security guarantees
+
+HTTP transports must return redirects without automatically forwarding request headers/bodies; callers own any explicitly authorized follow-up request. Logging/reporting providers must use sanitized diagnostic text and metadata, and built-in reporters honor `DiagnosticArtifactPolicy`. Shared web infrastructure suppresses captures before collection in restricted mode. See [security controls](SECURITY.md) for scope and limits; binary artifacts are not text-redacted.

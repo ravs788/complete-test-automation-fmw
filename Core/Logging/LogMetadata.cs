@@ -1,3 +1,5 @@
+using Core.Security;
+
 namespace Core.Logging;
 
 public sealed record LogMetadata
@@ -14,4 +16,18 @@ public sealed record LogMetadata
     public string Browser { get; init; } = string.Empty;
     public DateTime? StartTime { get; init; }
     public DateTime? EndTime { get; init; }
+    /// <summary>A copy safe for framework diagnostic sinks.</summary>
+    public LogMetadata Redacted() => this with
+    {
+        ProjectName = DiagnosticRedactor.Redact(ProjectName),
+        TestClassName = DiagnosticRedactor.Redact(TestClassName),
+        TestMethodName = DiagnosticRedactor.Redact(TestMethodName),
+        Status = DiagnosticRedactor.Redact(Status),
+        Duration = DiagnosticRedactor.Redact(Duration),
+        Reason = DiagnosticRedactor.Redact(Reason),
+        RunTime = DiagnosticRedactor.Redact(RunTime),
+        RunName = DiagnosticRedactor.Redact(RunName),
+        TriggeredBy = DiagnosticRedactor.Redact(TriggeredBy),
+        Browser = DiagnosticRedactor.Redact(Browser),
+    };
 }

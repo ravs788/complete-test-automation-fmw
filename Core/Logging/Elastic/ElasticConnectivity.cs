@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Core.Security;
 using Elastic.Transport;
 using HttpMethod = Elastic.Transport.HttpMethod;
 
@@ -101,7 +102,7 @@ public static class ElasticConnectivity
         }
         catch (Exception ex)
         {
-            return ElasticProbeResult.NotUsable($"unreachable at {connection.Url} ({ex.GetType().Name}: {ex.Message})");
+            return ElasticProbeResult.NotUsable(DiagnosticRedactor.Redact($"unreachable at {connection.Url} ({ex.GetType().Name}: {ex.Message})"));
         }
     }
 }

@@ -1,3 +1,4 @@
+using Core.Security;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 
@@ -28,6 +29,16 @@ public static class ElasticClientFactory
     public static ElasticsearchClient Create(ElasticServerChoices serverChoice, LoggingConfig config, TimeSpan? requestTimeout = null)
     {
         var elastic = config.Elastic;
+        var endpoint = new Uri(ResolveUrl(serverChoice, config) ?? "http://localhost:9200");
+        if (endpoint.Scheme is not ("http" or "https") || (!endpoint.IsLoopback && endpoint.Scheme != "https"))
+        {
+            throw new InvalidOperationException("Remote Elasticsearch endpoints require HTTPS; HTTP is allowed only for loopback development.");
+        }
+        if (!string.IsNullOrEmpty(endpoint.UserInfo))
+        {
+            throw new InvalidOperationException("Supply Elasticsearch credentials through secret settings, not URL user information.");
+        }
+        DiagnosticRedactor.RegisterSecret(elastic.Password);
         var settings = serverChoice switch
         {
             ElasticServerChoices.ON_CLOUD => new ElasticsearchClientSettings(new Uri(

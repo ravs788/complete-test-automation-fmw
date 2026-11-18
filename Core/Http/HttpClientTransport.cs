@@ -11,7 +11,7 @@ public sealed class HttpClientTransport : IHttpTransport
     public HttpClientTransport(string baseUrl, IReadOnlyDictionary<string, string> defaultHeaders)
     {
         // Cookies are sent as request headers (e.g. Restful Booker's token), so the handler must not manage its own.
-        _client = new HttpClient(new HttpClientHandler { UseCookies = false })
+        _client = new HttpClient(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false })
         {
             BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/"),
         };

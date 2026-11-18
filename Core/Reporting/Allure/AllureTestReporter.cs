@@ -1,4 +1,5 @@
 using Allure.Net.Commons;
+using Core.Security;
 
 namespace Core.Reporting.Allure;
 
@@ -29,14 +30,19 @@ public sealed class AllureTestReporter : ITestReporter
         });
 
     public void AddParameter(string name, string value) =>
-        TryUpdateTestCase(tc => tc.parameters.Add(new Parameter { name = name, value = value }));
+        TryUpdateTestCase(tc => tc.parameters.Add(new Parameter { name = name, value = DiagnosticRedactor.Redact(value) }));
 
-    public void Attach(string name, string contentType, byte[] content, string fileExtension) =>
-        AllureApi.AddAttachment(name, contentType, content, fileExtension);
+    public void Attach(string name, string contentType, byte[] content, string fileExtension)
+    {
+        if (DiagnosticArtifactPolicy.Current.AllowAttachments)
+        {
+            AllureApi.AddAttachment(DiagnosticRedactor.Redact(name), contentType, content, fileExtension);
+        }
+    }
 
-    public void Step(string name, Action body) => AllureApi.Step(name, body);
+    public void Step(string name, Action body) => AllureApi.Step(DiagnosticRedactor.Redact(name), () => RedactedTestException.Run(body));
 
-    public Task StepAsync(string name, Func<Task> body) => AllureApi.Step(name, body);
+    public Task StepAsync(string name, Func<Task> body) => AllureApi.Step(DiagnosticRedactor.Redact(name), () => RedactedTestException.RunAsync(body));
 
     private static void TryUpdateTestCase(Action<TestResult> update)
     {

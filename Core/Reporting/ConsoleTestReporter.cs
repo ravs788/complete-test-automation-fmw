@@ -1,3 +1,5 @@
+using Core.Security;
+
 namespace Core.Reporting;
 
 /// <summary>
@@ -22,18 +24,23 @@ public sealed class ConsoleTestReporter : ITestReporter
     {
     }
 
-    public void Attach(string name, string contentType, byte[] content, string fileExtension) =>
-        System.Console.WriteLine($"[Report] '{name}' ({contentType}, {content.Length} bytes) not kept: console reporter");
+    public void Attach(string name, string contentType, byte[] content, string fileExtension)
+    {
+        if (DiagnosticArtifactPolicy.Current.AllowAttachments)
+        {
+            System.Console.WriteLine(DiagnosticRedactor.Redact($"[Report] '{name}' ({contentType}, {content.Length} bytes) not kept: console reporter"));
+        }
+    }
 
     public void Step(string name, Action body)
     {
-        System.Console.WriteLine($"[Step] {name}");
+        System.Console.WriteLine(DiagnosticRedactor.Redact($"[Step] {name}"));
         body();
     }
 
     public async Task StepAsync(string name, Func<Task> body)
     {
-        System.Console.WriteLine($"[Step] {name}");
+        System.Console.WriteLine(DiagnosticRedactor.Redact($"[Step] {name}"));
         await body();
     }
 }

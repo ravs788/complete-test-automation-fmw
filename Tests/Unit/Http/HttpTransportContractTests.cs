@@ -85,6 +85,42 @@ public abstract class HttpTransportContractTests : IDisposable
         Assert.Equal("/absolute/echo", Echo(response)["path"]);
     }
 
+    [Theory]
+    [InlineData(301, "GET")]
+    [InlineData(302, "GET")]
+    [InlineData(303, "POST")]
+    [InlineData(307, "POST")]
+    [InlineData(308, "PUT")]
+    public async Task CrossOriginRedirect_Should_NotForwardCredentialsOrBody(int status, string method)
+    {
+        using var destination = new LoopbackHttpServer();
+        _server.Redirects["/redirect"] = (status, destination.BaseUrl + "echo");
+        var secrets = new Dictionary<string, string>
+        {
+            ["Cookie"] = "token=synthetic-cookie",
+            ["Authorization"] = "Bearer synthetic-auth",
+            ["X-Api-Key"] = "synthetic-key"
+        };
+        await using var transport = await CreateFactory().CreateAsync(_server.BaseUrl, secrets);
+        var response = await transport.SendAsync(new HttpRequestData(method, "redirect", secrets, "synthetic-body"));
+        Assert.Equal(status, response.Status);
+        Assert.Equal(destination.BaseUrl + "echo", response.Headers["location"]);
+        Assert.Empty(destination.RequestPaths);
+        Assert.Equal(["/redirect"], _server.RequestPaths.ToArray());
+    }
+
+    [Theory]
+    [InlineData("/echo")]
+    [InlineData("/redirect")]
+    public async Task SameOriginRedirect_OrLoop_Should_ReturnTheFirstResponse(string target)
+    {
+        _server.Redirects["/redirect"] = (302, target);
+        await using var transport = await TransportAsync();
+        var response = await transport.SendAsync(new HttpRequestData("GET", "redirect", NoHeaders));
+        Assert.Equal(302, response.Status);
+        Assert.Equal(["/redirect"], _server.RequestPaths.ToArray());
+    }
+
     [Fact]
     public async Task NonSuccess_Should_BeReturned_NotThrown()
     {

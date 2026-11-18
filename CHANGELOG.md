@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-18: Security controls for endpoints and diagnostics (R61–R65)
+
+- Bind the unauthenticated development logging stack to loopback and reject remote plaintext Elastic endpoints/URL credentials before connection setup.
+- Disable automatic HTTP redirects in both transports; return the first 3xx response without replaying credentials or request bodies.
+- Redact credential-bearing diagnostic messages/metadata and sanitize secret-bearing failures before the native host/report step records them.
+- Add restricted capture/attachment mode and web-job diagnostic publication parameters. Document scope, external access/retention verification and the unchanged deferred mobile job.
+
 ## 2026-11-18: Database and provider failure contracts (R54–R59)
 
 - Database setup failures release acquired connections; scope cleanup attempts every owned resource while preserving the first failure. Added injected-failure regressions alongside the existing SQLite checks.
