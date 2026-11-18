@@ -13,10 +13,13 @@ public class BookingApiPostTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public Task NewBooking_Should_BeCreated() => RunAsync(async () =>
     {
+        // Arrange
         var newBooking = BookingMother.Standard(); // unique last name, so the shared demo API never sees a duplicate
 
+        // Act
         var created = await CreateBookingAsync(newBooking);
 
+        // Assert
         Report.Step("Assert booking creation response", () =>
         {
             Assert.True(created.BookingId > 0, "Response missing bookingid");

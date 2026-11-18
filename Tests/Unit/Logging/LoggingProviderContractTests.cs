@@ -21,6 +21,8 @@ public abstract class LoggingProviderContractTests
     [Fact]
     public void Logger_Should_BeCreated_OrDeclined_WithAReason()
     {
+        // Arrange: use the provider and configuration supplied by the contract implementation.
+        // Act: try to create the provider and exercise it if available.
         if (Loggers.TryCreate(Config, "contract-logs-{0:yyyy.MM.dd}", out var logger, out var reason))
         {
             logger.Info("contract info");
@@ -29,21 +31,29 @@ public abstract class LoggingProviderContractTests
         }
         else
         {
+            // Assert: an unavailable provider explains why it declined creation.
             Assert.False(string.IsNullOrWhiteSpace(reason));
         }
+
+        // Assert: an available provider completes its operations without throwing.
     }
 
     [Fact]
     public void Publisher_Should_BeCreated_OrDeclined_WithAReason()
     {
+        // Arrange: use the provider and configuration supplied by the contract implementation.
+        // Act: try to create the provider and exercise it if available.
         if (Publishers.TryCreate(Config, out var publisher, out var reason))
         {
             publisher.Publish(new LogMetadata { ProjectName = "contract", TestMethodName = "Publisher", Status = "Passed" });
         }
         else
         {
+            // Assert: an unavailable provider explains why it declined creation.
             Assert.False(string.IsNullOrWhiteSpace(reason));
         }
+
+        // Assert: an available provider completes its operations without throwing.
     }
 }
 

@@ -20,14 +20,17 @@ public class TestRunnerTests
     [Fact]
     public async Task RunAsync_Should_RunCleanup_And_NotCallOnFailure_When_BodyPasses()
     {
+        // Arrange
         var logger = new RecordingLogger();
         var failed = false;
         var cleaned = false;
 
+        // Act
         await TestRunner.RunAsync(Info(logger), () => Task.CompletedTask,
             onFailureAsync: () => { failed = true; return Task.CompletedTask; },
             cleanupAsync: () => { cleaned = true; return Task.CompletedTask; });
 
+        // Assert
         Assert.False(failed);
         Assert.True(cleaned);
         Assert.Contains(logger.Lines, l => l.StartsWith("INFO [Finish]") && l.Contains("Outcome: Passed"));
@@ -36,15 +39,18 @@ public class TestRunnerTests
     [Fact]
     public async Task RunAsync_Should_CallOnFailure_RunCleanup_And_Rethrow_When_BodyThrows()
     {
+        // Arrange
         var logger = new RecordingLogger();
         var failed = false;
         var cleaned = false;
 
+        // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => TestRunner.RunAsync(Info(logger),
             () => throw new InvalidOperationException("boom"),
             onFailureAsync: () => { failed = true; return Task.CompletedTask; },
             cleanupAsync: () => { cleaned = true; return Task.CompletedTask; }));
 
+        // Assert: failure details and lifecycle callbacks are preserved.
         Assert.Equal("boom", ex.Message);
         Assert.True(failed);
         Assert.True(cleaned);
@@ -54,10 +60,13 @@ public class TestRunnerTests
     [Fact]
     public async Task RunAsync_Should_KeepTheOriginalError_When_OnFailureThrows()
     {
+        // Arrange: supply a failing body and a failure handler that also throws.
+        // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => TestRunner.RunAsync(Info(new RecordingLogger()),
             () => throw new InvalidOperationException("original"),
             onFailureAsync: () => throw new IOException("screenshot failed")));
 
+        // Assert: the body failure remains the reported error.
         Assert.Equal("original", ex.Message);
     }
 }

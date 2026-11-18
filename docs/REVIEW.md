@@ -21,9 +21,9 @@ Findings from the 2026-11-18 security review (R61–R65), the owner-requested fa
 | R60 | P3 | Open | – | [Move scenario orchestration from page objects to a facade workflow API](#r60) | Architecture / test design |
 | R65 | P3 | Implemented (verification pending) | – | [Define an artifact sensitivity and publication policy](#r65) | Security hardening / diagnostics |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
-| R62 | P2 | Closed | 2026-11-18 · this commit | [Diagnostic sinks expose credential-bearing URLs and exception messages](#r62) | Security / logging |
-| R63 | P2 | Closed | 2026-11-18 · this commit | [Remote Elastic endpoints accept Basic credentials over HTTP](#r63) | Security / transport |
-| R64 | P2 | Closed | 2026-11-18 · this commit | [Manual authentication headers can cross redirect destinations](#r64) | Security / HTTP adapters |
+| R62 | P2 | Closed | 2026-11-18 · `3b2d62a` | [Diagnostic sinks expose credential-bearing URLs and exception messages](#r62) | Security / logging |
+| R63 | P2 | Closed | 2026-11-18 · `3b2d62a` | [Remote Elastic endpoints accept Basic credentials over HTTP](#r63) | Security / transport |
+| R64 | P2 | Closed | 2026-11-18 · `3b2d62a` | [Manual authentication headers can cross redirect destinations](#r64) | Security / HTTP adapters |
 | R54 | P2 | Closed | 2026-11-18 · `572cad6` | [Database setup and disposal failures can leak connections](#r54) | Data / cleanup |
 | R55 | P2 | Closed | 2026-11-18 · `572cad6` | [Selenium role locators differ from Playwright semantics](#r55) | UI / adapter contracts |
 | R56 | P2 | Closed | 2026-11-18 · `572cad6` | [Selenium CheckAsync can succeed without checking the element](#r56) | UI / adapter contracts |
@@ -101,7 +101,7 @@ At the user's request, **R16, R32 and R33 are Blocked (mobile work deferred)** u
 | Open; facade workflow migration recommendation | R60 | 1 |
 | Blocked at user request; mobile work deferred | R16, R32, R33 | 3 |
 | Implemented; live Key Vault, RabbitMQ, Docker isolation and Azure policy verification pending | R36, R58, R61, R65 | 4 |
-| Closed; verified security changes in this commit | R62–R64 | 3 |
+| Closed; verified security changes in `3b2d62a` | R62–R64 | 3 |
 | Closed in the R54–R59 fix pass | R54–R57, R59 | 5 |
 | Closed after the earlier framework fix pass | R49–R53 | 5 |
 | Closed in earlier reviews | R1–R15, R17–R31, R34–R35, R37–R48 | 44 |
@@ -203,7 +203,7 @@ Modernization sources checked live for this commit: [Selenium computed accessibi
 
 ## Security fixes and verification — 2026-11-18
 
-- **Branch / scope:** `fix/security-r61-r65`, created from latest `origin/main` at `758bab4`. The uncommitted six-skill/ledger rules and R60 facade recommendation were carried over. R60 is still open; this pass addresses R61–R65 and does not resume mobile work. The security fixes are included in this commit; use this section's Git history for its commit ID.
+- **Branch / scope:** `fix/security-r61-r65`, created from latest `origin/main` at `758bab4`. The uncommitted six-skill/ledger rules and R60 facade recommendation were carried over. R60 is still open; this pass addresses R61–R65 and does not resume mobile work. The security fixes were committed in `3b2d62a` and merged into main in `c788c61`.
 - **Implementation:** Local development port bindings are explicit loopback; remote Elastic connections require HTTPS; HTTP redirects are returned without network replay; framework diagnostics are redacted at sinks/report/error boundaries; sensitive web captures and web CI publishing can be suppressed independently. [Security controls](SECURITY.md) documents intentional behavior changes, scope and operational prerequisites.
 - **Build / tests:** The full CI solution build passes with warnings as errors (zero warnings/errors). The initial framework regression passed **252**, skipped **2** live broker cases, failed **0**; the final run, including actual serialized Elastic payload verification, passed **253**, skipped **2**, failed **0** (255 total). The shared headed Chrome UI contracts passed **44/44**. Native execution used the user's existing shell/.NET verification authorization; synthetic security checks targeted only controlled loopback/data pages.
 - **Controlled failure evidence:** The isolated headed harness exercised the actual UiTestBase and real Allure writer. Standard mode captured a screenshot and trace; restricted mode collected neither. Both modes disposed owned sessions and browsers. Allure attachment counts were standard=1, restricted=0, and both error JSON records omitted synthetic canaries. The harness first found an unstarted-trace cleanup edge case, fixed by tracking trace startup. Its next attempt assumed Allure filenames followed case UUIDs; correcting only that harness assumption allowed final checks to pass. Generated harness/evidence are ignored, not new production dependencies.
@@ -239,6 +239,45 @@ Modernization sources checked live for this commit: [Selenium computed accessibi
 **Final commit checks:** The post-review full solution build passed with zero warnings/errors. Fresh settings/redaction tests passed **22/22**, including both new regressions. The earlier **253-pass / 2-skip** framework run, **44/44** headed UI contract result and controlled standard/restricted failure checks are reused for unchanged behavior; they were not rerun as part of this commit review. Formatting completed for the follow-up C# files; whitespace, local file targets and ledger IDs/counts were checked. No current security-diff coverage percentage is available.
 
 **Sequence / stop conditions:** Commit the locally verified fixes and their limits; complete R61's Docker and R65's Azure acceptance checks when those environments are available. Preserve the current policy if a proposed expansion cannot prove credential isolation, capture suppression and trustworthy test failures. No broader modernization or mobile work is authorized by this review.
+
+## Commit-specific six-skill review — 2026-11-18 (AAA comments)
+
+**Scope:** Staged changes against `c788c61` on `main`: Arrange, Act and Assert comments in all **177 test methods across 52 C# files**, plus this ledger update. Reviewed the staged diff and relevant test bodies, web/mobile/API bases, browser fixture, shared contract fixtures, project/package/build files, solution filter and CI suite/coverage wiring. No executable code, assertion, test name, test data, dependency or pipeline changes are intended. Combined action/assertion expressions retain an explicit `Act & Assert` label; intermediate checks and cleanup are identified without moving statements.
+
+| Skill | Outcome | Evidence / limits |
+|---|---|---|
+| Code review | No new correctness, compatibility or security defect identified in the changed scope. | C# syntax/token comparison verifies unchanged executable tokens; session ownership, callbacks, configuration and dependency boundaries are untouched. |
+| Test review | No new assertion, isolation, synchronization or cleanup defect introduced. | Traced representative scenario, unit, exception, shared-contract and integration patterns. Comments preserve setup supplied by fixtures and existing intermediate assertions. All 177 methods have phase annotations; this is static evidence, not test execution. |
+| Coverage review | No changed runtime behavior requiring additional tests; no new scenario gap identified for this comment-only change. | One historical Cobertura report exists under `artifacts/review-r54-r59-2026-11-18/`; it predates the security fixes and has no current-diff coverage value. No measured percentage claimed or fresh instrumentation performed. |
+| Documentation review | Comments agree with the inspected actions and assertions. Replaced ambiguous historical security-fix references with `3b2d62a` so this commit does not appear to implement R61–R65. | Checked this ledger's stable finding IDs, detail anchors and counts; the historical commit is present locally. Existing documentation and setup instructions are otherwise unchanged. |
+| Test modernization | Retain the current framework and explicit AAA comments; no migration or new tool is warranted by this change. | Current primary-source research and the scoped comparison below support a readability improvement without altering test execution. |
+| Security review | No new security weakness identified in the staged comments/ledger. | Inspected added text for sensitive values and checked unchanged code tokens and manifests. This is not a new dependency audit, external scan or compliance assessment; applicability is recorded below. |
+
+**Coverage / behavior matrix:**
+
+| Behavior or risk | Evidence | Gap / smallest useful check |
+|---|---|---|
+| Test phase readability | All 177 Fact/Theory/custom-Fact method bodies are annotated; representative nested and combined phases inspected. | None identified for this change; check phase accuracy when behavior is changed later. |
+| Assertions and execution order | Syntax/token equality against the pre-change source, including attributes and literal values. | No new runtime scenario; no additional test needed for comments. |
+| Whole-framework coverage and live integrations | Historical reports and existing R36/R58/R61/R65 acceptance criteria. | Unchanged pending checks remain; this commit does not close them or establish current measured coverage. |
+
+**Modernization comparison and sequence:** Research checked live on **2026-11-18** against [Microsoft's .NET unit-testing guidance](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices#arrange-your-tests), which describes AAA as a readability aid. The installed .NET 10 / xUnit 2.9.3 / runner 2.8.2 / Playwright 1.64.1 package selections are unchanged; no upgrade or support-status claim is made.
+
+| Current approach | Alternative / decision | Benefit, effort/risk and acceptance |
+|---|---|---|
+| Existing assertions and workflows with explicit phase comments | **Retain** instead of extracting/reordering every inline assertion solely for three visually separate sections. | Makes intent visible with low implementation risk; acceptance is phase annotation completeness and unchanged C# tokens. |
+| Existing shared contracts, page objects and fixtures | **Retain** for this commit; R60 remains the separately tracked facade recommendation. | No new migration or pilot follows from comments. First commit the annotated tests; reconsider structure only in authorized behavior/design work. Stop and reassess if a proposed comment edit requires changing execution. |
+
+**Security control applicability:** The relevant changed asset is source documentation. [OWASP logging guidance](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html#data-to-exclude), checked live on **2026-11-18**, supports excluding sensitive values from diagnostic text; no standard control ID or compliance mapping is asserted here.
+
+| Control / boundary | Outcome | Evidence / next check |
+|---|---|---|
+| Sensitive data in added source comments and review text | No issue identified in inspected additions. | Phase descriptions introduce no credentials, tokens or payload dumps. Existing diagnostic test canaries and data are unchanged. |
+| HTTP/TLS, secret resolution, SQL/process inputs, session cleanup and artifact capture | No behavior change; controls not re-certified. | Identical C# tokens and no configuration changes. Existing R61/R65 environment acceptance checks remain pending. |
+| Dependencies, package provenance and current advisories | No dependency changes; fresh advisory scan not performed. | Project and central package manifests are unchanged. No claim that dependencies are currently vulnerability-free. |
+| Effective CI identity permissions, artifact readers/retention and live services | Not verified; outside this local comment change. | R36/R58/R61/R65 remain verification pending; mobile R16/R32/R33 remain blocked. Server-side application authentication controls are not applicable to these comments. |
+
+**Verification and residual state:** Static C# syntax/token and annotation checks passed for 177 methods in 52 files; whitespace checks passed. `dotnet format TestAutomationPlatform.slnx --no-restore --include Tests` completed successfully (the initial sandbox attempt could not bind its build-host pipe; the permitted retry succeeded). Final staged consistency checks confirm the same comments-only C# scope and valid ledger links, IDs and counts. No tests were executed for this comment-only change, and prior test passes are not presented as a fresh run. Native xUnit/coverage execution is unnecessary for unchanged code and was not substituted with browser checks. No new R-number is warranted: **65 total findings, 57 closed, 1 open (R60), 3 mobile-blocked and 4 verification-pending**, unchanged by this review.
 
 ## Historical status snapshot — 2026-11-16
 
@@ -335,7 +374,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r61"></a>
 ### R61. Local logging stack publishes unauthenticated ports beyond loopback
 
-- **Status / type:** Implemented (verification pending), 2026-11-18; security fixes in this commit on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
+- **Status / type:** Implemented (verification pending), 2026-11-18; security fixes in `3b2d62a` on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
 - **Implementation:** Compose now explicitly binds both ports to 127.0.0.1. Parsed YAML asserts the exact Elasticsearch/Kibana bindings.
 - **Verification / remaining checks:** Docker is unavailable here. Verify the resolved Compose configuration and localhost/authorized second-host connectivity on a Docker-capable host before closing.
 - **Where:** `docker-compose.yml:14`, `:23` and `:36`.
@@ -348,7 +387,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r62"></a>
 ### R62. Diagnostic sinks expose credential-bearing URLs and exception messages
 
-- **Status / type:** Closed, 2026-11-18; security fixes in this commit on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
+- **Status / type:** Closed, 2026-11-18; security fixes in `3b2d62a` on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
 - **Implementation:** Added DiagnosticRedactor for URI user information, query values, fragments, common credential fields/headers and registered configuration secrets. API errors, fallback reasons, console/Elastic messages and metadata, report-step failures and native host failure boundaries sanitize diagnostics. Secret-bearing failures have no raw inner exception; requests/responses are not altered.
 - **Commit-review follow-up (`code-review`, `security-review`, `test-review`):** Register values at the secret-provider resolution boundary even when the destination key is ordinary; avoid classifying provider-list names as secret values. Added two regressions.
 - **Verification / remaining checks:** Synthetic-canary unit tests passed for URI/JSON/header/registered-secret redaction, idempotence, metadata and the host failure. Controlled headed failures showed sanitized console output, and real Allure result JSON omitted the canary in standard/restricted modes. The final 253-pass framework run also verified the actual serialized Elastic request payload excludes synthetic secrets.
@@ -362,7 +401,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r63"></a>
 ### R63. Remote Elastic endpoints accept Basic credentials over HTTP
 
-- **Status / type:** Closed, 2026-11-18; security fixes in this commit on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
+- **Status / type:** Closed, 2026-11-18; security fixes in `3b2d62a` on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
 - **Implementation:** ElasticClientFactory rejects non-HTTPS remote endpoints before constructing a client and rejects URL user information. HTTP remains allowed on loopback; ordinary HTTPS/fingerprint validation remains intact.
 - **Verification / remaining checks:** Constructor tests passed for rejected remote HTTP (cloud and default insecure profiles), rejected URL credentials and accepted loopback HTTP/remote HTTPS configuration; existing TLS tests passed in the framework run. No real remote endpoint was contacted.
 - **Where:** `Core/Logging/Elastic/ElasticClientFactory.cs:33`, `:38` and `:49`; `Core/Logging/Elastic/ElasticConnectivity.cs:97` uses the same factory for its startup probe.
@@ -375,7 +414,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r64"></a>
 ### R64. Manual authentication headers can cross redirect destinations
 
-- **Status / type:** Closed, 2026-11-18; security fixes in this commit on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
+- **Status / type:** Closed, 2026-11-18; security fixes in `3b2d62a` on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
 - **Implementation:** HttpClient AllowAutoRedirect=false and Playwright MaxRedirects=0 return the first 3xx response. The common contract/security guide documents the explicit policy for same-origin requests as well.
 - **Verification / remaining checks:** Fourteen shared loopback redirect cases passed across both adapters: 301/302/303/307/308, manual Cookie/Authorization/custom key headers in defaults and requests, synthetic bodies, same-origin targets and loops. No request reached the second origin.
 - **Where:** `Domain/Api/RestfulBooker/AuthClient.cs:20`; `Core/Http/HttpClientTransport.cs:14` and `:34`; `Core/Http/Playwright/PlaywrightHttpTransport.cs:69`–`:76`.
@@ -595,7 +634,7 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r65"></a>
 ### R65. Define an artifact sensitivity and publication policy
 
-- **Status / type:** Implemented (verification pending), 2026-11-18; security fixes in this commit on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
+- **Status / type:** Implemented (verification pending), 2026-11-18; security fixes in `3b2d62a` on `fix/security-r61-r65`. Original `security-review` assessment scope is preserved above.
 - **Implementation:** Added DIAGNOSTIC_ARTIFACTS standard/restricted mode. The shared web base suppresses screenshots/tracing before capture; built-in reporters suppress attachments. Added web-only Azure capture/publication parameters, security guidance and diagrams. Mobile job configuration remains unchanged.
 - **Verification / remaining checks:** Controlled headed failures passed through the real web base: standard captured one screenshot/trace and two attachments; restricted started no trace, took no screenshot and attached nothing. Both disposed owned sessions/browsers. Real Allure tests produced one standard attachment, zero restricted attachments and sanitized failure JSON. YAML publication guards were checked statically. Effective Azure access/retention and a hosted parameterized run remain unverified, so this finding stays verification pending.
 - **Where:** `Core/Ui/Playwright/PlaywrightUiSession.cs:34`, `Tests/Infrastructure/UiTestBase.cs:86` and `:120`, `Core/Reporting/Allure/AllureTestReporter.cs:34`, `azure-pipelines.yml:158` and `:200`.

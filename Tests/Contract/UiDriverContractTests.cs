@@ -71,10 +71,15 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task Elements_Should_BeFound_ByTestId_Role_Placeholder_And_Css()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Assert: verify the initial title before interacting with the page.
         await Ui.Expect(TestId("title")).ToHaveTextAsync("Contract page");
+
+        // Act
         await _session.Find(Locate.Placeholder("Your name")).FillAsync("Ann");
         await _session.Find(Locate.Role(UiRole.Button, "Greet")).ClickAsync();
 
+        // Assert
         await Ui.Expect(TestId("greeting")).ToHaveTextAsync("Hello Ann");
         await Ui.Expect(_session.Find(Locate.Css("li.done"))).ToHaveCountAsync(1);
     }
@@ -82,8 +87,12 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task Role_Should_UseAssociatedLabels_And_AriaLabelledByPrecedence()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         await _session.Find(Locate.Role(UiRole.Textbox, "Contact email")).FillAsync("labelled");
         await _session.Find(Locate.Role(UiRole.Textbox, "Account name")).FillAsync("aria labelled");
+
+        // Assert
         Assert.Equal(0, await _session.Find(Locate.Role(UiRole.Textbox, "Ignored label")).CountAsync());
         await Ui.Expect(TestId("labelled-value")).ToHaveTextAsync("labelled");
         await Ui.Expect(TestId("aria-value")).ToHaveTextAsync("aria labelled");
@@ -92,9 +101,17 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task Role_Should_ExcludeHiddenMatches_And_HonorExplicitRoles()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         var target = _session.Find(Locate.Role(UiRole.Button, "Role target"));
+
+        // Assert
         Assert.Equal(1, await target.CountAsync());
+
+        // Act: click the visible role match.
         await target.ClickAsync();
+
+        // Assert: verify the click result and explicit role behavior.
         await Ui.Expect(TestId("role-result")).ToHaveTextAsync("clicked");
         Assert.Equal(0, await _session.Find(Locate.Role(UiRole.Button, "Override role")).CountAsync());
         Assert.Equal(1, await _session.Find(Locate.Role(UiRole.Heading, "Override role")).CountAsync());
@@ -104,62 +121,96 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task Check_Should_NotClickAnAlreadyCheckedDisabledCheckbox()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         await TestId("already-checked").CheckAsync();
+
+        // Assert
         await Ui.Expect(TestId("checked-clicks")).ToHaveTextAsync("untouched");
     }
 
     [Fact]
     public async Task Check_Should_WaitForAnUncheckedCheckboxToBecomeEnabled()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         await TestId("enable-checkbox").ClickAsync();
         await TestId("delayed-check").CheckAsync();
+
+        // Assert
         await Ui.Expect(TestId("delayed-state")).ToHaveTextAsync("checked");
     }
 
     [Fact]
     public async Task Check_Should_RejectInvalidTargetsWithoutClicking()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId("invalid-check").CheckAsync());
+
+        // Assert: the rejected click leaves the page unchanged.
         await Ui.Expect(TestId("checked-clicks")).ToHaveTextAsync("untouched");
     }
 
     [Fact]
     public async Task Check_Should_FailWhenTheCheckboxRemainsUnchecked()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId("prevented-check").CheckAsync());
     }
 
     [Fact]
     public async Task Check_Should_CheckAriaCheckbox_And_PreserveCheckedStateOnRepeat()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         await TestId("aria-check").CheckAsync();
+
+        // Assert
         await Ui.Expect(TestId("aria-checked-state")).ToHaveTextAsync("true");
+
+        // Act: check the same element again.
         await TestId("aria-check").CheckAsync();
+
+        // Assert: it remains checked.
         await Ui.Expect(TestId("aria-checked-state")).ToHaveTextAsync("true");
     }
 
     [Fact]
     public async Task Check_Should_FailWhenAnAriaCheckboxRemainsUnchecked()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId("aria-check-prevented").CheckAsync());
     }
 
     [Fact]
     public async Task WithChild_Should_KeepOnlyElementsWhoseChildHasTheText()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         var banana = TestId("item").WithChild(Locate.TestId("data-testid", "label"), "banana");
 
+        // Assert
         await Ui.Expect(banana).ToHaveCountAsync(1);
         await Ui.Expect(banana).ToHaveClassAsync("done");
+
+        // Act: interact with the element selected by its child text.
         await banana.Find(Locate.Role(UiRole.Button, "Remove")).ClickAsync();
+
+        // Assert: the selected element is still the Banana item.
         Assert.Contains("Banana", await banana.TextAsync());
     }
 
     [Fact]
     public async Task Collections_Should_SupportFirst_Count_And_AllTexts()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         var labels = TestId("item").Find(Locate.TestId("data-testid", "label"));
 
+        // Assert
         Assert.Equal(2, await labels.CountAsync());
         Assert.Equal("Apple", await labels.First.TextAsync());
         await Ui.Expect(labels).ToHaveTextAsync(["Apple", "Banana"]);
@@ -169,9 +220,12 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task Check_And_Press_Should_ActOnTheElement()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act
         await _session.Find(Locate.Role(UiRole.Checkbox, "Agree")).CheckAsync();
         await TestId("key").PressAsync("Enter");
 
+        // Assert
         await Ui.Expect(TestId("agreed")).ToHaveTextAsync("yes");
         await Ui.Expect(TestId("pressed")).ToContainTextAsync("ENTERED", ignoreCase: true);
     }
@@ -179,6 +233,8 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task IsVisible_Should_BeFalse_ForHiddenElements()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         Assert.False(await TestId("hidden").IsVisibleAsync());
         Assert.True(await TestId("title").IsVisibleAsync());
     }
@@ -186,14 +242,19 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [Fact]
     public async Task FailedAssertion_Should_Throw_UiAssertionException()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         var ex = await Assert.ThrowsAsync<UiAssertionException>(() => Ui.Expect(TestId("title")).ToHaveTextAsync("Wrong title"));
 
+        // Assert: the failure identifies the expected text.
         Assert.Contains("Wrong title", ex.Message);
     }
 
     [Fact]
     public async Task ActionOnMissingElement_Should_Throw_UiException()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId("does-not-exist").ClickAsync());
     }
 
@@ -203,44 +264,73 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     [InlineData("mixed-hidden")]
     public async Task AmbiguousClick_Should_FailWithoutSelectingAnElement(string id)
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId(id).ClickAsync());
+
+        // Assert: no matching element was clicked.
         await Ui.Expect(TestId("action")).ToHaveTextAsync("untouched");
     }
 
     [Fact]
     public async Task AmbiguousFill_Should_FailWithoutChangingValues()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => TestId("duplicate-input").FillAsync("changed"));
+
+        // Assert: the ambiguous fill changed nothing.
         await Ui.Expect(TestId("action")).ToHaveTextAsync("untouched");
+
+        // Act: explicitly choose the first input.
         await TestId("duplicate-input").First.FillAsync("chosen explicitly");
+
+        // Assert: the explicit selection accepts the value.
         await Ui.Expect(TestId("action")).ToHaveTextAsync("chosen explicitly");
     }
 
     [Fact]
     public async Task AmbiguousScalarReadsAndAssertions_Should_Fail_WhileCollectionsAndFirstWork()
     {
+        // Arrange
         var elements = TestId("duplicate");
+
+        // Act & Assert
         await Assert.ThrowsAsync<UiException>(() => elements.TextAsync());
         await Assert.ThrowsAsync<UiException>(() => elements.IsVisibleAsync());
         await Assert.ThrowsAsync<UiAssertionException>(() => Ui.Expect(elements).ToBeVisibleAsync());
         await Assert.ThrowsAsync<UiAssertionException>(() => Ui.Expect(elements).ToHaveTextAsync("Duplicate"));
+
+        // Assert: collection operations remain supported.
         await Ui.Expect(elements).ToHaveCountAsync(2);
         await Ui.Expect(elements).ToHaveTextAsync(["Duplicate", "Duplicate"]);
+
+        // Act: explicitly select the first match.
         await elements.First.ClickAsync();
+
+        // Assert: the selected element was clicked.
         await Ui.Expect(TestId("action")).ToHaveTextAsync("clicked");
     }
 
     [Fact]
     public async Task Title_Should_BeThePagesTitle()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         Assert.Equal("Contract page", await _session.TitleAsync());
     }
 
     [Fact]
     public async Task Capabilities_Should_BeOfferedThroughTryGet()
     {
+        // Arrange: the fixture supplies a session on the contract page.
+        // Act & Assert
         Assert.True(_session.TryGet<IScreenshots>(out var screenshots));
+
+        // Act: capture a screenshot through the advertised capability.
         var png = await screenshots.CaptureAsync();
+
+        // Assert: the data is PNG and unrelated capabilities are unavailable.
         Assert.Equal([0x89, (byte)'P', (byte)'N', (byte)'G'], png.Take(4).ToArray());
 
         Assert.False(_session.TryGet<IDisposable>(out _));

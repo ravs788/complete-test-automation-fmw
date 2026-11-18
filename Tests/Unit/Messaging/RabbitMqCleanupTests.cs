@@ -13,6 +13,7 @@ public class RabbitMqCleanupTests
     [InlineData("BasicConsumeAsync", true)]
     public async Task StartupFailure_Should_ReleaseEveryAcquiredResource_AndPreserveOriginalError(string failingMethod, bool channelAcquired)
     {
+        // Arrange
         var calls = new List<string>();
         var original = new InvalidOperationException("startup failed");
         var channel = InterfaceStub.Create<IChannel>((m, _) =>
@@ -30,8 +31,10 @@ public class RabbitMqCleanupTests
             return InterfaceStub.Completed(m.ReturnType, m.Name == "CreateChannelAsync" ? channel : null);
         });
 
+        // Act & Assert
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => RabbitMqListener.StartAsync(connection, "missing"));
 
+        // Assert: the original failure is preserved and acquired resources are released.
         Assert.Same(original, failure);
         Assert.Contains("connection.CloseAsync", calls);
         Assert.Contains("connection.DisposeAsync", calls);
@@ -41,6 +44,7 @@ public class RabbitMqCleanupTests
     [Fact]
     public async Task CancelledStartup_Should_DisposeTheAcquiredConnection()
     {
+        // Arrange
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var original = new OperationCanceledException(cancellation.Token);
@@ -52,9 +56,11 @@ public class RabbitMqCleanupTests
             return InterfaceStub.Completed(m.ReturnType);
         });
 
+        // Act & Assert
         var failure = await Assert.ThrowsAsync<OperationCanceledException>(() =>
             RabbitMqListener.StartAsync(connection, "exchange", cancellationToken: cancellation.Token));
 
+        // Assert: the original failure is preserved and acquired resources are released.
         Assert.Same(original, failure);
         Assert.True(disposed);
     }
@@ -62,6 +68,7 @@ public class RabbitMqCleanupTests
     [Fact]
     public async Task Disposal_Should_ReleaseConnection_WhenChannelCloseAndDisposeFail()
     {
+        // Arrange
         var calls = new List<string>();
         var original = new IOException("channel close failed");
         var channel = InterfaceStub.Create<IChannel>((m, _) =>
@@ -79,8 +86,10 @@ public class RabbitMqCleanupTests
         });
         var listener = await RabbitMqListener.StartAsync(connection, "exchange");
 
+        // Act & Assert
         var failure = await Assert.ThrowsAsync<IOException>(() => listener.DisposeAsync().AsTask());
 
+        // Assert: the original failure is preserved and acquired resources are released.
         Assert.Same(original, failure);
         Assert.Contains("channel.DisposeAsync", calls);
         Assert.Contains("connection.CloseAsync", calls);

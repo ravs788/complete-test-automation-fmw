@@ -16,7 +16,11 @@ public sealed class DiagnosticRedactorTests
     [InlineData("password='canary quoted value'")]
     public void Redact_Should_RemoveSensitiveValues_And_BeIdempotent(string input)
     {
+        // Arrange: the theory supplies sensitive diagnostic text.
+        // Act
         var result = DiagnosticRedactor.Redact(input);
+
+        // Assert
         Assert.DoesNotContain("canary", result, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(result, DiagnosticRedactor.Redact(result));
         Assert.Contains("[REDACTED]", result);
@@ -25,16 +29,24 @@ public sealed class DiagnosticRedactorTests
     [Fact]
     public void Redact_Should_PreserveUsefulNonSensitiveContext()
     {
+        // Arrange
         const string text = "PUT booking/1 failed: 403 Forbidden";
+
+        // Act & Assert
         Assert.Equal(text, DiagnosticRedactor.Redact(text));
     }
 
     [Fact]
     public void RegisteredSecret_Should_BeRemovedEvenWithoutAFieldName()
     {
+        // Arrange
         var secret = $"opaque-{Guid.NewGuid():N}/value";
         DiagnosticRedactor.RegisterSecret(secret);
+
+        // Act
         var result = DiagnosticRedactor.Redact($"failure {secret} encoded {Uri.EscapeDataString(secret)}");
+
+        // Assert
         Assert.DoesNotContain(secret, result);
         Assert.DoesNotContain(Uri.EscapeDataString(secret), result);
     }
@@ -42,7 +54,11 @@ public sealed class DiagnosticRedactorTests
     [Fact]
     public void ApiException_Should_NotExposeSensitiveUrl_InToString()
     {
+        // Arrange: use a synthetic URL containing credentials and a token.
+        // Act
         var error = new ApiException("GET", "https://user:canary-password@example.invalid/items?token=canary-token", 403, "Forbidden");
+
+        // Assert
         Assert.DoesNotContain("canary", error.ToString());
         Assert.Contains("items", error.Message);
         Assert.Equal(403, error.StatusCode);
@@ -51,13 +67,18 @@ public sealed class DiagnosticRedactorTests
     [Fact]
     public async Task Runner_Should_SanitizeBothSinkMessagesAndTheHostFailure_WithoutKeepingRawInnerException()
     {
+        // Arrange
         var logger = new RecordingLogger();
         var original = new IOException("request https://user:canary-password@example.invalid/path?token=canary-token failed");
         var cleanup = false;
+
+        // Act & Assert
         var error = await Assert.ThrowsAsync<RedactedTestException>(() => TestRunner.RunAsync(
             new TestRunInfo(logger, "security", typeof(DiagnosticRedactorTests), "synthetic"),
             () => throw original, onFailureAsync: () => Task.CompletedTask,
             cleanupAsync: () => { cleanup = true; return Task.CompletedTask; }));
+
+        // Assert: only sanitized failure details reach the host and logger, and cleanup ran.
         Assert.DoesNotContain("canary", error.ToString());
         Assert.Null(error.InnerException);
         Assert.Contains(nameof(IOException), error.Message);
@@ -68,8 +89,13 @@ public sealed class DiagnosticRedactorTests
     [Fact]
     public void Metadata_Should_RedactEveryFreeTextField_WithoutChangingTheOriginal()
     {
+        // Arrange
         var original = new LogMetadata { Reason = "token=canary-token", TestMethodName = "https://u:canary-secret@example.invalid/test" };
+
+        // Act
         var result = original.Redacted();
+
+        // Assert
         Assert.DoesNotContain("canary", result.Reason + result.TestMethodName);
         Assert.Contains("canary", original.Reason);
     }

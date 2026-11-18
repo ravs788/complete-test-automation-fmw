@@ -16,14 +16,17 @@ public abstract class RetryPolicyContractTests
     [Fact]
     public async Task TransientHttp_Should_RetryGatewayErrors_And_DiscardRetriedResponses()
     {
+        // Arrange
         var statuses = new Queue<int>([503, 502, 200]);
         var calls = 0;
         var discarded = new List<int>();
         var log = new List<string>();
         var policy = RetryPolicies.TransientHttp<int>(Fast, s => s, s => { discarded.Add(s); return ValueTask.CompletedTask; }, log.Add, Factory);
 
+        // Act
         var result = await policy.ExecuteAsync(_ => { calls++; return Task.FromResult(statuses.Dequeue()); });
 
+        // Assert
         Assert.Equal(200, result);
         Assert.Equal(3, calls);
         Assert.Equal([503, 502], discarded);
@@ -38,11 +41,14 @@ public abstract class RetryPolicyContractTests
     [InlineData(201)]
     public async Task TransientHttp_Should_NotRetryOtherStatuses(int status)
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.TransientHttp<int>(Fast, s => s, factory: Factory);
 
+        // Act
         var result = await policy.ExecuteAsync(_ => { calls++; return Task.FromResult(status); });
 
+        // Assert
         Assert.Equal(status, result);
         Assert.Equal(1, calls);
     }
@@ -50,11 +56,14 @@ public abstract class RetryPolicyContractTests
     [Fact]
     public async Task TransientHttp_Should_ReturnTheLastResult_When_RetriesAreExhausted()
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.TransientHttp<int>(Fast, s => s, factory: Factory);
 
+        // Act
         var result = await policy.ExecuteAsync(_ => { calls++; return Task.FromResult(504); });
 
+        // Assert
         Assert.Equal(504, result);
         Assert.Equal(3, calls);
     }
@@ -62,59 +71,91 @@ public abstract class RetryPolicyContractTests
     [Fact]
     public async Task TransientHttp_Should_RetryNetworkErrors_ButNotOtherErrors()
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.TransientHttp<int>(Fast, s => s, factory: Factory);
+
+        // Act
         var result = await policy.ExecuteAsync(_ =>
             ++calls < 2 ? throw new HttpRequestException("connect ECONNRESET 1.2.3.4:443") : Task.FromResult(200));
+
+        // Assert
         Assert.Equal((200, 2), (result, calls));
 
+        // Arrange: reset the counter for a non-retryable failure.
         calls = 0;
+
+        // Act & Assert: propagate the non-retryable exception.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             policy.ExecuteAsync(_ => { calls++; throw new InvalidOperationException("bug"); }));
+
+        // Assert: the failing operation ran only once.
         Assert.Equal(1, calls);
     }
 
     [Fact]
     public async Task Navigation_Should_RetryOnlyBrowserNetworkErrors()
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.Navigation(Fast, factory: Factory);
+
+        // Act
         await policy.ExecuteAsync(_ =>
             ++calls < 3 ? throw new InvalidOperationException("net::ERR_CONNECTION_RESET at https://example.test/") : Task.CompletedTask);
+
+        // Assert
         Assert.Equal(3, calls);
 
+        // Arrange: reset the counter for a non-retryable failure.
         calls = 0;
+
+        // Act & Assert: propagate the non-retryable exception.
         await Assert.ThrowsAsync<TimeoutException>(() =>
             policy.ExecuteAsync(_ => { calls++; throw new TimeoutException("Timeout 30000ms exceeded."); }));
+
+        // Assert: the failing operation ran only once.
         Assert.Equal(1, calls);
     }
 
     [Fact]
     public async Task Navigation_Should_ReturnTheActionsResult()
     {
+        // Arrange
         var policy = RetryPolicies.Navigation(Fast, factory: Factory);
 
+        // Act & Assert
         Assert.Equal("page", await policy.ExecuteAsync(_ => Task.FromResult("page")));
     }
 
     [Fact]
     public void Transient_Should_RetrySyncActions_And_GiveUpAfterMaxRetries()
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.Transient(Fast, ex => ex is TimeoutException, factory: Factory);
 
+        // Act & Assert
         Assert.Throws<TimeoutException>(() => policy.Execute(() => { calls++; throw new TimeoutException(); }));
+
+        // Assert: the failing action exhausted the retry budget.
         Assert.Equal(3, calls);
+
+        // Act & Assert: a successful action returns its result.
         Assert.Equal(7, policy.Execute(() => 7));
     }
 
     [Fact]
     public void Transient_Should_NotRetry_When_MaxRetriesIsZero()
     {
+        // Arrange
         var calls = 0;
         var policy = RetryPolicies.Transient(new RetryOptions { MaxRetries = 0 }, _ => true, factory: Factory);
 
+        // Act & Assert
         Assert.Throws<TimeoutException>(() => policy.Execute(() => { calls++; throw new TimeoutException(); }));
+
+        // Assert: no retry was attempted.
         Assert.Equal(1, calls);
     }
 }
@@ -140,6 +181,8 @@ public class RetryPoliciesTests
     [InlineData("PATCH", false)]
     public void IsIdempotent_Should_AllowOnlySafeToRepeatMethods(string method, bool expected)
     {
+        // Arrange: the theory supplies the HTTP method and expected classification.
+        // Act & Assert
         Assert.Equal(expected, RetryPolicies.IsIdempotent(method));
     }
 
@@ -149,6 +192,8 @@ public class RetryPoliciesTests
     [InlineData("Timeout 30000ms exceeded.", false)]
     public void IsNetworkError_Should_RecogniseNetworkFailures_WhateverThrewThem(string message, bool expected)
     {
+        // Arrange: the theory supplies an exception message and expected classification.
+        // Act & Assert
         Assert.Equal(expected, RetryPolicies.IsNetworkError(new InvalidOperationException(message)));
         Assert.True(RetryPolicies.IsNetworkError(new HttpRequestException("anything")));
     }

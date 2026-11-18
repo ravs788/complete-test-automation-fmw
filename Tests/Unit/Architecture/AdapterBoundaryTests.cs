@@ -45,6 +45,8 @@ public class AdapterBoundaryTests
     [InlineData("Confluent.")]
     public void Core_Should_NotReference_VendorsThatLiveInAdapters(string vendorPrefix)
     {
+        // Arrange: use Core and the vendor prefix supplied by the theory.
+        // Act & Assert
         Assert.DoesNotContain(Core.GetReferencedAssemblies(), a => a.Name!.StartsWith(vendorPrefix, StringComparison.Ordinal));
     }
 
@@ -52,6 +54,8 @@ public class AdapterBoundaryTests
     [MemberData(nameof(Adapters))]
     public void Adapter_Should_DependOn_CoreOnly_AmongFrameworkProjects(string adapter)
     {
+        // Arrange: the theory supplies the adapter assembly; Core.Mobile may also reference the Selenium adapter.
+        // Act
         var frameworkReferences = Assembly.Load(adapter).GetReferencedAssemblies()
             .Select(a => a.Name!)
             .Where(name => name.StartsWith("Core", StringComparison.Ordinal) || name is "Domain" or "Pages" || name.StartsWith("Tests", StringComparison.Ordinal))
@@ -60,15 +64,22 @@ public class AdapterBoundaryTests
 
         // The one deliberate exception: Appium speaks W3C WebDriver, so the Appium adapter builds on the WebDriver
         // session of the Selenium adapter (R47).
+
+        // Arrange: choose the allowed framework dependencies for this adapter.
         string[] expected = adapter == "Core.Mobile" ? ["Core", "Core.Ui.Selenium"] : ["Core"];
+
+        // Assert
         Assert.Equal(expected, frameworkReferences);
     }
 
     [Fact]
     public void Pages_Should_UseTheUiContract_NotPlaywright()
     {
+        // Arrange: inspect the assembly that contains the page objects.
+        // Act
         var pages = typeof(Pages.Common.BasePage).Assembly.GetReferencedAssemblies().Select(a => a.Name).ToList();
 
+        // Assert
         Assert.DoesNotContain("Microsoft.Playwright", pages);
         Assert.Contains("Core", pages);
     }
