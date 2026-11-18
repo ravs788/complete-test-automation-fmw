@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Text;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -34,38 +35,66 @@ public sealed class RabbitMqListener : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         var connection = await new ConnectionFactory { Uri = new Uri(uri) }.CreateConnectionAsync(cancellationToken);
-        var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-        var queue = (await channel.QueueDeclareAsync("", durable: false, exclusive: true, autoDelete: true,
-            cancellationToken: cancellationToken)).QueueName;
-        await channel.QueueBindAsync(queue, exchange, routingKey, cancellationToken: cancellationToken);
+        return await StartAsync(connection, exchange, routingKey, cancellationToken);
+    }
 
-        var listener = new RabbitMqListener(connection, channel, queue);
-        var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += (_, delivery) =>
+    // Owns the connection as soon as it is acquired, including every partially completed startup path.
+    internal static async Task<RabbitMqListener> StartAsync(IConnection connection, string exchange, string routingKey = "#",
+        CancellationToken cancellationToken = default)
+    {
+        IChannel? channel = null;
+        try
         {
-            listener.Messages.Add(new ReceivedMessage
+            channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+            var queue = (await channel.QueueDeclareAsync("", durable: false, exclusive: true, autoDelete: true,
+                cancellationToken: cancellationToken)).QueueName;
+            await channel.QueueBindAsync(queue, exchange, routingKey, cancellationToken: cancellationToken);
+
+            var listener = new RabbitMqListener(connection, channel, queue);
+            var consumer = new AsyncEventingBasicConsumer(channel);
+            consumer.ReceivedAsync += (_, delivery) =>
             {
-                Source = $"{delivery.Exchange}/{delivery.RoutingKey}",
-                Key = delivery.RoutingKey,
-                Body = Encoding.UTF8.GetString(delivery.Body.Span),
-                Headers = delivery.BasicProperties.Headers?.ToDictionary(
-                    h => h.Key, h => h.Value is byte[] bytes ? Encoding.UTF8.GetString(bytes) : h.Value?.ToString() ?? "")
-                          ?? new Dictionary<string, string>()
-            });
-            return Task.CompletedTask;
-        };
-        await channel.BasicConsumeAsync(queue, autoAck: true, consumer, cancellationToken);
-        return listener;
+                listener.Messages.Add(new ReceivedMessage
+                {
+                    Source = $"{delivery.Exchange}/{delivery.RoutingKey}",
+                    Key = delivery.RoutingKey,
+                    Body = Encoding.UTF8.GetString(delivery.Body.Span),
+                    Headers = delivery.BasicProperties.Headers?.ToDictionary(
+                        h => h.Key, h => h.Value is byte[] bytes ? Encoding.UTF8.GetString(bytes) : h.Value?.ToString() ?? "")
+                              ?? new Dictionary<string, string>()
+                });
+                return Task.CompletedTask;
+            };
+            await channel.BasicConsumeAsync(queue, autoAck: true, consumer, cancellationToken);
+            return listener;
+        }
+        catch
+        {
+            try { await DisposeResourcesAsync(connection, channel); } catch { /* preserve the startup failure */ }
+            throw;
+        }
     }
 
     public Task<ReceivedMessage> WaitForAsync(Func<ReceivedMessage, bool> match, TimeSpan timeout, string description = "a matching message") =>
         Messages.WaitForAsync(match, timeout, description);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => new(DisposeResourcesAsync(_connection, _channel));
+
+    private static async Task DisposeResourcesAsync(IConnection connection, IChannel? channel)
     {
-        await _channel.CloseAsync();
-        await _connection.CloseAsync();
-        _channel.Dispose();
-        _connection.Dispose();
+        ExceptionDispatchInfo? failure = null;
+        async Task Attempt(Func<Task> action)
+        {
+            try { await action(); }
+            catch (Exception ex) { failure ??= ExceptionDispatchInfo.Capture(ex); }
+        }
+        if (channel is not null)
+        {
+            await Attempt(async () => await channel.CloseAsync());
+            await Attempt(async () => await channel.DisposeAsync());
+        }
+        await Attempt(async () => await connection.CloseAsync());
+        await Attempt(async () => await connection.DisposeAsync());
+        failure?.Throw();
     }
 }

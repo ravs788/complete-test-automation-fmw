@@ -6,6 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Tests.Unit" />
     <ProjectReference Include="..\..\Core.csproj" />
   </ItemGroup>
 

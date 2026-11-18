@@ -4,7 +4,7 @@ namespace Core.Http.Playwright;
 
 /// <summary>
 /// Creates <see cref="PlaywrightHttpTransport"/>s. One Playwright instance (a Node driver process) is shared by the
-/// whole run; each transport gets its own request context, which it disposes.
+/// whole run; each request gets an independently owned context so cancelling it cannot abort another request.
 /// </summary>
 public sealed class PlaywrightHttpTransportFactory : IHttpTransportFactory
 {
@@ -13,12 +13,7 @@ public sealed class PlaywrightHttpTransportFactory : IHttpTransportFactory
     public async Task<IHttpTransport> CreateAsync(string baseUrl, IReadOnlyDictionary<string, string> defaultHeaders)
     {
         var playwright = await SharedPlaywright.Value;
-        var context = await playwright.APIRequest.NewContextAsync(new()
-        {
-            BaseURL = baseUrl,
-            ExtraHTTPHeaders = defaultHeaders,
-        });
-        return new PlaywrightHttpTransport(context);
+        return new PlaywrightHttpTransport(playwright, baseUrl, defaultHeaders);
     }
 
     private static async Task<IPlaywright> StartAsync()

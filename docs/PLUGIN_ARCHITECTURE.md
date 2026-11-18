@@ -144,3 +144,12 @@ A provider (adapter) adds one library behind one contract.
   Moving to xUnit v3 or NUnit means changing that layer (attributes, `Assert` namespace, the two fixtures and four base classes, the Allure hook package), not the scenario code, page objects or framework.
 - **Microsoft.Extensions.Configuration** is itself an abstraction library. It is used directly in `Core` (settings loading) and not wrapped again; its types are to stay out of public `Core` signatures (R44). Microsoft.Extensions.DependencyInjection would be accepted on the same terms if the composition root ever needs it.
 - **ADO.NET** is already the database contract; the test project chooses the provider.
+
+
+## Adapter failure-path guarantees
+
+Single-element UI actions, reads, visibility checks and scalar assertions reject ambiguous locators. Use `First` explicitly when the first matching element is intended; count and list-text assertions accept collections.
+
+Both HTTP transports honor pre-cancelled and in-flight cancellation. The Playwright transport creates an independently owned context per request, aborts that context on cancellation, and observes the native operation before returning. This preserves concurrent requests and allows reuse after cancellation. Like the HttpClient transport, it does not retain an implicit cookie jar between calls; pass cookies explicitly in request headers.
+
+RabbitMQ startup retains ownership of every acquired connection/channel until the listener is returned and cleans up partial failures. Disposal attempts all channel/connection close and dispose operations while preserving the first error. Kafka headers are projected into the broker-neutral dictionary with last-value-wins semantics and null values mapped to empty strings. `KafkaListener.Completion` exposes fatal worker failures; `WaitForAsync` propagates them instead of waiting for a message timeout. Consumer cleanup runs even when the worker or close operation fails.
