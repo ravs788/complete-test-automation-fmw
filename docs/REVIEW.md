@@ -1,6 +1,6 @@
 # Framework Review
 
-Findings from the 2026-11-18 solution and adapter review (R49–R53), the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters plus the owner's plug-and-play goal (2026-11-17, R39–R48; see [Plug-and-play roadmap](#plug-and-play-roadmap)), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
+Findings from the 2026-11-18 five-skill repository review (R54–R59; code, test, coverage, documentation and test modernization), the earlier 2026-11-18 solution and adapter review (R49–R53), the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters plus the owner's plug-and-play goal (2026-11-17, R39–R48; see [Plug-and-play roadmap](#plug-and-play-roadmap)), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
 
 **How this list is maintained**
 
@@ -15,7 +15,13 @@ Findings from the 2026-11-18 solution and adapter review (R49–R53), the 2026-1
 | R32 | P2 | Blocked (mobile work deferred) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
 | R33 | P2 | Blocked (mobile work deferred) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
 | R16 | P3 | Blocked (mobile work deferred) | – | [Mobile suite not in CI](#r16) | CI |
+| R58 | P3 | Implemented (verification pending) | – | [RabbitMQ queue-removal test accepts unrelated exceptions](#r58) | Tests / messaging |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
+| R54 | P2 | Closed | 2026-11-18 · this commit | [Database setup and disposal failures can leak connections](#r54) | Data / cleanup |
+| R55 | P2 | Closed | 2026-11-18 · this commit | [Selenium role locators differ from Playwright semantics](#r55) | UI / adapter contracts |
+| R56 | P2 | Closed | 2026-11-18 · this commit | [Selenium CheckAsync can succeed without checking the element](#r56) | UI / adapter contracts |
+| R57 | P2 | Closed | 2026-11-18 · this commit | [HTTP providers resolve base URLs without trailing slashes differently](#r57) | HTTP / adapter contracts |
+| R59 | P3 | Closed | 2026-11-18 · this commit | [Setup and dependency documentation contradicts current implementation](#r59) | Documentation |
 | R49 | P2 | Closed | 2026-11-18 · `28b32bf` | [Selenium silently chooses among ambiguous element matches](#r49) | UI / adapter contracts |
 | R50 | P2 | Closed | 2026-11-18 · `28b32bf` | [Playwright HTTP transport ignores cancellation](#r50) | HTTP / adapter contracts |
 | R51 | P2 | Closed | 2026-11-18 · `28b32bf` | [RabbitMQ startup failures leak partially created resources](#r51) | Messaging / cleanup |
@@ -72,7 +78,7 @@ Findings from the 2026-11-18 solution and adapter review (R49–R53), the 2026-1
 
 At the user's request, **R16, R32 and R33 are Blocked (mobile work deferred)** until mobile work is resumed. Their existing implementations and verification history remain recorded. Closed mobile findings remain closed; shared web/API adapter findings remain active. This is a review-tracking update; pipeline scheduling/configuration is unchanged.
 
-## Review scope and validation — 2026-11-18
+## Earlier adapter review scope and validation — 2026-11-18
 
 - **Comparison:** `d8d9aee` (last local commit in the November 16 session) to `a45b1d7` (current main at review time), plus working-tree inspection. The reflog confirms the checkout was pulled forward from the earlier main on November 18. The working tree was clean at review time.
 - **Change scale:** 64 subsequent commits; 216 changed files; 6,348 additions and 1,055 deletions. The solution expanded from 5 to 17 projects, separating Domain and vendor adapters from Core and adding shared contract/architecture tests.
@@ -86,18 +92,83 @@ At the user's request, **R16, R32 and R33 are Blocked (mobile work deferred)** u
 | State | Findings | Count |
 |---|---|---|
 | Blocked at user request; mobile work deferred | R16, R32, R33 | 3 |
-| Implemented; live Key Vault verification pending | R36 | 1 |
-| Closed after this framework fix pass | R49–R53 | 5 |
+| Implemented; live Key Vault and RabbitMQ assertion verification pending | R36, R58 | 2 |
+| Closed; verified in this commit | R54–R57, R59 | 5 |
+| Closed after the earlier framework fix pass | R49–R53 | 5 |
 | Closed in earlier reviews | R1–R15, R17–R31, R34–R35, R37–R48 | 44 |
-| Total | R1–R53 | 53 |
+| Total | R1–R59 | 59 |
 
-R49–R53 are fixed and verified in `28b32bf` on `fix/framework-adapter-contracts`, based on `a45b1d7`; no PR has been created for this fix pass. R25 is closed, as recorded by its existing finding. Mobile work remains blocked until the user resumes it; no mobile tests or CI changes were made in this pass. R36 still requires a real vault/identity; KEYVAULT_URI is not configured.
+R49–R53 were fixed and verified in `28b32bf` on `fix/framework-adapter-contracts`, based on `a45b1d7`; that branch has since been merged into main and is included in the new branch base `5636b07`. R25 is closed, as recorded by its existing finding. Mobile work remains blocked until the user resumes it; no mobile tests or CI changes were made in this pass. R36 still requires a real vault/identity; KEYVAULT_URI is not configured.
 
-**Current validation:** Full solution build passed with warnings treated as errors (0 warnings, 0 errors). The final framework suite passed **191 tests, 0 failed, 2 skipped** (193 total); the skipped cases require live Kafka/RabbitMQ brokers. Controlled vendor-interface tests cover the new broker failure paths without external services. The shared UI suite passed **28 tests, 0 failed, 0 skipped** against Playwright and Selenium in headed Chrome, and fixture cleanup closed its owned browsers. Shell/.NET execution used the user's earlier explicit verification exception. `git diff --check` passed.
+**Earlier framework-fix validation (reused evidence, not rerun by the five-skill review):** Full solution build passed with warnings treated as errors (0 warnings, 0 errors). The final framework suite passed **191 tests, 0 failed, 2 skipped** (193 total); the skipped cases require live Kafka/RabbitMQ brokers. Controlled vendor-interface tests cover the new broker failure paths without external services. The shared UI suite passed **28 tests, 0 failed, 0 skipped** against Playwright and Selenium in headed Chrome, and fixture cleanup closed its owned browsers. Shell/.NET execution used the user's earlier explicit verification exception. `git diff --check` passed.
 
 **Evidence:** [Summary](../artifacts/framework-fixes-2026-11-18/summary.json), [framework TRX](../artifacts/framework-fixes-2026-11-18/framework-fixes.trx), and [UI contract TRX](../artifacts/framework-fixes-2026-11-18/framework-ui-fixes.trx). These generated local artifacts are ignored by Git. An initial RabbitMQ test-double type-conversion error was corrected before the final passing run.
 
-**Coverage boundary:** No instrumented coverage was collected. UI checks used controlled local pages, HTTP checks used loopback servers, and broker failure checks used interface doubles; this does not claim a fresh external-app, live-broker, mobile or Key Vault integration run. The November 16 37-test result below is historical and does not establish current coverage.
+**Earlier framework-fix coverage boundary:** No instrumented coverage was collected in that earlier run. UI checks used controlled local pages, HTTP checks used loopback servers, and broker failure checks used interface doubles; this does not claim a fresh external-app, live-broker, mobile or Key Vault integration run. The November 16 37-test result below is historical and does not establish current coverage.
+
+## Five-skill repository review — 2026-11-18
+
+- **Scope:** Revision `8337c0453be7471bdc9ce4067a967cf9a9c14062` plus the working-tree `AGENTS.md` and `docs/CONTRIBUTING.md` pre-commit rules. Inspected implementation, representative scenarios, fixtures, contracts, project/package configuration, CI and documentation using `code-review`, `test-review`, `coverage-review`, `documentation-review` and `test-modernization-skill`. This was a repository review, not just a review of the documentation diff.
+- **Outcome:** Six new findings: R54–R57 are P2, R58–R59 are P3. No new P1 finding was identified in the inspected paths. These are additional failure-path and consistency findings; earlier closed findings remain closed.
+- **Fresh verification:** `dotnet build ci.slnf --no-restore -m:1 -p:UseSharedCompilation=false -p:TreatWarningsAsErrors=true` passed with zero warnings/errors. `git diff --check` passed. Scanned local Markdown file targets in README, AGENTS and docs; none were missing. Anchor/external-link validity was not exhaustively checked.
+- **Execution limits:** No tests were rerun. Existing November 18 TRX files record 191 framework passes, two broker skips and 28 UI contract passes; their summary was generated before the fixes were committed and describes that earlier working tree. These are reused test records, not fresh verification of R54–R59. No instrumented coverage report was found locally. No live broker, Key Vault, external-application or mobile run was performed.
+- **Deferrals:** R16/R32/R33 remain blocked at the user's request. R36 still needs live Key Vault verification. R59 permits correcting descriptions of mobile status; it does not resume mobile implementation or execution.
+
+### Coverage gaps and evidence
+
+At the five-skill review, measured line/branch coverage was **unavailable locally**; the subsequent unit-only collection is recorded below. Test counts and a successful build do not establish percentages. CI supplies `--collect "XPlat Code Coverage"` to unit and application suites outside PR runs, but the UI contract invocation in `azure-pipelines.yml` does not receive that option and `Tests/Contract/Tests.Contract.csproj` has no collector reference. Before interpreting reports as browser-adapter coverage, instrument that suite and retain the revision, executed suites, assemblies, exclusions and report provenance. See [Microsoft coverage guidance](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-code-coverage).
+
+| Behavior / risk | Existing evidence | Gap / smallest valuable test | Tracking |
+|---|---|---|---|
+| Database lifecycle | SQLite tests exercise normal rollback and commit | Inject connection-open, begin-transaction, rollback and disposal failures; verify every owned resource is released and the first failure is preserved | R54 |
+| UI provider equivalence | Shared happy-path and ambiguity contracts; earlier 28-pass TRX | Associated labels, `aria-labelledby`, hidden role matches, invalid checkbox targets and prevented checkbox changes | R55, R56 |
+| HTTP URL resolution | Shared relative-URL test uses a trailing-slash base | Run identical endpoint cases against both providers with and without a trailing slash | R57 |
+| Broker cleanup | Controlled failure tests; environment-gated live tests were skipped in the latest local run | Require RabbitMQ's precise missing-queue response; retain live broker checks for actual protocol behavior | R58 |
+
+These scenario gaps are static inferences from inspected tests, not measured uncovered lines. A native collection command for an authorized follow-up is `dotnet test Tests/Unit/Tests.Unit.csproj --collect "XPlat Code Coverage"`; UI contract collection first needs its collector/configuration wiring and must follow the active execution rules.
+
+### Modernization assessment and roadmap
+
+Research date: **2026-11-18**. The current .NET 10 / xUnit v2 / Playwright 1.64.1 framework already has useful domain boundaries, explicit composition, replaceable adapters, isolated sessions, shared contract tests and controlled failure tests. Retain these choices and improve observable guarantees before considering a broader migration. The recommendations below are review outcomes, not authorization to add packages, provision infrastructure or change CI.
+
+| Current approach | Recommendation and current reference | Effort / risk, prerequisites and acceptance |
+|---|---|---|
+| Driver-neutral adapters with shared contracts | **Retain and strengthen.** Extend contracts around R55–R57 instead of adding another provider. [Playwright role semantics](https://playwright.dev/dotnet/docs/api/class-locator#locator-get-by-role), [checked-state guarantee](https://playwright.dev/dotnet/docs/api/class-locator#locator-check), [URL resolution](https://playwright.dev/dotnet/docs/api/class-apirequest#api-request-new-context) | Small–medium. Existing Playwright/Selenium implementations must give equivalent outcomes for the added cases without changing intended page-object behavior. |
+| Coverage collection omits UI contracts | **Adopt consistent collection and revision-labelled reports.** Keep behavior coverage distinct from execution metrics. [Microsoft guidance](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-code-coverage) | Small. Verify collector compatibility with the current VSTest/xUnit host; retain suite/assembly/exclusion information with the report. Do not introduce an arbitrary percentage threshold. |
+| Broker integration tests depend on externally configured services | **Pilot an isolated RabbitMQ fixture.** Reuse existing Docker scripts first, or evaluate [Testcontainers for .NET](https://dotnet.testcontainers.org/modules/rabbitmq/). | Medium; requires Docker-capable CI and an approved broker image. Validate startup readiness, actual test execution, unique resources and cleanup after success/failure. Keep the current setup if compatibility, resource cost or cleanup fails the pilot. No package/version migration was validated in this review. |
+| xUnit 2.9.3, runner 2.8.2 and Allure 2.15.0 | **Retain for now.** [Current Allure guidance](https://allurereport.org/docs/xunit/) still states xUnit v3 is unsupported and runner v3 cannot load its reporter. | No migration proposed. Reconsider only after a compatible host/reporter combination demonstrates equivalent results, labels, steps and attachments. |
+| .NET 10 target | **Retain the supported LTS target.** [Microsoft's support policy](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core) lists .NET 10 as active LTS. | No major-version change justified. This support check does not establish that every installed SDK/runtime/package is on its latest servicing patch. |
+
+**Sequence:** (1) fix R54–R57 with focused regression tests; tighten R58 and correct R59; (2) collect coverage including UI contracts with clear provenance; (3) pilot isolated broker execution if Docker CI capacity is available. Larger runner/tool migrations remain conditional on demonstrated compatibility and benefit. No speed or flake reduction is claimed without measurements. Mobile work remains deferred throughout.
+
+## R54–R59 implementation and verification — 2026-11-18
+
+Work continues on **`fix/review-r54-r59`**, created from the latest `origin/main` at `5636b07` after the previous adapter branch was merged. Earlier uncommitted AGENTS/contribution rules and this review ledger were preserved. These fixes are included in this commit; use this section's Git history to identify the commit.
+
+- **Implemented:** R54–R57 and R59 are verified and closed in this commit. R58's stricter RabbitMQ assertion is implemented, with live protocol verification pending. R16/R32/R33 remain blocked and R36 remains pending.
+- **Build:** `dotnet build ci.slnf --no-restore -m:1 -p:UseSharedCompilation=false -p:TreatWarningsAsErrors=true` passed with zero warnings/errors, including the final Selenium checkbox implementation.
+- **Framework tests:** `dotnet test Tests/Unit/Tests.Unit.csproj --no-build --no-restore --logger 'trx;LogFileName=review-r54-r59.trx' --collect 'XPlat Code Coverage'` passed **217**, failed **0**, skipped **2** (219 total). The skips require live Kafka/RabbitMQ endpoints. New database failure and HTTP URL-resolution regressions passed.
+- **UI contracts:** An initial headed Chrome run passed 38 cases. The final run passed **42**, failed **0**, skipped **0**, including custom ARIA checkbox success/idempotence and failure cases against both adapters. Fixtures dispose their sessions and owned browsers.
+- **Execution:** Used the user's earlier shell/.NET verification exception. Initial sandbox attempts aborted before test execution because VSTest could not bind local sockets; the authorized runs outside the sandbox executed successfully.
+- **Coverage:** The unit suite produced Cobertura data: **1,249 / 2,733 lines**, **304 / 776 branches** across its reported assemblies. This is a unit-run denominator, including referenced Pages, scenario/host and adapter assemblies, not whole-solution behavior coverage. UI contracts were not instrumented. The final Selenium ARIA follow-up was validated separately; this collection is evidence for the database/HTTP fixes and must not be represented as coverage of that follow-up. The earlier review's missing-report observation remains historical.
+- **Limits:** No fresh external-application, live-broker, mobile or live Key Vault test run. Docker and a local RabbitMQ executable are unavailable; R58 remains verification pending. Optional CI coverage wiring and an isolated broker fixture remain recommendations, not implemented changes.
+- **Local evidence:** [Summary](../artifacts/review-r54-r59-2026-11-18/summary.json), [framework TRX](../artifacts/review-r54-r59-2026-11-18/review-r54-r59.trx), [unit coverage](../artifacts/review-r54-r59-2026-11-18/coverage.cobertura.xml), [final UI contract TRX](../artifacts/review-r54-r59-2026-11-18/review-ui-r54-r59.trx). Generated artifacts are ignored by Git; the tracked ledger records their scope and results for readers without local artifacts.
+
+## Commit-specific five-skill review — 2026-11-18
+
+Scope: the staged R54–R59 fixes, regression tests, documentation/review ledger and new AGENTS pre-commit rule on `fix/review-r54-r59`, based on `5636b07`. All five skills were applied to the staged diff and relevant callers/configuration. Earlier repository review conclusions were rechecked rather than treated as a substitute for this review.
+
+| Skill | Outcome | Evidence / remaining limit |
+|---|---|---|
+| Code review | Database ownership and first-error preservation, provider URL parity, computed role lookup and checkbox postconditions reviewed. The pre-commit review found and corrected an additional R56 enabled-state wait regression. | An unchecked disabled element now waits until enabled; an already checked disabled element remains a no-op. No further defect identified in the inspected changes. Mobile runtime compatibility remains deferred. |
+| Test review | Failure injection checks actual resource disposal; loopback checks server-observed URLs; shared UI contracts check real DOM effects and failed state changes. | Added delayed-enable regression. R58 requires the exact exception type and reply code; its live case remains skipped/pending. |
+| Coverage review | Reused unit-only Cobertura and TRX evidence, with UI contracts reported separately. No whole-solution or changed-line percentage claimed. | Database factory lines/branches: 100%/100%; DbTestScope: 100%/75% in that unit report. Covered lines do not prove assertion effectiveness. UI contracts are not instrumented and the final checkbox follow-up is outside the unit coverage snapshot. |
+| Documentation review | Current CI/device/Selenium descriptions traced to configuration/projects; current and historical test evidence distinguished; stable finding IDs retained. | Local file targets and finding anchors checked. The mobile deferral and live Key Vault/RabbitMQ verification limits remain explicit. |
+| Test modernization | Current online guidance rechecked; retain existing contracts and browser-computed accessibility rather than introduce another dependency or migrate runners. | Small follow-ups remain: instrument UI contracts, then pilot isolated broker execution if infrastructure is available. Optional improvements do not block this commit. |
+
+**Final commit checks:** Formatting completed for the changed C# files. The post-review build passed with zero warnings/errors. The fresh headed Chrome contract run passed **44/44**, including the delayed-enable R56 regression; owned sessions/browsers completed fixture cleanup. The earlier **217-pass / 2-skip** framework run and unit coverage were reused because the database/HTTP code and unit assertions are unchanged. Initial formatter attempts could not open sandbox-local named pipes; the authorized outside-sandbox formatter succeeded. No live broker or mobile checks were added.
+
+Modernization sources checked live for this commit: [Selenium computed accessibility properties](https://www.selenium.dev/selenium/docs/api/dotnet/webdriver/OpenQA.Selenium.WebElement.html), [Playwright checked-state/actionability semantics](https://playwright.dev/dotnet/docs/api/class-locator#locator-check), and [Allure xUnit compatibility](https://allurereport.org/docs/xunit/). These support the incremental changes and retaining xUnit v2/runner 2.8.2 while Allure's current documentation excludes v3. No dependency upgrade or broader migration was proposed or performed. The earlier modernization matrix records effort, prerequisites, acceptance criteria and pilot stop conditions.
 
 ## Historical status snapshot — 2026-11-16
 
@@ -190,6 +261,54 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 ---
 
 ## P2: Should do
+
+<a id="r54"></a>
+### R54. Database setup and disposal failures can leak connections
+
+- **Status:** Closed, 2026-11-18; verified in this commit on `fix/review-r54-r59`.
+- **Implementation:** Connection setup and transaction startup now dispose the acquired connection on failure without masking the setup exception. Scope disposal attempts rollback, transaction disposal and connection disposal independently and rethrows the first failure.
+- **Verification completed:** Ten new DbFailureTests cases passed (setup/transaction failures and cancellation, disposal failure combinations, committed cleanup), alongside the existing SQLite tests in the 217-pass framework run.
+- **Where:** `Core/Data/DbConnectionFactory.cs:18` and `:26`; `Core/Data/DbTestScope.cs:50`.
+- **Original problem / trigger:** A connection is created but not disposed if assigning its connection string or opening it fails; an opened connection is also retained if beginning its transaction throws or is cancelled. During scope cleanup, a transaction-disposal exception prevents connection disposal. Repeated failures can retain provider resources or exhaust a connection pool.
+- **Fix:** Retain ownership until each successful handoff. Dispose partially acquired resources on setup failure, attempt transaction and connection cleanup independently, and preserve the original/first failure.
+- **Verify:** Inject failures in connection setup/open, transaction creation, rollback and disposal. Assert that all acquired resources receive disposal and that later cleanup errors do not replace the first failure; retain the normal SQLite rollback/commit checks.
+
+<a id="r55"></a>
+### R55. Selenium role locators differ from Playwright semantics
+
+- **Status:** Closed, 2026-11-18; verified in this commit on `fix/review-r54-r59`.
+- **Implementation:** Replaced hand-built accessible-name inference with WebDriver computed role/label commands. Role candidates are filtered by actual role and ARIA/rendering visibility; explicit overrides, associated labels and aria-labelledby precedence are respected. Transparent elements remain eligible for role lookup.
+- **Verification completed:** Shared headed Chrome contracts cover associated labels, aria-labelledby precedence, hidden/ARIA-hidden duplicates, explicit role overrides and transparent role matches against both adapters; see the recorded UI verification results.
+- **Where:** `Core/Ui/Selenium/WebDriverLocate.cs:20` and `:30`; compare `Core/Ui/Playwright/PlaywrightElement.cs` role resolution and `Core/Ui/Locate.cs` accessible-name contract.
+- **Original problem / trigger:** Selenium's CSS role query includes hidden matches and approximates accessible names from aria-label, text, value or an ancestor label. It misses ordinary associated labels (`<label for="email">Email</label><input id="email">`) and `aria-labelledby`. Switching providers can make an otherwise valid role locator miss its element or become ambiguous because of hidden duplicates.
+- **Fix:** Define equivalent accessible-name and hidden-element semantics across providers and implement them for Selenium. Keep the intentional strict ambiguity rule; do not hide the discrepancy by always choosing First.
+- **Reference:** [Playwright role locators](https://playwright.dev/dotnet/docs/api/class-locator#locator-get-by-role) match accessible names and exclude ARIA-hidden elements by default; these capabilities predate the installed 1.64.1 version.
+- **Verify:** Add shared provider contracts for associated labels, aria-labelledby and visible/hidden role duplicates, and confirm the same intended element is selected by both adapters.
+
+<a id="r56"></a>
+### R56. Selenium CheckAsync can succeed without checking the element
+
+- **Status:** Closed, 2026-11-18; verified in this commit on `fix/review-r54-r59`.
+- **Implementation:** Selenium validates native checkbox/radio or ARIA checkbox/radio targets, preserves already checked state and verifies the state after a click. Unchecked disabled controls wait until enabled; a prevented state change throws UiException.
+- **Verification completed:** Shared contracts cover normal checking, disabled already-checked no-op, invalid targets without clicks, prevented native changes, repeated ARIA checks and prevented ARIA changes against both adapters; see the recorded UI verification results.
+- **Where:** `Core/Ui/Selenium/WebDriverElement.cs:42`; compare `IElement.CheckAsync` and the Playwright adapter.
+- **Original problem / trigger:** The action clicks any unselected element and returns without checking its type or final selected state. A checkbox whose click handler prevents the state change can therefore produce a successful action while remaining unchecked; a wrong element can also receive a click rather than a checkbox error.
+- **Fix:** Validate supported checkbox targets, retain no-op behavior for an already checked checkbox, and verify the checked postcondition after interaction. Return a framework failure when checking did not succeed.
+- **Reference:** [Playwright CheckAsync](https://playwright.dev/dotnet/docs/api/class-locator#locator-check) validates the target and checked state after clicking.
+- **Verify:** Add shared contracts for an already checked checkbox, a normal unchecked checkbox, a prevented state change and an invalid target. Require equivalent success/failure outcomes and preserve framework exception mapping.
+
+<a id="r57"></a>
+### R57. HTTP providers resolve base URLs without trailing slashes differently
+
+- **Status:** Closed, 2026-11-18; verified in this commit on `fix/review-r54-r59`.
+- **Implementation:** Playwright now applies the same directory-base convention as HttpClient: append a trailing slash when absent. The factory contract and provider guide document relative, root-relative and absolute resolution.
+- **Verification completed:** Sixteen added shared loopback cases passed across both transports, covering trailing/non-trailing path bases, parent-relative and root-relative endpoints, and an absolute URL overriding an unreachable base host.
+- **Where:** `Core/Http/HttpClientTransport.cs:16`; `Core/Http/Playwright/PlaywrightHttpTransport.cs:30`; `Tests/Unit/Http/HttpTransportContractTests.cs` relative-URL test.
+- **Original problem / trigger:** HttpClientTransport appends a trailing slash to the base URL, while Playwright preserves it. For base `https://host/api` and endpoint `items`, the providers resolve `/api/items` and `/items` respectively. Changing the configured provider can send API calls to a different route. The existing shared test only exercises a base ending in `/`.
+- **Fix:** Choose and document one resolution policy, apply it consistently in both factories/transports, and retain absolute-URL handling.
+- **Reference:** [Playwright base URL resolution](https://playwright.dev/dotnet/docs/api/class-apirequest#api-request-new-context) explicitly distinguishes a path base with and without a trailing slash.
+- **Verify:** Extend loopback contracts with trailing/non-trailing path bases and relative/root-relative/absolute endpoints; assert identical server-observed request paths for both providers.
+
 
 <a id="r49"></a>
 ### R49. Selenium silently chooses among ambiguous element matches
@@ -348,6 +467,29 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 ---
 
 ## P3: Good practice
+
+<a id="r58"></a>
+### R58. RabbitMQ queue-removal test accepts unrelated exceptions
+
+- **Status:** Implemented (verification pending), 2026-11-18; included in this commit on `fix/review-r54-r59`.
+- **Implementation / evidence:** The passive-declaration check now requires OperationInterruptedException and broker reply code 404. The solution builds with warnings as errors. The live RabbitMQ case was skipped in the framework run because RABBITMQ_URI is unset; neither Docker nor rabbitmq-server is available locally.
+- **Remaining verification:** Run the integration case against a broker and confirm missing-queue, existing-queue and unrelated-channel-error outcomes. This item is not closed by compilation or the skipped test.
+- **Where:** `Tests/Unit/Messaging/RabbitMqListenerIntegrationTests.cs:39`.
+- **Problem / trigger:** `Assert.ThrowsAnyAsync<Exception>` treats every failed passive queue declaration as proof that the queue disappeared. An unrelated error on the checking channel can satisfy the assertion even when queue removal has not been established.
+- **Fix:** Assert the broker's specific missing-queue protocol response and let unrelated channel/connection errors fail the check.
+- **Verify:** Run against a live broker: the removed queue produces the expected not-found response, an existing queue fails the removal assertion, and an unrelated checking-channel failure is not accepted as successful verification.
+
+<a id="r59"></a>
+### R59. Setup and dependency documentation contradicts current implementation
+
+- **Status:** Closed, 2026-11-18; verified in this commit on `fix/review-r54-r59`.
+- **Implementation:** Corrected README, GETTING_STARTED and ARCHITECTURE to describe configured scheduled/manual mobile CI with blocked hosted verification, automatic UDID selection and the optional Selenium web adapter. Updated the package comment and removed the driver-specific Pages label.
+- **Verification completed:** Compared wording with pipeline jobs, the empty shared UDID and Selenium/Appium project references. Local Markdown target/anchor checks and git diff --check validate the edited documentation; no mobile execution was needed.
+- **Where / evidence:** `README.md:478` says mobile tests are only compiled and hosted agents have no emulator, whereas `azure-pipelines.yml` defines scheduled/manual `MobileSmoke` execution. `docs/GETTING_STARTED.md:24` and `docs/ARCHITECTURE.md` still say the first CI run is pending, although R32/R33 record completed failed attempts. `docs/GETTING_STARTED.md:153` says shared settings expect emulator-5554, whereas `Tests/UI/Mobile/mobilesettings.json` has the empty UDID established by R29. `Directory.Packages.props:29` says Selenium exists only for Appium, whereas `Core/Ui/Selenium/Core.Ui.Selenium.csproj` implements an optional web provider.
+- **Original consequence:** Readers receive conflicting explanations of CI readiness, device selection and the purpose of Selenium in the current framework.
+- **Fix:** Describe mobile CI as configured for scheduled/manual runs with successful hosted verification blocked/deferred (R16/R32/R33); explain automatic device selection with optional explicit UDID; describe Selenium as the optional web adapter and shared WebDriver basis for Appium. Correcting prose does not resume mobile work or reopen R29/R30.
+- **Verify:** Trace replacement text to the pipeline, shared configuration and adapter references; check affected links and remove contradictory current-state claims while preserving dated historical evidence.
+
 
 <a id="r53"></a>
 ### R53. Top-level review status and validation summaries are stale

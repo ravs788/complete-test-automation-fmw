@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.ExceptionServices;
 
 namespace Core.Data;
 
@@ -38,6 +39,7 @@ public sealed class DbTestScope(DbConnection connection, DbTransaction transacti
 
     public async ValueTask DisposeAsync()
     {
+        ExceptionDispatchInfo? failure = null;
         try
         {
             if (!_committed)
@@ -45,11 +47,12 @@ public sealed class DbTestScope(DbConnection connection, DbTransaction transacti
                 await Transaction.RollbackAsync();
             }
         }
-        finally
-        {
-            await Transaction.DisposeAsync();
-            await Connection.DisposeAsync();
-        }
+        catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
+        try { await Transaction.DisposeAsync(); }
+        catch (Exception ex) { failure ??= ExceptionDispatchInfo.Capture(ex); }
+        try { await Connection.DisposeAsync(); }
+        catch (Exception ex) { failure ??= ExceptionDispatchInfo.Capture(ex); }
+        failure?.Throw();
     }
 
     private DbCommand CreateCommand(string sql, (string Name, object? Value)[] parameters)

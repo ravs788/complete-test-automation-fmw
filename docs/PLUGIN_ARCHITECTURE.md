@@ -153,3 +153,13 @@ Single-element UI actions, reads, visibility checks and scalar assertions reject
 Both HTTP transports honor pre-cancelled and in-flight cancellation. The Playwright transport creates an independently owned context per request, aborts that context on cancellation, and observes the native operation before returning. This preserves concurrent requests and allows reuse after cancellation. Like the HttpClient transport, it does not retain an implicit cookie jar between calls; pass cookies explicitly in request headers.
 
 RabbitMQ startup retains ownership of every acquired connection/channel until the listener is returned and cleans up partial failures. Disposal attempts all channel/connection close and dispose operations while preserving the first error. Kafka headers are projected into the broker-neutral dictionary with last-value-wins semantics and null values mapped to empty strings. `KafkaListener.Completion` exposes fatal worker failures; `WaitForAsync` propagates them instead of waiting for a message timeout. Consumer cleanup runs even when the worker or close operation fails.
+
+### UI selection and HTTP paths
+
+Role locators use case-insensitive accessible-name substring matching and exclude hidden/ARIA-hidden matches. Selenium delegates role and accessible-name computation to the browser's WebDriver accessibility commands, including associated labels, aria-labelledby precedence and explicit role overrides. Role lookup includes transparent elements; actionability is checked when interacting.
+
+`CheckAsync` supports native checkbox/radio inputs and ARIA checkbox/radio elements. It preserves an already checked element and fails for an unsupported target or a checkbox that remains unchecked after interaction. UI contract tests exercise these cases against both browser adapters.
+
+HTTP base URLs are directory paths: both transports append a trailing slash when missing. For example, base `https://host/api` plus `items` resolves to `https://host/api/items`. A root-relative endpoint replaces the base path, and an absolute endpoint replaces the base URL.
+
+Database helpers own a connection until successful handoff. Setup failures dispose acquired connections; scope disposal attempts rollback, transaction disposal and connection disposal independently, preserving the first failure.

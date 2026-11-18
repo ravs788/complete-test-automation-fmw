@@ -12,7 +12,7 @@ This framework is a modular C# / .NET 10 test automation platform for REST API, 
 |------|----------|---------------|-------|
 | API | `Tests/Api` | `ApiClient` on `IHttpTransport`: Playwright `APIRequestContext` (default) or `HttpClient` | Yes |
 | Web UI | `Tests/UI/Web` (SauceDemo, TodoMVC) | UI contract (`Core/Ui`) on the Playwright adapter (Chromium, Chrome, Edge, Firefox, WebKit) | Yes (Chrome) |
-| Mobile web | `Tests/UI/Mobile` | UI contract on the Appium adapter (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; first CI run pending |
+| Mobile web | `Tests/UI/Mobile` | UI contract on the Appium adapter (Android; iOS/native in the bootstrap) | Scheduled/manual Android smoke on hosted macOS; hosted verification blocked/deferred (R16/R32/R33) |
 
 Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.visualstudio` is pinned to 2.8.2 because adapters from 3.0 on are built on the v3 runner and can't load Allure's reporter.
 
@@ -41,7 +41,7 @@ Why xUnit **v2**: `Allure.Xunit` doesn't support xUnit v3 yet. `xunit.runner.vis
 │     testsettings.json                           Pages/<App>/ <App>/      │
 │                                                 mobilesettings.json      │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ Pages/  (Pages.csproj, Playwright)                                       │
+│ Pages/  (Pages.csproj, driver-neutral)                                       │
 │   Common/BasePage · SauceDemo/LoginPage, InventoryPage, CartPage,        │
 │   Checkout* · Todo/TodoPage                                              │
 ├──────────────────────────────────────────────────────────────────────────┤

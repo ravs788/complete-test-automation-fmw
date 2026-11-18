@@ -31,7 +31,28 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
           <button data-testid="mixed-hidden" style="display:none">Hidden</button><button data-testid="mixed-hidden">Hidden</button>
           <input data-testid="duplicate-input" oninput="document.querySelector('[data-testid=action]').textContent=this.value">
           <input data-testid="duplicate-input">
+          <div data-testid="aria-check" role="checkbox" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked', this.getAttribute('aria-checked') === 'true' ? 'false' : 'true'); document.querySelector('[data-testid=aria-checked-state]').textContent=this.getAttribute('aria-checked')">Custom checkbox</div>
+          <p data-testid="aria-checked-state">false</p>
+          <div data-testid="aria-check-prevented" role="checkbox" tabindex="0" aria-checked="false">Unchanging custom checkbox</div>
           <p data-testid="action">untouched</p>
+          <label for="labelled-input">Contact email</label><input id="labelled-input" data-testid="labelled-input" oninput="document.querySelector('[data-testid=labelled-value]').textContent=this.value">
+          <p data-testid="labelled-value"></p>
+          <span id="label-first">Account</span><span id="label-last">name</span>
+          <input data-testid="aria-labelled" aria-labelledby="label-first label-last" aria-label="Ignored label" oninput="document.querySelector('[data-testid=aria-value]').textContent=this.value">
+          <p data-testid="aria-value"></p>
+          <button style="display:none" aria-label="Role target">Hidden duplicate</button>
+          <div aria-hidden="true"><button aria-label="Role target">ARIA hidden duplicate</button></div>
+          <button aria-label="Role target" data-testid="role-target" onclick="document.querySelector('[data-testid=role-result]').textContent='clicked'">Visible target</button>
+          <p data-testid="role-result">untouched</p>
+          <button style="opacity:0" aria-label="Transparent role">Transparent</button>
+          <button role="heading" aria-label="Override role">Overridden</button>
+          <input data-testid="already-checked" type="checkbox" checked disabled onclick="document.querySelector('[data-testid=checked-clicks]').textContent='clicked'">
+          <p data-testid="checked-clicks">untouched</p>
+          <button data-testid="enable-checkbox" onclick="setTimeout(() => { document.querySelector('[data-testid=delayed-check]').disabled=false; }, 750)">Enable checkbox</button>
+          <input data-testid="delayed-check" type="checkbox" disabled onchange="document.querySelector('[data-testid=delayed-state]').textContent='checked'">
+          <p data-testid="delayed-state">unchecked</p>
+          <input data-testid="prevented-check" type="checkbox" onclick="event.preventDefault()">
+          <button data-testid="invalid-check" onclick="document.querySelector('[data-testid=checked-clicks]').textContent='clicked'">Not a checkbox</button>
         </body></html>
         """;
 
@@ -56,6 +77,71 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
 
         await Ui.Expect(TestId("greeting")).ToHaveTextAsync("Hello Ann");
         await Ui.Expect(_session.Find(Locate.Css("li.done"))).ToHaveCountAsync(1);
+    }
+
+    [Fact]
+    public async Task Role_Should_UseAssociatedLabels_And_AriaLabelledByPrecedence()
+    {
+        await _session.Find(Locate.Role(UiRole.Textbox, "Contact email")).FillAsync("labelled");
+        await _session.Find(Locate.Role(UiRole.Textbox, "Account name")).FillAsync("aria labelled");
+        Assert.Equal(0, await _session.Find(Locate.Role(UiRole.Textbox, "Ignored label")).CountAsync());
+        await Ui.Expect(TestId("labelled-value")).ToHaveTextAsync("labelled");
+        await Ui.Expect(TestId("aria-value")).ToHaveTextAsync("aria labelled");
+    }
+
+    [Fact]
+    public async Task Role_Should_ExcludeHiddenMatches_And_HonorExplicitRoles()
+    {
+        var target = _session.Find(Locate.Role(UiRole.Button, "Role target"));
+        Assert.Equal(1, await target.CountAsync());
+        await target.ClickAsync();
+        await Ui.Expect(TestId("role-result")).ToHaveTextAsync("clicked");
+        Assert.Equal(0, await _session.Find(Locate.Role(UiRole.Button, "Override role")).CountAsync());
+        Assert.Equal(1, await _session.Find(Locate.Role(UiRole.Heading, "Override role")).CountAsync());
+        Assert.Equal(1, await _session.Find(Locate.Role(UiRole.Button, "Transparent role")).CountAsync());
+    }
+
+    [Fact]
+    public async Task Check_Should_NotClickAnAlreadyCheckedDisabledCheckbox()
+    {
+        await TestId("already-checked").CheckAsync();
+        await Ui.Expect(TestId("checked-clicks")).ToHaveTextAsync("untouched");
+    }
+
+    [Fact]
+    public async Task Check_Should_WaitForAnUncheckedCheckboxToBecomeEnabled()
+    {
+        await TestId("enable-checkbox").ClickAsync();
+        await TestId("delayed-check").CheckAsync();
+        await Ui.Expect(TestId("delayed-state")).ToHaveTextAsync("checked");
+    }
+
+    [Fact]
+    public async Task Check_Should_RejectInvalidTargetsWithoutClicking()
+    {
+        await Assert.ThrowsAsync<UiException>(() => TestId("invalid-check").CheckAsync());
+        await Ui.Expect(TestId("checked-clicks")).ToHaveTextAsync("untouched");
+    }
+
+    [Fact]
+    public async Task Check_Should_FailWhenTheCheckboxRemainsUnchecked()
+    {
+        await Assert.ThrowsAsync<UiException>(() => TestId("prevented-check").CheckAsync());
+    }
+
+    [Fact]
+    public async Task Check_Should_CheckAriaCheckbox_And_PreserveCheckedStateOnRepeat()
+    {
+        await TestId("aria-check").CheckAsync();
+        await Ui.Expect(TestId("aria-checked-state")).ToHaveTextAsync("true");
+        await TestId("aria-check").CheckAsync();
+        await Ui.Expect(TestId("aria-checked-state")).ToHaveTextAsync("true");
+    }
+
+    [Fact]
+    public async Task Check_Should_FailWhenAnAriaCheckboxRemainsUnchecked()
+    {
+        await Assert.ThrowsAsync<UiException>(() => TestId("aria-check-prevented").CheckAsync());
     }
 
     [Fact]

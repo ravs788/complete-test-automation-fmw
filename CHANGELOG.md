@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-18: Database and provider failure contracts (R54–R59)
+
+- Database setup failures release acquired connections; scope cleanup attempts every owned resource while preserving the first failure. Added injected-failure regressions alongside the existing SQLite checks.
+- Selenium role lookup uses browser-computed roles/accessible names and excludes hidden matches. Checkbox actions reject invalid targets and failed state changes; shared UI contracts cover labels, hidden roles, overrides and checkbox postconditions.
+- Both HTTP providers treat a base URL as a directory, including when its trailing slash is omitted. Shared loopback contracts cover relative, root-relative and absolute endpoints.
+- RabbitMQ queue-removal verification now requires the broker's specific 404 response instead of accepting any exception. Live broker verification remains dependent on an available broker.
+- Corrected current mobile CI/device-selection descriptions and Selenium's web-adapter role. Mobile implementation and hosted verification remain deferred (R16/R32/R33).
+
 ## 2026-11-18: Adapter failure-path guarantees and review reconciliation (R49–R53)
 
 - Selenium rejects ambiguous single-element actions, reads and scalar assertions, matching the Playwright contract; `First` is explicit and collection operations remain supported. Added shared driver regressions for hidden/disabled duplicates and unintended side effects.

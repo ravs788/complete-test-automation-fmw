@@ -475,7 +475,7 @@ See also [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code-style rules.
 
 ## ⚠️ Known Issues / TODO
 
-- **Mobile tests are only compiled in CI.** Hosted agents have no Android emulator. Running them would need a self-hosted agent or a device cloud (point `APPIUM_URL` at it).
+- **Mobile CI verification is deferred.** Scheduled/manual builds configure an Android smoke job on hosted macOS. Hosted attempts have failed during emulator/session setup; R16/R32/R33 remain blocked at the owner's request. See [the review ledger](docs/REVIEW.md#mobile-work-status--2026-11-18).
 - **Playwright Firefox may not start on some Macs** ("Could not find profile folder"). Reinstall it with `playwright.ps1 install --force firefox` or use another browser; CI uses Chrome.
 - **`LICENSE`** still has the `[Year] [Your Name]` placeholders.
 

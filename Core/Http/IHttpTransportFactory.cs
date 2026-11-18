@@ -6,6 +6,10 @@ namespace Core.Http;
 /// </summary>
 public interface IHttpTransportFactory
 {
-    /// <summary>A transport for <paramref name="baseUrl"/> that sends <paramref name="defaultHeaders"/> with every request.</summary>
+    /// <summary>
+    /// A transport for <paramref name="baseUrl"/> that sends <paramref name="defaultHeaders"/> with every request.
+    /// The base URL is a directory: a trailing slash is appended when missing. Root-relative and absolute request
+    /// URLs follow standard URI resolution, overriding the base path or the entire base URL respectively.
+    /// </summary>
     Task<IHttpTransport> CreateAsync(string baseUrl, IReadOnlyDictionary<string, string> defaultHeaders);
 }

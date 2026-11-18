@@ -61,6 +61,30 @@ public abstract class HttpTransportContractTests : IDisposable
         Assert.Equal("/api/items/echo", Echo(response)["path"]);
     }
 
+    [Theory]
+    [InlineData("api", "items/echo", "/api/items/echo")]
+    [InlineData("api/", "items/echo", "/api/items/echo")]
+    [InlineData("api", "/root/echo", "/root/echo")]
+    [InlineData("api/", "/root/echo", "/root/echo")]
+    [InlineData("api", "../echo", "/echo")]
+    [InlineData("api/", "../echo", "/echo")]
+    public async Task BaseUrl_Should_BeADirectory_WithStandardRelativeResolution(string basePath, string endpoint, string expected)
+    {
+        await using var transport = await TransportAsync(_server.BaseUrl + basePath);
+        var response = await transport.SendAsync(new HttpRequestData("GET", endpoint, NoHeaders));
+        Assert.Equal(expected, Echo(response)["path"]);
+    }
+
+    [Theory]
+    [InlineData("api")]
+    [InlineData("api/")]
+    public async Task AbsoluteUrl_Should_OverrideTheBaseHostAndPath(string basePath)
+    {
+        await using var transport = await TransportAsync("http://127.0.0.1:1/" + basePath);
+        var response = await transport.SendAsync(new HttpRequestData("GET", _server.BaseUrl + "absolute/echo", NoHeaders));
+        Assert.Equal("/absolute/echo", Echo(response)["path"]);
+    }
+
     [Fact]
     public async Task NonSuccess_Should_BeReturned_NotThrown()
     {

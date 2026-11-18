@@ -41,11 +41,34 @@ public sealed class WebDriverElement : IElement
 
     public Task CheckAsync() => ActAsync("check", e =>
     {
-        if (!e.Selected)
+        var type = e.GetDomAttribute("type");
+        Func<bool> isChecked;
+        if (string.Equals(e.TagName, "input", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(type, "checkbox", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "radio", StringComparison.OrdinalIgnoreCase)))
         {
-            e.Click();
+            isChecked = () => e.Selected;
         }
-    }, waitUntilStable: true);
+        else if (e.GetDomAttribute("role") is "checkbox" or "radio")
+        {
+            isChecked = () => string.Equals(e.GetDomAttribute("aria-checked"), "true", StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            throw new UiException($"Cannot check {Description}: expected a checkbox or radio element.");
+        }
+        if (!isChecked())
+        {
+            if (!e.Enabled || string.Equals(e.GetDomAttribute("aria-disabled"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ElementNotInteractableException($"Element is disabled: {Description}.");
+            }
+            e.Click();
+            if (!isChecked())
+            {
+                throw new UiException($"Could not check {Description}: element remained unchecked after clicking.");
+            }
+        }
+    }, requireEnabled: false, waitUntilStable: true);
 
     public async Task<string> TextAsync()
     {

@@ -14,16 +14,32 @@ public sealed class DbConnectionFactory(DbProviderFactory provider, string conne
     {
         var connection = provider.CreateConnection()
                          ?? throw new InvalidOperationException($"{provider.GetType().Name} can't create connections.");
-        connection.ConnectionString = connectionString;
-        await connection.OpenAsync(cancellationToken);
-        return connection;
+        try
+        {
+            connection.ConnectionString = connectionString;
+            await connection.OpenAsync(cancellationToken);
+            return connection;
+        }
+        catch
+        {
+            try { await connection.DisposeAsync(); } catch { /* preserve the setup failure */ }
+            throw;
+        }
     }
 
     /// <summary>Opens a connection with a transaction that is rolled back when the scope ends, unless committed.</summary>
     public async Task<DbTestScope> BeginScopeAsync(CancellationToken cancellationToken = default)
     {
         var connection = await OpenAsync(cancellationToken);
-        var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        return new DbTestScope(connection, transaction);
+        try
+        {
+            var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            return new DbTestScope(connection, transaction);
+        }
+        catch
+        {
+            try { await connection.DisposeAsync(); } catch { /* preserve the transaction startup failure */ }
+            throw;
+        }
     }
 }
