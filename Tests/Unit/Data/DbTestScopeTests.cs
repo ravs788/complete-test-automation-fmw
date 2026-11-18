@@ -32,33 +32,47 @@ public sealed class DbTestScopeTests : IAsyncLifetime
     [Fact]
     public async Task Scope_Should_RollBack_By_Default()
     {
+        // Arrange: the fixture supplies an empty bookings table.
         await using (var scope = await _db.BeginScopeAsync())
         {
+            // Arrange: insert a row inside an uncommitted scope.
             await scope.ExecuteAsync("INSERT INTO bookings (name) VALUES ($name)", ("$name", "seeded"));
+
+            // Assert: confirm the row exists inside the transaction.
             Assert.Equal(1L, await scope.ScalarAsync<long>("SELECT COUNT(*) FROM bookings"));
+
+            // Act: leaving the scope disposes it without committing.
         }
 
+        // Assert: implicit disposal rolled the transaction back.
         Assert.Equal(0L, await CountAsync());
     }
 
     [Fact]
     public async Task Scope_Should_KeepChanges_When_Committed()
     {
+        // Arrange: the fixture supplies an empty bookings table.
         await using (var scope = await _db.BeginScopeAsync())
         {
+            // Arrange: insert a row inside a new scope.
             await scope.ExecuteAsync("INSERT INTO bookings (name) VALUES ($name)", ("$name", "kept"));
+
+            // Act
             await scope.CommitAsync();
         }
 
+        // Assert: the committed row survives scope disposal.
         Assert.Equal(1L, await CountAsync());
     }
 
     [Fact]
     public async Task ScalarAsync_Should_UseParameters_And_ReturnDefaultForNoRow()
     {
+        // Arrange
         await using var scope = await _db.BeginScopeAsync();
         await scope.ExecuteAsync("INSERT INTO bookings (name) VALUES ($name)", ("$name", "O'Brien"));
 
+        // Act & Assert
         Assert.Equal("O'Brien", await scope.ScalarAsync<string>("SELECT name FROM bookings WHERE name = $name", ("$name", "O'Brien")));
         Assert.Null(await scope.ScalarAsync<string>("SELECT name FROM bookings WHERE name = $name", ("$name", "nobody")));
     }

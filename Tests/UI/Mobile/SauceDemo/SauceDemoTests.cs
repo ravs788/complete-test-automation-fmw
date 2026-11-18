@@ -14,8 +14,12 @@ public class SauceDemoTests : MobileTestBase
     public Task LoginPage_Should_Load() => RunAsync(async () =>
     {
         // MobileTestBase has already opened BaseUrl (mobilesettings.json). Same page object as the web suite (R47).
+
+        // Arrange: the mobile test base supplies a session on the configured login page.
+        // Act
         var login = new LoginPage(Session);
 
+        // Assert
         await Report.Step("Assert username field is visible", () =>
             Ui.Expect(login.Username).ToBeVisibleAsync());
         await Report.Step("Assert page title contains 'Swag Labs'", async () =>

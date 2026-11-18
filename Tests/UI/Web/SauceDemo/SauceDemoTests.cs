@@ -14,8 +14,11 @@ public class SauceDemoTests(BrowserFixture fixture) : SauceDemoTestBase(fixture)
     [Fact]
     public Task Login_Should_ShowInventory() => RunAsync(async () =>
     {
+        // Arrange: the fixture supplies a fresh browser session; use the standard demo user.
+        // Act
         var inventory = await LoginAsync(UserMother.Standard());
 
+        // Assert
         await Report.Step("Assert inventory page loaded after login", async () =>
             await Ui.Expect(inventory.Title).ToHaveTextAsync("Products"));
         await Report.Step("Assert inventory shows products", async () =>

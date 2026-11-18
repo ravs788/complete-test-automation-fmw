@@ -12,16 +12,20 @@ public abstract class SecretProviderContractTests
     [Fact]
     public void KnownSecret_Should_ReturnItsValue()
     {
+        // Arrange
         var name = $"contract-secret-{Guid.NewGuid():N}";
 
+        // Act & Assert
         Assert.Equal("s3cret", CreateWithOneSecret(name, "s3cret").GetSecret(name));
     }
 
     [Fact]
     public void UnknownSecret_Should_ReturnNull()
     {
+        // Arrange
         var provider = CreateWithOneSecret($"contract-secret-{Guid.NewGuid():N}", "x");
 
+        // Act & Assert
         Assert.Null(provider.GetSecret($"missing-{Guid.NewGuid():N}"));
     }
 }

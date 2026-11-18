@@ -29,12 +29,15 @@ public class TestHostBoundaryTests
     [MemberData(nameof(Assemblies))]
     public void TestClasses_Should_UseNoXunitInterfaces_AndNoReportingLibraryTypes(string assembly)
     {
+        // Arrange: the theory supplies the assembly to inspect.
+        // Act
         var offenders = Load(assembly).GetTypes()
             .Where(IsTestClass)
             .SelectMany(t => DeclaredInterfaces(t).Where(i => i.Namespace?.StartsWith("Xunit", StringComparison.Ordinal) == true).Select(i => $"{t.Name}: {i.Name}")
                 .Concat(t.GetCustomAttributesData().Where(a => a.AttributeType.Namespace?.StartsWith("Allure", StringComparison.Ordinal) == true).Select(a => $"{t.Name}: [{a.AttributeType.Name}]")))
             .ToList();
 
+        // Assert
         Assert.Empty(offenders);
     }
 
@@ -42,12 +45,15 @@ public class TestHostBoundaryTests
     [MemberData(nameof(Assemblies))]
     public void XunitLifecycleInterfaces_Should_OnlyBeImplemented_InFixturesAndBaseClasses(string assembly)
     {
+        // Arrange: the theory supplies the assembly to inspect.
+        // Act
         var offenders = Load(assembly).GetTypes()
             .Where(t => DeclaredInterfaces(t).Any(i => i.Namespace?.StartsWith("Xunit", StringComparison.Ordinal) == true))
             .Where(t => t.Namespace is null || !(t.Namespace.EndsWith(".Fixtures", StringComparison.Ordinal) || t.Namespace.EndsWith(".Infrastructure", StringComparison.Ordinal)))
             .Select(t => t.FullName)
             .ToList();
 
+        // Assert
         Assert.Empty(offenders);
     }
 
@@ -57,11 +63,14 @@ public class TestHostBoundaryTests
     [InlineData("Domain")]
     public void Assembly_Should_ReferenceNoVendorLibrary_ButTheTestHost(string assembly)
     {
+        // Arrange: the theory supplies the assembly to inspect.
+        // Act
         var vendors = Load(assembly).GetReferencedAssemblies()
             .Select(a => a.Name!)
             .Where(name => VendorPrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)))
             .ToList();
 
+        // Assert
         Assert.Empty(vendors);
     }
 }

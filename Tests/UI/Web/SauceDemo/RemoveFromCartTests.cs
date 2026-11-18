@@ -13,17 +13,21 @@ public class RemoveFromCartTests(BrowserFixture fixture) : SauceDemoTestBase(fix
     [Fact]
     public Task Cart_Should_RemoveProduct_When_RemoveClicked() => RunAsync(async () =>
     {
+        // Arrange
         var product = ProductMother.Backpack();
 
         var inventory = await LoginAsync(UserMother.Standard());
         await inventory.AddToCartAsync(product.Name);
         var cart = await inventory.OpenCartAsync();
 
+        // Assert: confirm the arranged cart contains the product.
         await Report.Step("Assert product added to cart", async () =>
             await Ui.Expect(cart.Item(product.Name)).ToBeVisibleAsync());
 
+        // Act
         await cart.RemoveAsync(product.Name);
 
+        // Assert
         await Report.Step("Assert product removed from cart", async () =>
             await Ui.Expect(cart.Item(product.Name)).ToHaveCountAsync(0));
     });

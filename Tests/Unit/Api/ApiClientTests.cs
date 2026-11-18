@@ -34,11 +34,14 @@ public class ApiClientTests
     [Fact]
     public async Task Get_Should_RetryTransientStatus_ThenDeserialize()
     {
+        // Arrange
         var transport = new ScriptedTransport(_ => Status(503), _ => Status(200, "{\"name\":\"ok\"}"));
         await using var client = await ApiClient.CreateAsync("http://unused/", FastRetry, transports: transport);
 
+        // Act
         var item = await client.GetAsync<Item>("items/1");
 
+        // Assert
         Assert.Equal("ok", item!.Name);
         Assert.Equal(2, transport.Requests.Count);
     }
@@ -46,11 +49,14 @@ public class ApiClientTests
     [Fact]
     public async Task Post_Should_NeverBeRetried_And_SendJson()
     {
+        // Arrange
         var transport = new ScriptedTransport(_ => Status(503));
         await using var client = await ApiClient.CreateAsync("http://unused/", FastRetry, transports: transport);
 
+        // Act & Assert
         var ex = await Assert.ThrowsAsync<ApiException>(() => client.PostAsync<Item>("items", new Item("new")));
 
+        // Assert: POST was sent once with the expected JSON and content type.
         Assert.Equal(503, ex.StatusCode);
         var request = Assert.Single(transport.Requests);
         Assert.Equal("{\"Name\":\"new\"}", request.Body);
@@ -60,21 +66,26 @@ public class ApiClientTests
     [Fact]
     public async Task Get_Should_RetryNetworkFailures()
     {
+        // Arrange
         var calls = 0;
         var transport = new ScriptedTransport(_ => ++calls == 1 ? throw new HttpRequestException("connection reset") : Status(200, "{\"name\":\"x\"}"));
         await using var client = await ApiClient.CreateAsync("http://unused/", FastRetry, transports: transport);
 
+        // Act & Assert
         Assert.Equal("x", (await client.GetAsync<Item>("items/2"))!.Name);
     }
 
     [Fact]
     public async Task SendRaw_Should_ReturnNonSuccess_WithoutThrowing()
     {
+        // Arrange
         var transport = new ScriptedTransport(_ => Status(404, "missing"));
         await using var client = await ApiClient.CreateAsync("http://unused/", FastRetry, transports: transport);
 
+        // Act
         var response = await client.SendRawAsync("GET", "items/3");
 
+        // Assert
         Assert.Equal(404, response.Status);
         Assert.Equal("missing", response.Text);
     }

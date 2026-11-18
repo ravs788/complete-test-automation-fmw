@@ -18,6 +18,7 @@ public class ElasticTlsTests
     public async Task Check_Should_SendCredentials_OnlyAfterCertificateIsAccepted(
         ElasticServerChoices profile, bool matchingFingerprint, bool expectedUsable)
     {
+        // Arrange
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
@@ -68,10 +69,12 @@ public class ElasticTlsTests
             }
         }, cancellation.Token);
 
+        // Act
         var result = await Task.Run(() => ElasticConnectivity.Check($"https://localhost:{port}", "probe-user", "probe-password",
             TimeSpan.FromSeconds(3), profile, fingerprint), cancellation.Token);
         await server.WaitAsync(cancellation.Token);
 
+        // Assert
         Assert.Equal(expectedUsable, result.IsUsable);
         if (expectedUsable)
         {

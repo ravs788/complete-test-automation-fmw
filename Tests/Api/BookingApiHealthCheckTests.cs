@@ -13,8 +13,11 @@ public class BookingApiHealthCheckTests(ApiFixture fixture) : ApiTestBase(fixtur
     [Fact]
     public Task Ping_Should_Return201() => RunAsync(async () =>
     {
+        // Arrange: the fixture supplies the configured API client.
+        // Act
         var response = await Client.SendRawAsync("GET", "ping");
 
+        // Assert
         Report.Step("Assert API health check via /ping returns 201", () =>
             Assert.Equal(201, response.Status));
     });

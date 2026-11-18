@@ -28,11 +28,14 @@ public sealed class SettingsLoaderTests : IDisposable
     [Fact]
     public void ProviderNames_Should_RemainReadable_InDiagnostics()
     {
+        // Arrange
         var name = $"provider-{Guid.NewGuid():N}";
         WriteJson($$"""{ "Secrets": ["{{name}}"] }""");
 
+        // Act
         var settings = SettingsLoader.Load<ProvidersSettings>(_dir, "settings.json", _prefix);
 
+        // Assert
         Assert.Equal(name, Assert.Single(settings.Secrets));
         Assert.Equal(name, DiagnosticRedactor.Redact(name));
     }
@@ -40,14 +43,18 @@ public sealed class SettingsLoaderTests : IDisposable
     [Fact]
     public void Load_Should_KeepDefaults_When_FileAndEnvironmentAreMissing()
     {
+        // Arrange: the fixture supplies an empty directory and a unique environment prefix.
+        // Act
         var sample = SettingsLoader.Load<Sample>(_dir, "missing.json", _prefix);
 
+        // Assert
         Assert.Equal(new Sample(), sample);
     }
 
     [Fact]
     public void Load_Should_ReadJsonWithComments()
     {
+        // Arrange
         WriteJson("""
                   {
                     // comment
@@ -56,8 +63,10 @@ public sealed class SettingsLoaderTests : IDisposable
                   }
                   """);
 
+        // Act
         var sample = SettingsLoader.Load<Sample>(_dir, "settings.json", _prefix);
 
+        // Assert
         Assert.Equal("from-json", sample.Name);
         Assert.Equal("json-url", sample.Inner.Url);
         Assert.Equal(1, sample.Count);
@@ -66,12 +75,15 @@ public sealed class SettingsLoaderTests : IDisposable
     [Fact]
     public void Load_Should_PreferPrefixedEnvironmentVariables_Over_Json()
     {
+        // Arrange
         WriteJson("""{ "Name": "from-json", "Inner": { "Url": "json-url" } }""");
         SetEnv(_prefix + "Name", "from-env");
         SetEnv(_prefix + "Inner__Url", "env-url");
 
+        // Act
         var sample = SettingsLoader.Load<Sample>(_dir, "settings.json", _prefix);
 
+        // Assert
         Assert.Equal("from-env", sample.Name);
         Assert.Equal("env-url", sample.Inner.Url);
     }
@@ -79,24 +91,30 @@ public sealed class SettingsLoaderTests : IDisposable
     [Fact]
     public void Load_Should_PreferAliases_Over_PrefixedEnvironmentVariables()
     {
+        // Arrange
         var alias = $"{_prefix}ALIAS_URL";
         SetEnv(_prefix + "Inner__Url", "env-url");
         SetEnv(alias, "alias-url");
 
+        // Act
         var sample = SettingsLoader.Load<Sample>(_dir, "settings.json", _prefix, new Dictionary<string, string> { [alias] = "Inner:Url" });
 
+        // Assert
         Assert.Equal("alias-url", sample.Inner.Url);
     }
 
     [Fact]
     public void Load_Should_IgnoreEmptyAliases()
     {
+        // Arrange
         WriteJson("""{ "Name": "from-json" }""");
         var alias = $"{_prefix}ALIAS_NAME";
         SetEnv(alias, "");
 
+        // Act
         var sample = SettingsLoader.Load<Sample>(_dir, "settings.json", _prefix, new Dictionary<string, string> { [alias] = "Name" });
 
+        // Assert
         Assert.Equal("from-json", sample.Name);
     }
 

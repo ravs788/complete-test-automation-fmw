@@ -15,13 +15,16 @@ public sealed class DbFailureTests
     [InlineData("CancelledBegin")]
     public async Task Setup_Should_DisposeConnection_And_PreserveOriginalFailure(string stage)
     {
+        // Arrange
         var original = stage.StartsWith("Cancelled", StringComparison.Ordinal)
             ? (Exception)new OperationCanceledException("cancelled") : new IOException(stage);
         var connection = new TrackingConnection(stage, original) { DisposeFailure = new IOException("dispose") };
         var factory = new DbConnectionFactory(new Provider(connection), "test");
 
+        // Act
         var error = await Record.ExceptionAsync(async () => await factory.BeginScopeAsync());
 
+        // Assert
         Assert.Same(original, error);
         Assert.Equal(1, connection.DisposeCalls);
     }
@@ -34,6 +37,7 @@ public sealed class DbFailureTests
     public async Task Disposal_Should_AttemptEveryResource_And_PreserveFirstFailure(
         bool rollbackFails, bool transactionFails, bool connectionFails, string? expected)
     {
+        // Arrange
         var connection = new TrackingConnection("", new IOException())
         {
             DisposeFailure = connectionFails ? new IOException("connection") : null
@@ -45,8 +49,10 @@ public sealed class DbFailureTests
         };
         var scope = new DbTestScope(connection, transaction);
 
+        // Act
         var error = await Record.ExceptionAsync(async () => await scope.DisposeAsync());
 
+        // Assert
         Assert.Equal(expected, error?.Message);
         Assert.Equal(1, transaction.RollbackCalls);
         Assert.Equal(1, transaction.DisposeCalls);
@@ -56,13 +62,16 @@ public sealed class DbFailureTests
     [Fact]
     public async Task CommittedScope_Should_SkipRollback_ButStillDisposeBothResources()
     {
+        // Arrange
         var connection = new TrackingConnection("", new IOException());
         var transaction = new TrackingTransaction(connection) { DisposeFailure = new IOException("transaction") };
         var scope = new DbTestScope(connection, transaction);
         await scope.CommitAsync();
 
+        // Act & Assert
         var error = await Assert.ThrowsAsync<IOException>(async () => await scope.DisposeAsync());
 
+        // Assert: committed changes skip rollback, while both resources are disposed.
         Assert.Equal("transaction", error.Message);
         Assert.Equal(0, transaction.RollbackCalls);
         Assert.Equal(1, transaction.DisposeCalls);

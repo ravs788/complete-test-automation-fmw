@@ -28,11 +28,15 @@ public class NegativeLoginTests(BrowserFixture fixture) : SauceDemoTestBase(fixt
     [MemberData(nameof(InvalidLogins))]
     public Task Login_Should_ShowError_When_CredentialsInvalid(string username, string password, string expectedError) => RunAsync(async () =>
     {
+        // Arrange
         var login = new LoginPage(Session);
 
         await login.OpenAsync();
+
+        // Act
         await login.LoginExpectingErrorAsync(username, password);
 
+        // Assert
         await Report.Step("Assert login error displayed", async () =>
         {
             await Ui.Expect(login.ErrorMessage).ToBeVisibleAsync();
