@@ -1,5 +1,11 @@
 # Contributing Guidelines
 
+## Reviews before committing
+
+A request to commit automatically triggers all five skills before Git creates the commit; no separate review request is needed.
+
+Follow the [required pre-commit reviews](../AGENTS.md#required-reviews-before-every-commit) on every branch: code, tests, coverage, documentation, and test modernization. Review the staged changes, complete the skills' applicable workflows, and report the outcomes and any remaining findings before the commit handoff. See AGENTS.md for scope, evidence, and exceptions.
+
 ## Where things go
 
 One rule everywhere: **`<Layer>/<App>/`** for app-specific code, the layer root for generic code, and **namespace = folder path**.

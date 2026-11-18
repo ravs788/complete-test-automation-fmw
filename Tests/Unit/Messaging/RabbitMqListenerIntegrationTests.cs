@@ -1,6 +1,7 @@
 using System.Text;
 using Core.Messaging.RabbitMq;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 
 namespace Tests.Unit.Messaging;
 
@@ -36,7 +37,8 @@ public class RabbitMqListenerIntegrationTests
 
             // The listener's exclusive, auto-delete queue is gone once it's disposed.
             await using var check = await admin.CreateChannelAsync();
-            await Assert.ThrowsAnyAsync<Exception>(() => check.QueueDeclarePassiveAsync(queue));
+            var missing = await Assert.ThrowsAsync<OperationInterruptedException>(() => check.QueueDeclarePassiveAsync(queue));
+            Assert.Equal((ushort)404, missing.ShutdownReason?.ReplyCode);
         }
         finally
         {

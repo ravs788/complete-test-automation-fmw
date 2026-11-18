@@ -21,7 +21,7 @@ For the short version, see "Quick Start" in the root README.
 | Appium environment check/fix scripts | ✅ `appium_env_*.ps1` | – (manual checks below) | – (manual checks below) |
 | Allure report (`allure serve`) | ✅ | ✅ | ✅ |
 | Local Elasticsearch + Kibana logging (`docker compose`) | ✅ Docker Desktop | ✅ Docker Desktop / Colima | ✅ Docker Engine |
-| CI (Azure Pipelines) | – | Android smoke on `macOS-15` (scheduled/manual; first run pending) | ✅ `ubuntu-latest`, Chrome |
+| CI (Azure Pipelines) | – | Android smoke on `macOS-15` (scheduled/manual; hosted verification blocked/deferred, R16/R32/R33) | ✅ `ubuntu-latest`, Chrome |
 
 1. Playwright's browser builds officially support **Ubuntu 22.04/24.04 and Debian 12**. They often work on other distros, but missing system libraries are up to you. `--with-deps` installs those libraries only on Debian and Ubuntu, and only with `sudo`.
 2. WebKit needs a recent macOS release. Playwright drops older macOS versions over time, so if WebKit fails to launch, update macOS or use another browser.
@@ -150,7 +150,7 @@ BROWSER=webkit HEADLESS=false scripts/unix/run_web_tests_gen_report.sh
     printf 'no\n' | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -n android_14 -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_6
     $ANDROID_HOME/emulator/emulator -avd android_14 -port 5554 &
     ```
-    The brew copy of `avdmanager` only looks in its own SDK folder, hence the `cmdline-tools;latest` install into `ANDROID_HOME`. `mobilesettings.json` expects Android 14 on `emulator-5554`; on an M-series Mac this boots in about a minute.
+    The brew copy of `avdmanager` only looks in its own SDK folder, hence the `cmdline-tools;latest` install into `ANDROID_HOME`. The shared `mobilesettings.json` targets Android 14 with an empty UDID, allowing Appium to select an available matching device. The example starts `emulator-5554`; set `MOBILE_Device__Udid` to the actual serial from `adb devices -l` when selecting a specific device. Wait for it to finish booting before starting tests.
 - **iOS:** install Xcode and its command-line tools, then `appium driver install xcuitest`. Set `"Platform": "iOS"` (and `"AppType"`, `"IOS"`) in `Tests/UI/Mobile/mobilesettings.json`. There are no iOS tests in the repo yet, so you'd add them under `Tests/UI/Mobile/<App>/`.
 
 **Can't do on macOS:** desktop (Windows UI Automation) tests, if a desktop suite is added.

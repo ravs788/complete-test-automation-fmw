@@ -27,7 +27,7 @@ public sealed class PlaywrightHttpTransport(IPlaywright playwright, string baseU
         token.ThrowIfCancellationRequested();
         await using var context = await playwright.APIRequest.NewContextAsync(new()
         {
-            BaseURL = baseUrl,
+            BaseURL = baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/",
             ExtraHTTPHeaders = _defaultHeaders
         });
         lock (_gate)
