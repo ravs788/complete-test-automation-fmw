@@ -2,6 +2,8 @@ using System.Runtime.CompilerServices;
 using Core.Composition;
 using Core.Configuration;
 using Core.Logging;
+using Core.Reporting;
+using Core.Security;
 using Core.Testing;
 using Core.Ui;
 using Core.Ui.Capabilities;
@@ -33,8 +35,9 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
     /// <summary>Base URL of the application under test (the session's base URL).</summary>
     protected abstract string BaseUrl { get; }
 
-    private bool Tracing => !string.Equals(Settings.Trace, TraceModes.Off, StringComparison.OrdinalIgnoreCase);
+    private bool Tracing => DiagnosticArtifactPolicy.Current.AllowAttachments && !string.Equals(Settings.Trace, TraceModes.Off, StringComparison.OrdinalIgnoreCase);
     private bool _traceSaved;
+    private bool _traceStarted;
 
     public async Task InitializeAsync()
     {
@@ -42,6 +45,7 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
         if (Tracing && Session.TryGet<ITracing>(out var tracing))
         {
             await tracing.StartAsync();
+            _traceStarted = true;
         }
     }
 
@@ -71,7 +75,7 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
                     // UI failures (a missed assertion, an element that never appeared) are test failures: report them
                     // as xUnit assertion failures so Allure shows "failed" rather than "broken", keeping the driver's
                     // message (with its call log) and stack trace.
-                    Assert.Fail($"{ex.Message}{Environment.NewLine}{ex.InnerException?.StackTrace ?? ex.StackTrace}");
+                    Assert.Fail(DiagnosticRedactor.Redact($"{ex.Message}{Environment.NewLine}{ex.InnerException?.StackTrace ?? ex.StackTrace}"));
                 }
             },
             onFailureAsync: AttachFailureArtifactsAsync,
@@ -81,10 +85,11 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
     {
         try
         {
-            if (Session.TryGet<IScreenshots>(out var screenshots))
+            if (DiagnosticArtifactPolicy.Current.AllowAttachments && Session.TryGet<IScreenshots>(out var screenshots))
             {
-                var png = await screenshots.CaptureAsync(fullPage: true);
-                Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png");
+                await DiagnosticArtifactPolicy.Current.CaptureAsync(
+                    () => screenshots.CaptureAsync(fullPage: true),
+                    png => Framework.Reporter.Attach("Test Failure", "image/png", png, $"failure_{DateTime.Now:yyyyMMddHHmmssfff}.png"));
             }
         }
         finally
@@ -99,7 +104,7 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
 
     private async Task AttachTraceIfAlwaysOnAsync()
     {
-        if (!_traceSaved && string.Equals(Settings.Trace, TraceModes.On, StringComparison.OrdinalIgnoreCase))
+        if (_traceStarted && !_traceSaved && string.Equals(Settings.Trace, TraceModes.On, StringComparison.OrdinalIgnoreCase))
         {
             await AttachTraceAsync();
         }
@@ -111,12 +116,13 @@ public abstract class UiTestBase : IClassFixture<BrowserFixture>, IAsyncLifetime
     /// </summary>
     private async Task AttachTraceAsync()
     {
-        if (!Session.TryGet<ITracing>(out var tracing))
+        if (!_traceStarted || !Session.TryGet<ITracing>(out var tracing))
         {
             return;
         }
         var trace = await tracing.StopAsync();
         _traceSaved = true;
+        _traceStarted = false;
         Framework.Reporter.Attach(tracing.TraceName, tracing.TraceContentType, trace, tracing.TraceFileExtension);
     }
 }

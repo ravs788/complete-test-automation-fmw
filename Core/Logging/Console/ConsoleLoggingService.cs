@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Core.Security;
 
 namespace Core.Logging.Console;
 
@@ -26,6 +27,8 @@ public class ConsoleLoggingService : ILoggingService
 
     private void Write(string level, string message, LogMetadata? metadata, bool isError)
     {
+        message = DiagnosticRedactor.Redact(message);
+        metadata = metadata?.Redacted();
         var ts = DateTime.UtcNow.ToString("o");
         var indexName = ResolveIndexName();
         string line = $"[{ts}] [{level}] [{indexName}] {message}";

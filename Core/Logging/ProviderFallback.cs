@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Core.Security;
 
 namespace Core.Logging;
 
@@ -9,7 +10,7 @@ public static class ProviderFallback
 
     public static void Report(string provider, string? reason, string fallback, string area = "Logging")
     {
-        var message = $"[{area}] Provider '{provider}' not used: {reason ?? "unavailable"}. Using '{fallback}' instead.";
+        var message = DiagnosticRedactor.Redact($"[{area}] Provider '{provider}' not used: {reason ?? "unavailable"}. Using '{fallback}' instead.");
         if (_reported.TryAdd(message, true))
         {
             System.Console.Error.WriteLine(message);

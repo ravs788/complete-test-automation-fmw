@@ -41,7 +41,17 @@ public static class SettingsLoader
             builder.AddInMemoryCollection(values);
         }
 
-        return ResolveSecrets(builder.Build(), SecretProvider).Get<T>() ?? new T();
+        var resolved = ResolveSecrets(builder.Build(), SecretProvider);
+        foreach (var pair in resolved.AsEnumerable())
+        {
+            var key = pair.Key.Split(':')[^1];
+            if (key.Contains("password", StringComparison.OrdinalIgnoreCase) || key.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+                key.Contains("token", StringComparison.OrdinalIgnoreCase) || key.Equals("ApiKey", StringComparison.OrdinalIgnoreCase))
+            {
+                DiagnosticRedactor.RegisterSecret(pair.Value);
+            }
+        }
+        return resolved.Get<T>() ?? new T();
     }
 
     /// <summary>Replaces every <c>secret://NAME</c> value; fails with the setting's key if a secret can't be found.</summary>
@@ -61,6 +71,8 @@ public static class SettingsLoader
             var value = secrets.GetSecret(name)
                         ?? throw new InvalidOperationException(
                             $"Setting '{kv.Key}' refers to secret '{name}', which {secrets} doesn't provide.");
+            // The provider resolved a secret regardless of the setting's name (e.g. a connection string or Name).
+            DiagnosticRedactor.RegisterSecret(value);
             return new KeyValuePair<string, string?>(kv.Key, value);
         });
 

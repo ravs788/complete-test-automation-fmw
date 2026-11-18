@@ -6,6 +6,7 @@ namespace Core.Http;
 /// <see cref="HttpRequestException"/> only when no response arrived (network failure), so retries work the same for
 /// every transport.
 /// </summary>
+/// <remarks>Automatic redirects are disabled. A 3xx response is returned without forwarding headers or bodies.</remarks>
 public interface IHttpTransport : IAsyncDisposable
 {
     Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken cancellationToken = default);

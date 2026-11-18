@@ -3,6 +3,7 @@ using System.Reflection;
 using Core.Composition;
 using Core.Logging;
 using Core.Reporting;
+using Core.Security;
 
 namespace Core.Testing;
 
@@ -45,9 +46,10 @@ public static class TestRunner
         catch (Exception ex)
         {
             status = "Failed";
-            reason = ex.Message;
-            logger.Error($"[Failed] {info.TestClass.Name}.{info.TestName}{target}: {ex.Message}");
+            reason = DiagnosticRedactor.Redact(ex.Message);
+            logger.Error($"[Failed] {info.TestClass.Name}.{info.TestName}{target}: {reason}");
             try { await onFailureAsync(); } catch { /* never mask the original failure */ }
+            if (DiagnosticRedactor.Redact(ex.ToString()) != ex.ToString()) throw new RedactedTestException(ex);
             throw;
         }
         finally
@@ -60,7 +62,7 @@ public static class TestRunner
             Publish(info, status, reason, startTime, endTime, duration);
 
             try { if (cleanupAsync is not null) await cleanupAsync(); }
-            catch (Exception ex) { logger.Error($"[Cleanup] {ex.Message}"); }
+            catch (Exception ex) { logger.Error(DiagnosticRedactor.Redact($"[Cleanup] {ex.Message}")); }
         }
     }
 
@@ -105,7 +107,7 @@ public static class TestRunner
         }
         catch (Exception ex)
         {
-            info.Logger.Error($"[Results] Publish failed: {ex.Message}");
+            info.Logger.Error(DiagnosticRedactor.Redact($"[Results] Publish failed: {ex.Message}"));
         }
     }
 }

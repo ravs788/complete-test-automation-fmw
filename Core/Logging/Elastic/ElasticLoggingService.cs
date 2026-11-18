@@ -1,3 +1,4 @@
+using Core.Security;
 using Elastic.Clients.Elasticsearch;
 
 namespace Core.Logging.Elastic;
@@ -68,6 +69,8 @@ public class ElasticLoggingService : ILoggingService
 
     private void Write(string level, string message, LogMetadata? metadata)
     {
+        message = DiagnosticRedactor.Redact(message);
+        metadata = metadata?.Redacted();
         if (_client == null)
             throw new InvalidOperationException("ElasticLoggingService is not configured. Call Configure() first.");
 
@@ -115,6 +118,7 @@ public class ElasticLoggingService : ILoggingService
     /// <summary>Stops writing to Elastic after the first failure and says why, once, instead of failing on every line.</summary>
     private void Disable(string? reason)
     {
+        reason = DiagnosticRedactor.Redact(reason);
         _enabled = false;
         if (!_disabledWarned)
         {

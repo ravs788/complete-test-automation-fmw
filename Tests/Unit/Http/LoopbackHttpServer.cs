@@ -23,6 +23,11 @@ public sealed class LoopbackHttpServer : IDisposable
         _ = Task.Run(ServeAsync);
     }
 
+    public string? FixedResponseJson { get; init; }
+    public ConcurrentQueue<string> RequestBodies { get; } = new();
+
+    public ConcurrentDictionary<string, (int Status, string Location)> Redirects { get; } = new();
+
     public ConcurrentQueue<string> RequestPaths { get; } = new();
     public TaskCompletionSource DelayedRequestReceived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -77,8 +82,22 @@ public sealed class LoopbackHttpServer : IDisposable
             }
             using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
             var body = await reader.ReadToEndAsync();
+            RequestBodies.Enqueue(body);
             byte[] payload;
-            if (request.Url!.AbsolutePath.EndsWith("/missing", StringComparison.Ordinal))
+            if (Redirects.TryGetValue(request.Url!.AbsolutePath, out var redirect))
+            {
+                response.StatusCode = redirect.Status;
+                response.Headers["Location"] = redirect.Location;
+                payload = [];
+            }
+            else if (FixedResponseJson is not null)
+            {
+                response.StatusCode = 200;
+                response.ContentType = "application/json";
+                response.Headers["X-Elastic-Product"] = "Elasticsearch";
+                payload = Encoding.UTF8.GetBytes(FixedResponseJson);
+            }
+            else if (request.Url!.AbsolutePath.EndsWith("/missing", StringComparison.Ordinal))
             {
                 response.StatusCode = 404;
                 payload = Encoding.UTF8.GetBytes("missing");

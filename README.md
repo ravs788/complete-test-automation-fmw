@@ -487,6 +487,12 @@ See [docs/DIAGRAMS.md](docs/DIAGRAMS.md) for flow diagrams (project dependencies
 
 ---
 
+## Security controls
+
+See [security controls for test runs](docs/SECURITY.md) for loopback-only local logging, HTTPS remote logging, explicit HTTP redirect behavior, diagnostic redaction and sensitive-capture/publication settings.
+
+---
+
 ## 🤝 Contributing
 
 Contributions and suggestions are welcome. Open an issue or a PR. Before submitting, run the relevant suite locally (`dotnet test …` or the scripts in `scripts/`) and follow `.editorconfig` and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).

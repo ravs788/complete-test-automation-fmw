@@ -27,6 +27,19 @@ public class SecretResolutionTests
     }
 
     [Fact]
+    public void ResolveSecrets_Should_RegisterOpaqueValuesUnderOrdinarySettingNames()
+    {
+        var secret = $"opaque-{Guid.NewGuid():N}/credential";
+        var config = Config(new() { ["Name"] = "secret://opaque" });
+
+        var resolved = SettingsLoader.ResolveSecrets(config, new FakeSecrets(new() { ["opaque"] = secret }));
+
+        Assert.Equal(secret, resolved["Name"]);
+        Assert.DoesNotContain(secret, DiagnosticRedactor.Redact($"operation failed with {secret}"));
+        Assert.DoesNotContain(Uri.EscapeDataString(secret), DiagnosticRedactor.Redact($"encoded {Uri.EscapeDataString(secret)}"));
+    }
+
+    [Fact]
     public void ResolveSecrets_Should_NameTheSetting_When_ASecretIsMissing()
     {
         var config = Config(new() { ["RestfulBooker:Password"] = "secret://booker-password" });

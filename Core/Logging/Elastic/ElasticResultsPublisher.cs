@@ -20,6 +20,7 @@ public class ElasticResultsPublisher : IResultsPublisher
     {
         if (metadata is null) throw new ArgumentNullException(nameof(metadata));
 
+        metadata = metadata.Redacted();
         var indexName = overrideIndexName ??
                         $"search-{(metadata.ProjectName ?? "testproject").ToLower(CultureInfo.InvariantCulture)}";
 

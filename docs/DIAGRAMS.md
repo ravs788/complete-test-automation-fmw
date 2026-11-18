@@ -65,22 +65,22 @@ sequenceDiagram
     participant O as Report + logs
 
     X->>B: start test
-    B->>B: new browser context + page,<br/>start tracing
+    B->>B: new browser context + page,<br/>start tracing when policy permits
     B->>R: RunAsync(test body)
     R->>O: [Start]
     R->>P: run the test steps
     P-->>R: results and assertions
     alt test failed
-        B->>O: screenshot + trace
+        B->>O: permitted screenshot + trace
     end
-    R->>O: [Finish], timing, result
+    R->>O: sanitized [Finish], timing, result
     X->>B: end test: close context
 ```
 
 | Step | Detail |
 |---|---|
 | Before the first test | `TestRunSetup` calls `Framework.Configure` with the adapters' plugins (providers chosen in `providers.json`), and the selected reporter clears the previous run's results; `BrowserFixture` reads `testsettings.json` and launches the browser once per class through the UI driver selected with `"Ui"` in `providers.json`. |
-| New context + page | Fresh cookies and storage for every test; tracing is on unless `Trace` is `off`. |
+| New context + page | Fresh cookies and storage for every test; tracing is on unless `Trace` is `off` or `DIAGNOSTIC_ARTIFACTS=restricted`. |
 | Test steps | `Report.Step(...)` around assertions; page objects (on the UI contract), Mothers/Builders and `Ui.Expect(...)`; `GotoAsync` retries navigation (`Resilience.Navigation`). |
 | Test failed | A `UiException` (missed `Ui.Expect`, element never actionable) is reported as a failure (not "broken"); after the screenshot and trace are attached, the exception is rethrown so the test fails. |
 | Finish | The result goes to the selected reporter (Allure by default) and, as `LogMetadata`, to Elasticsearch or the console. With `Trace = on` the trace is attached even on success. |
@@ -196,7 +196,7 @@ What each job does:
 flowchart LR
     subgraph L["Linux job"]
         direction LR
-        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L5["UI driver<br/>contract tests"] --> L4["Allure report"]
+        L1["Build"] --> L2["Unit tests"] --> L3["Playwright tests"] --> L5["UI driver<br/>contract tests"] --> L4["Allure report<br/>when publication enabled"]
     end
     subgraph M["Android job"]
         direction LR
@@ -210,6 +210,8 @@ flowchart LR
 
 | Job | Publishes |
 |---|---|
-| Linux | TRX (gates the build), `allure-results`, `allure-report` (with history from the latest `main` build) |
+| Linux | When `publishWebDiagnostics=true`: TRX, `allure-results`, `allure-report` (with history from the latest `main` build) |
 | Android | `mobile-results`: TRX, Allure results, Appium, emulator and logcat logs |
 | Windows | `windows-helper-verification` |
+
+The web job uses `diagnosticArtifactMode` for capture/attachment policy and `publishWebDiagnostics` for diagnostic publishing. Test exit codes still gate the build when publication is suppressed. See [security controls](SECURITY.md); mobile publication remains unchanged while mobile work is deferred.

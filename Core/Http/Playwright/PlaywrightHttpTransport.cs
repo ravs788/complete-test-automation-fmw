@@ -1,3 +1,4 @@
+using Core.Security;
 using Microsoft.Playwright;
 
 namespace Core.Http.Playwright;
@@ -55,7 +56,7 @@ public sealed class PlaywrightHttpTransport(IPlaywright playwright, string baseU
             }
             catch (PlaywrightException ex)
             {
-                throw new HttpRequestException(ex.Message, ex);
+                throw new HttpRequestException(DiagnosticRedactor.Redact(ex.Message));
             }
         }
         finally
@@ -67,7 +68,7 @@ public sealed class PlaywrightHttpTransport(IPlaywright playwright, string baseU
     private static async Task<HttpResponseData> SendCoreAsync(IAPIRequestContext context, HttpRequestData request)
     {
         var headers = new Dictionary<string, string>(request.Headers);
-        var options = new APIRequestContextOptions { Method = request.Method, Headers = headers };
+        var options = new APIRequestContextOptions { Method = request.Method, Headers = headers, MaxRedirects = 0 };
         if (request.Body is not null)
         {
             options.DataString = request.Body;
