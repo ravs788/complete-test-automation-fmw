@@ -81,6 +81,54 @@ public abstract class HttpTransportContractTests : IDisposable
         await Assert.ThrowsAsync<HttpRequestException>(() => transport.SendAsync(new HttpRequestData("GET", "echo", NoHeaders)));
     }
 
+    [Fact]
+    public async Task PreCancelledRequest_Should_NotReachServer_And_TransportRemainsUsable()
+    {
+        await using var transport = await TransportAsync();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            transport.SendAsync(new HttpRequestData("POST", "cancelled", NoHeaders), cancellation.Token));
+        Assert.Equal(200, (await transport.SendAsync(new HttpRequestData("GET", "echo", NoHeaders))).Status);
+        Assert.DoesNotContain("/cancelled", _server.RequestPaths);
+    }
+
+    [Fact]
+    public async Task CancellingOneRequest_Should_NotAbortConcurrentRequests_OrPoisonTransport()
+    {
+        await using var transport = await TransportAsync();
+        using var cancellation = new CancellationTokenSource();
+        var delayed = transport.SendAsync(new HttpRequestData("GET", "delay", NoHeaders), cancellation.Token);
+        try
+        {
+            await _server.DelayedRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var peer = transport.SendAsync(new HttpRequestData("GET", "echo", NoHeaders));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => delayed.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(200, (await peer.WaitAsync(TimeSpan.FromSeconds(10))).Status);
+            Assert.Equal(200, (await transport.SendAsync(new HttpRequestData("GET", "echo", NoHeaders))).Status);
+        }
+        finally { _server.ReleaseDelayedResponse(); }
+    }
+
+    [Fact]
+    public async Task Disposal_Should_CancelAnActiveRequest()
+    {
+        var transport = await TransportAsync();
+        var delayed = transport.SendAsync(new HttpRequestData("GET", "delay", NoHeaders));
+        try
+        {
+            await _server.DelayedRequestReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await transport.DisposeAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => delayed.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            _server.ReleaseDelayedResponse();
+            await transport.DisposeAsync();
+        }
+    }
+
     public void Dispose()
     {
         _server.Dispose();

@@ -60,7 +60,9 @@ public sealed class WebDriverElement : IElement
     {
         try
         {
-            return Task.FromResult(_resolve().Any(e => e.Displayed));
+            var elements = _resolve();
+            EnsureSingle(elements.Count);
+            return Task.FromResult(elements.Count == 1 && elements[0].Displayed);
         }
         catch (StaleElementReferenceException)
         {
@@ -71,8 +73,7 @@ public sealed class WebDriverElement : IElement
     public IElementAssertions Expect() => new WebDriverAssertions(_resolve, Description);
 
     /// <summary>
-    /// Finds the element (a displayed one if there is one, since styled controls such as custom checkboxes can be
-    /// transparent but still usable), optionally waits until it stops moving, and acts on it; retries transient
+    /// Requires an unambiguous locator, optionally waits until the element stops moving, and acts on it; retries transient
     /// failures until the timeout.
     /// </summary>
     private async Task ActAsync(string action, Action<IWebElement> act, bool requireEnabled = true, bool waitUntilStable = false)
@@ -82,9 +83,13 @@ public sealed class WebDriverElement : IElement
         {
             try
             {
-                var candidates = _resolve().Where(e => !requireEnabled || e.Enabled).ToList();
-                var element = candidates.FirstOrDefault(e => e.Displayed) ?? candidates.FirstOrDefault()
-                              ?? throw new NoSuchElementException($"No element for {Description}.");
+                var candidates = _resolve();
+                EnsureSingle(candidates.Count);
+                var element = candidates.FirstOrDefault() ?? throw new NoSuchElementException($"No element for {Description}.");
+                if (requireEnabled && !element.Enabled)
+                {
+                    throw new ElementNotInteractableException($"Element is disabled: {Description}.");
+                }
                 if (waitUntilStable)
                 {
                     await WaitUntilStableAsync(element);
@@ -124,6 +129,14 @@ public sealed class WebDriverElement : IElement
                 return;
             }
             previous = current;
+        }
+    }
+
+    private void EnsureSingle(int count)
+    {
+        if (count > 1)
+        {
+            throw new UiException($"Ambiguous locator {Description}: matched {count} elements. Refine the locator or explicitly use First.");
         }
     }
 
@@ -169,7 +182,7 @@ public sealed class WebDriverAssertions : IElementAssertions
         AssertAsync(
             $"to have texts [{string.Join(", ", texts)}]",
             els => els.Select(e => Normalize(e.Text)).SequenceEqual(texts.Select(Normalize)),
-            els => $"[{string.Join(", ", els.Select(e => Normalize(e.Text)))}]");
+            els => $"[{string.Join(", ", els.Select(e => Normalize(e.Text)))}]", single: false);
 
     public Task ToContainTextAsync(string text, bool ignoreCase = false) =>
         AssertAsync(
@@ -177,7 +190,7 @@ public sealed class WebDriverAssertions : IElementAssertions
             els => els.Count > 0 && Normalize(els[0].Text).Contains(text, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
             FirstText);
 
-    public Task ToHaveCountAsync(int count) => AssertAsync($"to have count {count}", els => els.Count == count, els => $"count {els.Count}");
+    public Task ToHaveCountAsync(int count) => AssertAsync($"to have count {count}", els => els.Count == count, els => $"count {els.Count}", single: false);
 
     public Task ToHaveClassAsync(string className) =>
         AssertAsync(
@@ -185,7 +198,7 @@ public sealed class WebDriverAssertions : IElementAssertions
             els => els.Count > 0 && (els[0].GetAttribute("class") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(className),
             els => els.Count > 0 ? $"class \"{els[0].GetAttribute("class")}\"" : "no element");
 
-    private async Task AssertAsync(string expectation, Func<IReadOnlyList<IWebElement>, bool> holds, Func<IReadOnlyList<IWebElement>, string> describe)
+    private async Task AssertAsync(string expectation, Func<IReadOnlyList<IWebElement>, bool> holds, Func<IReadOnlyList<IWebElement>, string> describe, bool single = true)
     {
         var deadline = DateTime.UtcNow + AssertTimeout;
         var last = "nothing read yet";
@@ -194,6 +207,10 @@ public sealed class WebDriverAssertions : IElementAssertions
             try
             {
                 var elements = _resolve();
+                if (single && elements.Count > 1)
+                {
+                    throw new UiAssertionException($"Ambiguous locator {_description}: matched {elements.Count} elements. Refine the locator or explicitly use First.");
+                }
                 if (holds(elements))
                 {
                     return;

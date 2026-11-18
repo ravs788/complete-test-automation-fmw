@@ -14,6 +14,7 @@ public sealed record ReceivedMessage
     /// <summary>The body decoded as UTF-8.</summary>
     public string Body { get; init; } = "";
 
+    /// <summary>UTF-8 headers. Kafka duplicate keys use the last value; null header values become empty strings.</summary>
     public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
 
     public DateTimeOffset ReceivedAt { get; init; } = DateTimeOffset.UtcNow;

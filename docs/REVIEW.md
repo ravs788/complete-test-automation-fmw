@@ -1,20 +1,26 @@
 # Framework Review
 
-Findings from the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters plus the owner's plug-and-play goal (2026-11-17, R39–R48; see [Plug-and-play roadmap](#plug-and-play-roadmap)), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
+Findings from the 2026-11-18 solution and adapter review (R49–R53), the 2026-11-14 consistency review (see CHANGELOG), external architecture feedback on the Core layer (2026-11-17, R34–R38) and on replaceable adapters plus the owner's plug-and-play goal (2026-11-17, R39–R48; see [Plug-and-play roadmap](#plug-and-play-roadmap)), CI investigations (R31–R33) and the 2026-11-16 project review using the code-review, test-review, coverage-review, and documentation-review skills. Each item names the affected files, what's wrong and a suggested fix. Priority: **P1** fix soon · **P2** should do · **P3** good practice · **P4** nice to have.
 
 **How this list is maintained**
 
 - IDs (`R1`, `R2`, …) never change, so re-sorting doesn't renumber anything. New findings get the next free ID.
+- Use **Blocked** for explicitly deferred or externally blocked work, with the reason, date and condition for resuming. Preserve the earlier implementation and verification evidence.
 - Use **Implemented (verification pending)** when the fix is present but runtime verification is outstanding. Once verified, set **Status** to `Closed` and fill in **Closed in** with the date and the commit (or PR) that fixed it. Do not invent a commit reference for working-tree changes.
-- **Sort order:** unresolved items (Open or Implemented with verification pending) first, highest priority on top. Then closed items, most recently closed first. Items closed in the same commit: highest priority first. Ties within a priority: by ID.
+- **Sort order:** unresolved items (Open, Blocked, or Implemented with verification pending) first, highest priority on top. Then closed items, most recently closed first. Items closed in the same commit: highest priority first. Ties within a priority: by ID.
 - The table below is the sorted view. The detail sections after it stay grouped by priority, so links don't move.
 
 | ID | Priority | Status | Closed in | Item | Area |
 |---|---|---|---|---|---|
-| R32 | P2 | Implemented (verification pending) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
-| R33 | P2 | Implemented (verification pending) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
-| R16 | P3 | Implemented (CI verification pending) | – | [Mobile suite not in CI](#r16) | CI |
+| R32 | P2 | Blocked (mobile work deferred) | – | [Android emulator doesn't finish booting on the hosted Mac within 300 s](#r32) | CI / mobile |
+| R33 | P2 | Blocked (mobile work deferred) | – | [Appium's 20 s helper-app install timeout is too short for the hosted emulator](#r33) | CI / mobile |
+| R16 | P3 | Blocked (mobile work deferred) | – | [Mobile suite not in CI](#r16) | CI |
 | R36 | P4 | Implemented (verification pending) | – | [No secret-provider abstraction (e.g. Key Vault) behind SettingsLoader](#r36) | Security / configuration |
+| R49 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Selenium silently chooses among ambiguous element matches](#r49) | UI / adapter contracts |
+| R50 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Playwright HTTP transport ignores cancellation](#r50) | HTTP / adapter contracts |
+| R51 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [RabbitMQ startup failures leak partially created resources](#r51) | Messaging / cleanup |
+| R52 | P2 | Closed | 2026-11-18 · working tree (commit pending) | [Valid duplicate Kafka headers can fault the listener and bypass cleanup](#r52) | Messaging / cleanup |
+| R53 | P3 | Closed | 2026-11-18 · working tree (commit pending) | [Top-level review status and validation summaries are stale](#r53) | Documentation / review ledger |
 | R46 | P3 | Closed | 2026-11-17 · `70afeff` | [No guardrail or contract tests that prove adapters are replaceable](#r46) | Architecture / quality |
 | R48 | P4 | Closed | 2026-11-17 · `70afeff` | [xUnit-specific code isn't isolated in a thin host layer](#r48) | Architecture / test host |
 | R47 | P4 | Closed | 2026-11-17 · `1d6fdec` | [Only one implementation exists for the UI contract (no second browser or device driver)](#r47) | Architecture / UI |
@@ -62,7 +68,38 @@ Findings from the 2026-11-14 consistency review (see CHANGELOG), external archit
 
 ---
 
-## Current state — 2026-11-16
+## Mobile work status — 2026-11-18
+
+At the user's request, **R16, R32 and R33 are Blocked (mobile work deferred)** until mobile work is resumed. Their existing implementations and verification history remain recorded. Closed mobile findings remain closed; shared web/API adapter findings remain active. This is a review-tracking update; pipeline scheduling/configuration is unchanged.
+
+## Review scope and validation — 2026-11-18
+
+- **Comparison:** `d8d9aee` (last local commit in the November 16 session) to `a45b1d7` (current main at review time), plus working-tree inspection. The reflog confirms the checkout was pulled forward from the earlier main on November 18. The working tree was clean at review time.
+- **Change scale:** 64 subsequent commits; 216 changed files; 6,348 additions and 1,055 deletions. The solution expanded from 5 to 17 projects, separating Domain and vendor adapters from Core and adding shared contract/architecture tests.
+- **Findings:** R49–R52 are P2 adapter/failure-path gaps; R53 is a P3 documentation consistency issue. These extend the earlier contract-test work; they do not reopen the historical architecture findings.
+- **Completed checks:** Restored the newly pulled project dependencies, then built `ci.slnf` with warnings treated as errors: 0 warnings, 0 errors. `git diff --check` passed. No source files were changed by the review.
+- **Original static-review limits (before the fixes below):** Tests were not rerun for the initial review. The existing local TRX records 37 passing tests on November 16 and does not validate the newer adapter refactor. No current measured coverage report was available. Verification steps for the new findings are proposed regression checks, not completed executions.
+- **Historical summaries below:** The November 16 snapshots retain their original evidence and are now explicitly labelled historical. R53 reconciles them with the current summary and validation below.
+
+## Current status and verification — 2026-11-18
+
+| State | Findings | Count |
+|---|---|---|
+| Blocked at user request; mobile work deferred | R16, R32, R33 | 3 |
+| Implemented; live Key Vault verification pending | R36 | 1 |
+| Closed after this framework fix pass | R49–R53 | 5 |
+| Closed in earlier reviews | R1–R15, R17–R31, R34–R35, R37–R48 | 44 |
+| Total | R1–R53 | 53 |
+
+R49–R53 are fixed and verified in the working tree on `fix/framework-adapter-contracts`, based on `a45b1d7`; no commit or PR has been created for this fix pass. R25 is closed, as recorded by its existing finding. Mobile work remains blocked until the user resumes it; no mobile tests or CI changes were made in this pass. R36 still requires a real vault/identity; KEYVAULT_URI is not configured.
+
+**Current validation:** Full solution build passed with warnings treated as errors (0 warnings, 0 errors). The final framework suite passed **191 tests, 0 failed, 2 skipped** (193 total); the skipped cases require live Kafka/RabbitMQ brokers. Controlled vendor-interface tests cover the new broker failure paths without external services. The shared UI suite passed **28 tests, 0 failed, 0 skipped** against Playwright and Selenium in headed Chrome, and fixture cleanup closed its owned browsers. Shell/.NET execution used the user's earlier explicit verification exception. `git diff --check` passed.
+
+**Evidence:** [Summary](../artifacts/framework-fixes-2026-11-18/summary.json), [framework TRX](../artifacts/framework-fixes-2026-11-18/framework-fixes.trx), and [UI contract TRX](../artifacts/framework-fixes-2026-11-18/framework-ui-fixes.trx). These generated local artifacts are ignored by Git. An initial RabbitMQ test-double type-conversion error was corrected before the final passing run.
+
+**Coverage boundary:** No instrumented coverage was collected. UI checks used controlled local pages, HTTP checks used loopback servers, and broker failure checks used interface doubles; this does not claim a fresh external-app, live-broker, mobile or Key Vault integration run. The November 16 37-test result below is historical and does not establish current coverage.
+
+## Historical status snapshot — 2026-11-16
 
 | State | Findings | Count |
 |---|---|---|
@@ -81,7 +118,7 @@ Fixes and hosted CI jobs are committed in `5cdb42c` on `fix/review-p1-p2`; no PR
 
 **Harness setup:** The first native test attempt was blocked by sandbox socket restrictions; the authorized retry outside the sandbox passed. The first browser harness attempt had missing Allure metadata; after adding the required fullName, the rerun passed. Neither setup failure was a product assertion failure.
 
-## Coverage state — 2026-11-16
+## Historical coverage snapshot — 2026-11-16
 
 A TRX report now records 37 passing framework tests, and targeted harness evidence is available above. No Cobertura, OpenCover, or LCOV data was collected, so measured line/branch coverage remains unavailable. Passing results apply only to the stated execution scope.
 
@@ -153,6 +190,48 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 ---
 
 ## P2: Should do
+
+<a id="r49"></a>
+### R49. Selenium silently chooses among ambiguous element matches
+
+- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Implementation:** Selenium now requires an unambiguous match before checking enabled/visible state. Single-element actions, text/visibility reads and scalar assertions reject multiple matches; collection operations and explicit First remain supported. The contract is documented in IElement/IElementAssertions.
+- **Where:** `Core/Ui/Selenium/WebDriverElement.cs:85` (`ActAsync`); compare `Core/Ui/Playwright/PlaywrightElement.cs:20`.
+- **Original problem:** When a locator matches multiple actionable elements, the Selenium adapter chooses the first displayed/enabled candidate. The Playwright adapter delegates to a strict locator and rejects ambiguous action targets. Switching the configured driver can therefore turn a selector error into a click or fill on an unintended element. The shared UI contract does not make this difference explicit, and the current contract suite does not exercise ambiguous matches.
+- **Fix:** Define a consistent single-element action policy across adapters. Prefer rejecting ambiguous matches and requiring the existing `First` operation when selection of the first match is intentional. Align applicable single-element assertions as well.
+- **Verification:** The headed Chrome driver contract run passed 28/28 for Playwright and Selenium. New shared cases cover duplicate click/fill targets, hidden/disabled duplicate matches, scalar reads/assertions, list/count operations and intentional First selection.
+- **Reference:** [Playwright locator strictness](https://playwright.dev/dotnet/docs/locators#strictness).
+
+<a id="r50"></a>
+### R50. Playwright HTTP transport ignores cancellation
+
+- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Implementation:** Playwright HTTP requests now own independent native request contexts. Pre-cancelled tokens are checked before context/request creation; in-flight cancellation aborts and drains the owned native operation. Disposing a transport cancels its active contexts without poisoning another request or later reuse after per-request cancellation. Default headers are snapshotted; implicit cookie jars are not retained, matching HttpClientTransport.
+- **Where:** `Core/Http/Playwright/PlaywrightHttpTransport.cs:8` (`SendAsync`); compare `Core/Http/IHttpTransport.cs` and `Core/Http/HttpClientTransport.cs`.
+- **Original problem:** The Playwright implementation accepts a CancellationToken but never checks or observes it. A request can reach the server even when its token is already cancelled, and cancellation during a request does not interrupt the operation. HttpClientTransport passes the token to send/body-reading operations, so cancellation behavior changes when the transport provider is switched.
+- **Fix:** Honor pre-cancelled tokens before starting a request, and define and implement in-flight cancellation and resource cleanup for the Playwright transport. Do not report cancellation while silently leaving an unowned operation or response behind.
+- **Verification:** The framework suite passed 191 tests with 2 environment-gated broker skips. Both HTTP implementations passed shared tests for pre-cancelled POST/no server request, cancellation during a gated response, concurrent/future request success and cancellation on transport disposal.
+
+<a id="r51"></a>
+### R51. RabbitMQ startup failures leak partially created resources
+
+- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Implementation:** RabbitMQ startup retains ownership of partial resources and disposes them on every startup exception. Cleanup independently attempts channel close/dispose and connection close/dispose, preserving the first error; startup cleanup cannot mask the original startup exception.
+- **Where:** `Core/Messaging/RabbitMq/RabbitMqListener.cs:36` (`StartAsync`) and `:64` (`DisposeAsync`).
+- **Original problem:** The connection, channel and temporary queue are acquired before startup completes, with no failure cleanup. If channel creation, queue declaration/binding or BasicConsumeAsync fails (for example, a missing exchange causes binding to fail), StartAsync throws without returning a listener the caller can dispose. The connection and any surviving exclusive queue can remain allocated. During normal disposal, a channel-close exception also skips connection cleanup.
+- **Fix:** Keep ownership of partially created resources until startup succeeds and release them on every failure path. Use nested try/finally or equivalent cleanup during disposal so a channel failure cannot prevent connection disposal.
+- **Verification:** Six lifecycle regression cases passed using controlled vendor-interface doubles: channel creation, queue declaration, binding and consumer-start failure; cancelled startup; and channel close/dispose failure while still releasing the connection. No live RabbitMQ broker was configured; its separate integration test was skipped.
+
+<a id="r52"></a>
+### R52. Valid duplicate Kafka headers can fault the listener and bypass cleanup
+
+- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Implementation:** Kafka repeated header keys use an explicitly documented last-value-wins projection; null values become empty strings. Fatal consumption errors are observable through Completion and WaitForAsync. Dispose always attempts consumer close/dispose and cancellation-source disposal even when the worker or close operation fails, preserving the first failure.
+- **Where:** `Core/Messaging/Kafka/KafkaListener.cs:90` (`ConsumeLoop`) and `:103` (`DisposeAsync`); `Core/Messaging/ReceivedMessage.cs`.
+- **Original problem:** Kafka allows repeated header keys, but the listener converts headers directly with ToDictionary. A message with duplicate keys throws ArgumentException, which the KafkaException catch does not handle, terminating the background loop. DisposeAsync then awaits the faulted loop before closing/disposing the consumer and cancellation source, so cleanup is skipped as well. Existing integration coverage uses only a single unique header.
+- **Fix:** Define how the framework represents repeated header keys (preserve all values or document an explicit reduction policy), and handle nullable header values consistently. Ensure worker faults are observable and that consumer/cancellation resources are released in finally even when the worker fails.
+- **Verification:** Two worker regression cases passed using controlled vendor-interface doubles: duplicate/null headers followed by successful receipt of a later message, and fatal worker failure with prompt wait failure and consumer cleanup even when Close throws. No live Kafka broker was configured; its separate integration test was skipped.
+- **Reference:** [Confluent message metadata](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.MessageMetadata.html) documents that duplicate header keys are allowed.
 
 <a id="r25"></a>
 ### R25. Report scripts can succeed after a failed build
@@ -239,7 +318,10 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r33"></a>
 ### R33. Appium's 20 s helper-app install timeout is too short for the hosted emulator
 
-- **Status:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes. **Run 118 (manual, 2026-11-17):** the fix worked (helpers pre-installed in 19/34/9 s; Appium found them, `sameVersionInstalled`, and started UiAutomator2 in 30 s; boot took 446 s). The session then failed at the next step: Appium auto-downloaded Chromedriver for the device's Chrome 113 and was starting Chrome for the first time when the .NET client's 120 s command timeout (`Server.CommandTimeoutSec`) expired. **Next (parked by the owner on 2026-11-17):** raise `MOBILE_Server__CommandTimeoutSec` on CI and pre-download Chromedriver 113 (`Android.ChromedriverExecutable`). **Follow-up `41d50c8` (2026-11-17, owner asked to resume):** the CI script pre-downloads the Chromedriver matching the device's Chrome, pre-warms Chrome with first-run screens disabled, and raises the client timeout to 300 s (checked locally with a fake `adb` for Chrome 113/131/unknown). **Run 130 (manual, 2026-11-17, `6694a9b`):** boot 405 s, helpers pre-installed, Chromedriver 113.0.5672.63 pre-downloaded for Chrome 113.0.5672.136, warm-up 204 s. The session then failed with `chrome not reachable`: Chromedriver **cleared Chrome's app data** before launching it (its default unless `androidKeepAppData` is set), which threw away the warm-up; the cold Chrome start (from 10:49:46) wasn't answering after about 70 s and Chromedriver gave up. The emulator was also overloaded (35 ANRs, mostly Google services and `com.android.phone`). **Follow-up:** `goog:chromeOptions.androidKeepAppDataDir` follows `Behavior.NoReset` (default true), so the warmed-up Chrome is reused; unit-tested. PR #35 first used `androidKeepAppData`, which Chromedriver rejects (`unrecognized chrome option`), caught by a local run before CI; corrected on `fix/mobile-keep-chrome-data-main` (replaces PRs #35/#36). **Local check (2026-11-17, Apple Silicon, Appium 3.6 + UiAutomator2 8.7.3, Android 14 arm64 emulator, Chrome 113.0.5672.136):** emulator booted in 49 s, smoke test passed in 11 s, device log shows no Chrome data clear. **Verify:** a manual run where the smoke test passes; that closes R33, R32 and R16.
+- **Status:** Blocked (mobile work deferred), 2026-11-18, at the user's request.
+- **Blocker / scope:** Further mobile framework and hosted emulator investigation/verification is deferred for now. Existing implementation and evidence are retained; this finding is not closed.
+- **Resume when:** The user resumes mobile work; continue from the recorded implementation, run history and outstanding verification below.
+- **Prior status / evidence:** Implemented (verification pending), 2026-11-17, in `c1e23a8`. Configurable UiAutomator2 timeouts (CI: 120 s); the CI script waits for background compilation, turns off adb install verification and pre-installs Appium's 3 helper apps (timed in `boot-progress.log`). Unit tests for the capability mapping; the script block was checked locally under `set -euo pipefail` with a fake `adb`. **Verify:** a manual run whose smoke test passes. **Run 118 (manual, 2026-11-17):** the fix worked (helpers pre-installed in 19/34/9 s; Appium found them, `sameVersionInstalled`, and started UiAutomator2 in 30 s; boot took 446 s). The session then failed at the next step: Appium auto-downloaded Chromedriver for the device's Chrome 113 and was starting Chrome for the first time when the .NET client's 120 s command timeout (`Server.CommandTimeoutSec`) expired. **Next (parked by the owner on 2026-11-17):** raise `MOBILE_Server__CommandTimeoutSec` on CI and pre-download Chromedriver 113 (`Android.ChromedriverExecutable`). **Follow-up `41d50c8` (2026-11-17, owner asked to resume):** the CI script pre-downloads the Chromedriver matching the device's Chrome, pre-warms Chrome with first-run screens disabled, and raises the client timeout to 300 s (checked locally with a fake `adb` for Chrome 113/131/unknown). **Run 130 (manual, 2026-11-17, `6694a9b`):** boot 405 s, helpers pre-installed, Chromedriver 113.0.5672.63 pre-downloaded for Chrome 113.0.5672.136, warm-up 204 s. The session then failed with `chrome not reachable`: Chromedriver **cleared Chrome's app data** before launching it (its default unless `androidKeepAppData` is set), which threw away the warm-up; the cold Chrome start (from 10:49:46) wasn't answering after about 70 s and Chromedriver gave up. The emulator was also overloaded (35 ANRs, mostly Google services and `com.android.phone`). **Follow-up:** `goog:chromeOptions.androidKeepAppDataDir` follows `Behavior.NoReset` (default true), so the warmed-up Chrome is reused; unit-tested. PR #35 first used `androidKeepAppData`, which Chromedriver rejects (`unrecognized chrome option`), caught by a local run before CI; corrected on `fix/mobile-keep-chrome-data-main` (replaces PRs #35/#36). **Local check (2026-11-17, Apple Silicon, Appium 3.6 + UiAutomator2 8.7.3, Android 14 arm64 emulator, Chrome 113.0.5672.136):** emulator booted in 49 s, smoke test passed in 11 s, device log shows no Chrome data clear. **Verify:** a manual run where the smoke test passes; that closes R33, R32 and R16.
 - **Where:** `Core/Mobile/Driver/MobileOptionsBuilder.cs`, `Core/Mobile/Configuration/AndroidSettings.cs`, `scripts/unix/run_mobile_ci.sh`.
 - **Problem:** manual run 115 (2026-11-17) was the first where the emulator booted (505 s) and the smoke test ran, but session creation failed: `adb install … appium-uiautomator2-server-v7.7.1.apk timed out after 20000ms`. Appium installs two helper apps when the session starts: `io.appium.settings` took 16.1 s, and the UiAutomator2 server hit the 20 s default. Android was still compiling apps in the background after boot (355 `dex2oat` lines in logcat) on its single vCPU (see R32).
 - **Fix:** make the UiAutomator2 timeouts configurable (`adbExecTimeout`, `uiautomator2ServerInstallTimeout`, `uiautomator2ServerLaunchTimeout`; normal defaults locally, about 120 s on CI through `MOBILE_Android__*`). In the CI script, wait for background compilation to settle after boot, turn off install verification, and pre-install Appium's helper apps with plain `adb install` before the session starts, so the session doesn't have to.
@@ -255,7 +337,10 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r32"></a>
 ### R32. Android emulator doesn't finish booting on the hosted Mac within 300 s
 
-- **Status:** Implemented (verification pending), 2026-11-17, in `be414c3` and a follow-up on `fix/emulator-boot-progress`. Run 110 (manual, 2026-11-17) did **not** verify it: (1) the new 30-second progress report exited the script silently under `set -e`/`pipefail` when `adb` failed while the device was still offline, so the boot never got its 600 s (fixed: those `adb` calls can no longer fail the script); (2) the emulator still set 1 vCPU (`less than 6 logical cores`) despite `-cores 2` and `hw.cpu.ncore=2`, so on hosted macOS the core count can't be raised (those settings were removed). All software prerequisites were present (.NET 10.0.404, Node 22.23.2, Temurin 17, Appium 2.19.0 + UiAutomator2 4.2.9, SDK/image/AVD, Hypervisor.Framework). **Verify:** the next manual run should show `[boot]` progress lines and either "Android booted in N seconds" or how far it got in 600 s. If 1 core isn't enough, next options: a lighter image (API 30/31 `google_apis`), a self-hosted agent with more cores, or a device cloud. **Runs 115/118:** booted in 505 s / 446 s. **Run 127 (manual, 2026-11-17, `6e774e7`):** device online at 154 s and boot animation done at 186 s, but `sys.boot_completed` never reached 1 within 600 s, so the R33 Chrome steps never ran. Follow-up on `fix/mobile-boot-timeout`: the pipeline sets `BOOT_TIMEOUT_SECONDS=900` and the job limit is 45 minutes. **Verify:** two manual runs that boot and pass the smoke test close R32, R33 and R16.
+- **Status:** Blocked (mobile work deferred), 2026-11-18, at the user's request.
+- **Blocker / scope:** Further mobile framework and hosted emulator investigation/verification is deferred for now. Existing implementation and evidence are retained; this finding is not closed.
+- **Resume when:** The user resumes mobile work; continue from the recorded implementation, run history and outstanding verification below.
+- **Prior status / evidence:** Implemented (verification pending), 2026-11-17, in `be414c3` and a follow-up on `fix/emulator-boot-progress`. Run 110 (manual, 2026-11-17) did **not** verify it: (1) the new 30-second progress report exited the script silently under `set -e`/`pipefail` when `adb` failed while the device was still offline, so the boot never got its 600 s (fixed: those `adb` calls can no longer fail the script); (2) the emulator still set 1 vCPU (`less than 6 logical cores`) despite `-cores 2` and `hw.cpu.ncore=2`, so on hosted macOS the core count can't be raised (those settings were removed). All software prerequisites were present (.NET 10.0.404, Node 22.23.2, Temurin 17, Appium 2.19.0 + UiAutomator2 4.2.9, SDK/image/AVD, Hypervisor.Framework). **Verify:** the next manual run should show `[boot]` progress lines and either "Android booted in N seconds" or how far it got in 600 s. If 1 core isn't enough, next options: a lighter image (API 30/31 `google_apis`), a self-hosted agent with more cores, or a device cloud. **Runs 115/118:** booted in 505 s / 446 s. **Run 127 (manual, 2026-11-17, `6e774e7`):** device online at 154 s and boot animation done at 186 s, but `sys.boot_completed` never reached 1 within 600 s, so the R33 Chrome steps never ran. Follow-up on `fix/mobile-boot-timeout`: the pipeline sets `BOOT_TIMEOUT_SECONDS=900` and the job limit is 45 minutes. **Verify:** two manual runs that boot and pass the smoke test close R32, R33 and R16.
 - **Where:** `scripts/unix/run_mobile_ci.sh` (emulator start and boot wait), `azure-pipelines.yml` (`MobileSmoke`).
 - **Problem:** the first hosted run (run 108, nightly 2026-11-17) failed with `Emulator failed to boot within 300 seconds`. The `mobile-results` logs show it isn't a missing-acceleration problem: `acceleration.log` reports Hypervisor.Framework available on the Intel (`osx-x64`) `macos-15` agent, and the emulator ran for the whole 300 s. It was too slow: `emulator.log` says `Running on a system with less than 6 logical cores. Setting number of virtual cores to 1`, rendering is all on the CPU (`-gpu swiftshader`), the emulator window is still created (no `-no-window`), and every run is a cold boot of a heavy Android 14 `google_apis` image. Knock-on: `Publish Mobile Test Results` failed because no TRX was written. Also `NodeTool@0` is deprecated (`UseNode@1`).
 - **Fix:** start headless with lighter rendering (`-no-window -gpu swiftshader_indirect`), give the guest 2 cores and more RAM (`-cores 2 -memory 3072`, and `hw.cpu.ncore=2` in the AVD config), allow a longer boot (600 s), log boot progress, and switch to `UseNode@1`. If that still isn't enough, use a lighter system image.
@@ -263,6 +348,16 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 ---
 
 ## P3: Good practice
+
+<a id="r53"></a>
+### R53. Top-level review status and validation summaries are stale
+
+- **Status:** Closed, 2026-11-18, verified on `fix/framework-adapter-contracts`; fix is in the working tree, commit reference pending.
+- **Implementation:** Added a current November 18 status/validation summary reconciled with all 53 finding rows and details. Renamed the old November 16 sections as historical status/coverage snapshots, preserved their original evidence, and recorded the current native test scope separately.
+- **Where:** `docs/REVIEW.md`, sections `Current state — 2026-11-16` and `Coverage state — 2026-11-16`; compare the findings table and individual R25, R32, R33 and R36 entries.
+- **Original problem:** The top-level summary still describes the November 16 state, including R25 awaiting its first Windows run and a 30-finding status breakdown. Before this review, the ledger already contained 48 findings and marked R25 closed. The dated 37-test result is valid historical evidence, but presenting these snapshots as current obscures newer implementation and verification states.
+- **Fix:** Label the November 16 status/coverage sections as historical and add a current summary reconciled with every finding, or refresh the current summaries while retaining the original evidence as history. Keep reported test runs distinct from current locally observed evidence.
+- **Verification:** Validated 53 unique table/detail IDs and anchors, 49 closed findings, 3 explicitly blocked mobile findings, and 1 implemented Key Vault finding awaiting live verification. R25 is closed. Current TRX reports distinguish 191 unit/framework passes plus 2 broker skips and 28 headed UI contract passes from the historical 37-test run; no coverage percentage is claimed.
 
 <a id="r30"></a>
 ### R30. Mobile troubleshooting omits explicit UDID selection
@@ -340,7 +435,10 @@ Goal (owner, 2026-11-17): every external library replaceable, plug and play. Dir
 <a id="r16"></a>
 ### R16. Mobile suite not in CI
 
-- **Status:** Implemented (CI verification pending), 2026-11-16, committed in `5cdb42c` on `fix/review-p1-p2`; no hosted run has been executed by the agent.
+- **Status:** Blocked (mobile work deferred), 2026-11-18, at the user's request.
+- **Blocker / scope:** Further mobile framework and hosted emulator investigation/verification is deferred for now. Existing implementation and evidence are retained; this finding is not closed.
+- **Resume when:** The user resumes mobile work; continue from the recorded implementation, run history and outstanding verification below.
+- **Prior status / evidence:** Implemented (CI verification pending), 2026-11-16, committed in `5cdb42c` on `fix/review-p1-p2`; no hosted run has been executed by the agent.
 - **Where:** `azure-pipelines.yml` (`MobileSmoke`) and `scripts/unix/run_mobile_ci.sh`.
 - **Original problem:** CI compiled the mobile project but never executed its tests. Hosted Ubuntu lacks Android emulator hardware acceleration; hosted macOS supports this workflow, so self-hosting or a device cloud is not required for the initial smoke job.
 - **Implementation:** A separate `macOS-15` job runs on Schedule/Manual builds. It installs pinned Node.js 22.23.2, Appium 2.19.0 and UiAutomator2 4.2.9, creates an Android 14 emulator, waits for Android and Appium with bounded deadlines, sets the device through `MOBILE_*`, and runs the mobile smoke project. TRX is checked for actual execution and all-passing results. Always-run publishing retains TRX, raw Allure and diagnostics in `mobile-results`; the helper traps exits to stop its owned processes. Linux PR/push checks retain mobile compilation.

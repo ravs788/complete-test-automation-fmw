@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Text;
 using Confluent.Kafka;
 
@@ -15,7 +16,7 @@ public sealed class KafkaListener : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
 
-    private KafkaListener(IConsumer<string?, string> consumer, string topic)
+    internal KafkaListener(IConsumer<string?, string> consumer, string topic)
     {
         _consumer = consumer;
         Topic = topic;
@@ -28,6 +29,9 @@ public sealed class KafkaListener : IAsyncDisposable
     public string? LastError { get; private set; }
 
     public MessageCollector<ReceivedMessage> Messages { get; } = new();
+
+    /// <summary>Completes when the listener stops; faults when consumption fails fatally.</summary>
+    public Task Completion => _loop;
 
     /// <param name="bootstrapServers">e.g. <c>localhost:9092</c>.</param>
     /// <param name="topic">Topic to listen to (must exist).</param>
@@ -70,8 +74,41 @@ public sealed class KafkaListener : IAsyncDisposable
         return Task.FromResult(new KafkaListener(consumer, topic));
     }
 
-    public Task<ReceivedMessage> WaitForAsync(Func<ReceivedMessage, bool> match, TimeSpan timeout, string description = "a matching message") =>
-        Messages.WaitForAsync(match, timeout, description);
+    public async Task<ReceivedMessage> WaitForAsync(Func<ReceivedMessage, bool> match, TimeSpan timeout,
+        string description = "a matching message", CancellationToken cancellationToken = default)
+    {
+        using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var wait = Messages.WaitForAsync(match, timeout, description, waitCancellation.Token);
+        if (await Task.WhenAny(wait, _loop) == _loop)
+        {
+            waitCancellation.Cancel();
+            try { await wait; } catch { /* the worker failure takes precedence over the abandoned wait */ }
+            await _loop; // Propagate the actual worker failure rather than a misleading message timeout.
+            throw new InvalidOperationException("Kafka listener has stopped.");
+        }
+        return await wait;
+    }
+
+    internal static ReceivedMessage ToMessage(ConsumeResult<string?, string> result)
+    {
+        // Broker-neutral Headers is a dictionary: repeated Kafka keys use the last value; null maps to empty.
+        var headers = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (result.Message.Headers is not null)
+        {
+            foreach (var header in result.Message.Headers)
+            {
+                var bytes = header.GetValueBytes();
+                headers[header.Key] = bytes is null ? "" : Encoding.UTF8.GetString(bytes);
+            }
+        }
+        return new ReceivedMessage
+        {
+            Source = $"{result.Topic}[{result.Partition.Value}]@{result.Offset.Value}",
+            Key = result.Message.Key,
+            Body = result.Message.Value ?? "",
+            Headers = headers
+        };
+    }
 
     private void ConsumeLoop()
     {
@@ -82,14 +119,7 @@ public sealed class KafkaListener : IAsyncDisposable
                 var result = _consumer.Consume(TimeSpan.FromMilliseconds(200));
                 if (result?.Message is { } message)
                 {
-                    Messages.Add(new ReceivedMessage
-                    {
-                        Source = $"{result.Topic}[{result.Partition.Value}]@{result.Offset.Value}",
-                        Key = message.Key,
-                        Body = message.Value ?? "",
-                        Headers = message.Headers?.ToDictionary(h => h.Key, h => Encoding.UTF8.GetString(h.GetValueBytes()))
-                                  ?? new Dictionary<string, string>()
-                    });
+                    Messages.Add(ToMessage(result));
                 }
             }
             catch (KafkaException ex) when (!ex.Error.IsFatal)
@@ -103,9 +133,14 @@ public sealed class KafkaListener : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _stop.Cancel();
-        await _loop;
-        _consumer.Close();
-        _consumer.Dispose();
-        _stop.Dispose();
+        ExceptionDispatchInfo? failure = null;
+        try { await _loop; }
+        catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
+        try { _consumer.Close(); }
+        catch (Exception ex) { failure ??= ExceptionDispatchInfo.Capture(ex); }
+        try { _consumer.Dispose(); }
+        catch (Exception ex) { failure ??= ExceptionDispatchInfo.Capture(ex); }
+        finally { _stop.Dispose(); }
+        failure?.Throw();
     }
 }

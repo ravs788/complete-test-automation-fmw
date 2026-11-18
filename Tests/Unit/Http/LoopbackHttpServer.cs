@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -21,6 +22,12 @@ public sealed class LoopbackHttpServer : IDisposable
         _listener.Start();
         _ = Task.Run(ServeAsync);
     }
+
+    public ConcurrentQueue<string> RequestPaths { get; } = new();
+    public TaskCompletionSource DelayedRequestReceived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public void ReleaseDelayedResponse() => _release.TrySetResult();
 
     public int Port { get; }
 
@@ -52,8 +59,22 @@ public sealed class LoopbackHttpServer : IDisposable
                 return;
             }
 
+            _ = RespondAsync(context);
+        }
+    }
+
+    private async Task RespondAsync(HttpListenerContext context)
+    {
+        try
+        {
             var request = context.Request;
             var response = context.Response;
+            RequestPaths.Enqueue(request.Url!.AbsolutePath);
+            if (request.Url.AbsolutePath.EndsWith("/delay", StringComparison.Ordinal))
+            {
+                DelayedRequestReceived.TrySetResult();
+                await _release.Task.WaitAsync(_stop.Token);
+            }
             using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
             var body = await reader.ReadToEndAsync();
             byte[] payload;
@@ -80,6 +101,10 @@ public sealed class LoopbackHttpServer : IDisposable
             response.ContentLength64 = payload.Length;
             await response.OutputStream.WriteAsync(payload);
             response.Close();
+        }
+        catch (Exception ex) when (_stop.IsCancellationRequested || ex is HttpListenerException or IOException or ObjectDisposedException)
+        {
+            // Cancellation tests deliberately disconnect clients or stop a pending server response.
         }
     }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-18: Adapter failure-path guarantees and review reconciliation (R49–R53)
+
+- Selenium rejects ambiguous single-element actions, reads and scalar assertions, matching the Playwright contract; `First` is explicit and collection operations remain supported. Added shared driver regressions for hidden/disabled duplicates and unintended side effects.
+- Playwright HTTP uses an owned context per request, honors pre-cancellation, aborts/drains cancelled requests, isolates concurrent requests and supports reuse after cancellation. Both HTTP transports run the same cancellation/disposal cases.
+- RabbitMQ startup/disposal releases partially acquired resources and preserves the original error. Kafka handles duplicate headers with last-value-wins semantics, maps null header values to empty strings, exposes worker completion/failures and releases the consumer after worker/close errors.
+- Added broker lifecycle regression tests using vendor-interface doubles; refreshed the review summary while preserving dated historical evidence. R16/R32/R33 remain blocked at the user's request; R36 still awaits real Key Vault verification.
+- Validation: 191 framework tests passed, 2 live-broker cases skipped; 28 driver contract cases passed in headed Chrome. No instrumented coverage or new mobile/live-broker/vault integration run is claimed.
+
 ## 2026-11-17: xUnit as a thin host layer; label attributes (R48, R46, phase 7)
 
 - New framework attributes **`[ReportSuite(layer, app, feature)]`** and **`[ReportTags(...)]`** in `Core.Reporting`; `TestRunner` passes them to the reporter (`ITestReporter.SetSuite`; the Allure adapter writes the parentSuite / suite / subSuite and tag labels). All 13 test classes use them instead of `[AllureParentSuite]` / `[AllureSuite]` / `[AllureSubSuite]` / `[AllureTag]`, so **scenario code imports no vendor library**. Verified: Allure results (labels included) identical to the baseline for the 15 Playwright tests and the Android smoke.

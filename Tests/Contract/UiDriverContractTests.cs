@@ -25,6 +25,13 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
           <input data-testid="key" onkeydown="if (event.key === 'Enter') document.querySelector('[data-testid=pressed]').textContent = 'entered'">
           <p data-testid="pressed"></p>
           <p data-testid="hidden" style="display:none">secret</p>
+          <button data-testid="duplicate" onclick="document.querySelector('[data-testid=action]').textContent='clicked'">Duplicate</button>
+          <button data-testid="duplicate">Duplicate</button>
+          <button data-testid="mixed-disabled" disabled>Mixed</button><button data-testid="mixed-disabled">Mixed</button>
+          <button data-testid="mixed-hidden" style="display:none">Hidden</button><button data-testid="mixed-hidden">Hidden</button>
+          <input data-testid="duplicate-input" oninput="document.querySelector('[data-testid=action]').textContent=this.value">
+          <input data-testid="duplicate-input">
+          <p data-testid="action">untouched</p>
         </body></html>
         """;
 
@@ -102,6 +109,39 @@ public abstract class UiDriverContractTests<TFactory>(UiDriverFixture<TFactory> 
     public async Task ActionOnMissingElement_Should_Throw_UiException()
     {
         await Assert.ThrowsAsync<UiException>(() => TestId("does-not-exist").ClickAsync());
+    }
+
+    [Theory]
+    [InlineData("duplicate")]
+    [InlineData("mixed-disabled")]
+    [InlineData("mixed-hidden")]
+    public async Task AmbiguousClick_Should_FailWithoutSelectingAnElement(string id)
+    {
+        await Assert.ThrowsAsync<UiException>(() => TestId(id).ClickAsync());
+        await Ui.Expect(TestId("action")).ToHaveTextAsync("untouched");
+    }
+
+    [Fact]
+    public async Task AmbiguousFill_Should_FailWithoutChangingValues()
+    {
+        await Assert.ThrowsAsync<UiException>(() => TestId("duplicate-input").FillAsync("changed"));
+        await Ui.Expect(TestId("action")).ToHaveTextAsync("untouched");
+        await TestId("duplicate-input").First.FillAsync("chosen explicitly");
+        await Ui.Expect(TestId("action")).ToHaveTextAsync("chosen explicitly");
+    }
+
+    [Fact]
+    public async Task AmbiguousScalarReadsAndAssertions_Should_Fail_WhileCollectionsAndFirstWork()
+    {
+        var elements = TestId("duplicate");
+        await Assert.ThrowsAsync<UiException>(() => elements.TextAsync());
+        await Assert.ThrowsAsync<UiException>(() => elements.IsVisibleAsync());
+        await Assert.ThrowsAsync<UiAssertionException>(() => Ui.Expect(elements).ToBeVisibleAsync());
+        await Assert.ThrowsAsync<UiAssertionException>(() => Ui.Expect(elements).ToHaveTextAsync("Duplicate"));
+        await Ui.Expect(elements).ToHaveCountAsync(2);
+        await Ui.Expect(elements).ToHaveTextAsync(["Duplicate", "Duplicate"]);
+        await elements.First.ClickAsync();
+        await Ui.Expect(TestId("action")).ToHaveTextAsync("clicked");
     }
 
     [Fact]

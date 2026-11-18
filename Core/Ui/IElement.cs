@@ -2,7 +2,8 @@ namespace Core.Ui;
 
 /// <summary>
 /// A lazy description of one or more elements (R42): nothing is looked up until an action or assertion runs, and
-/// every action waits for the element (auto-wait or polling, depending on the driver). Driver failures surface as
+/// every action waits for the element (auto-wait or polling, depending on the driver). Single-element actions, reads and assertions reject ambiguous matches; use First to select intentionally.
+/// Driver failures surface as
 /// <see cref="UiException"/>.
 /// </summary>
 public interface IElement

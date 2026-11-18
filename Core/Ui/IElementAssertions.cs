@@ -3,6 +3,7 @@ namespace Core.Ui;
 /// <summary>
 /// Web-first assertions (R42): each one keeps re-checking until it holds or the driver's assertion timeout passes
 /// (Playwright: 5 s), then throws <see cref="UiAssertionException"/>. Never wrap them in a retry.
+/// Scalar assertions require a single match; count and list-text assertions accept collections.
 /// </summary>
 public interface IElementAssertions
 {

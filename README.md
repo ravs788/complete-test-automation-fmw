@@ -110,7 +110,7 @@ TestAutomationProj/
 └── TestAutomationPlatform.slnx        # The solution; Core and its add-ons under one /Core/ solution folder
 ```
 
-Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Pages`, `Core.Mobile` → `Core.Ui.Selenium` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile`, `Tests/Unit` and `Tests/Contract` folders, which are separate projects; in the same way `Core.csproj` excludes its add-on projects (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`), which live inside `Core/` but are built separately so only the suites that need Appium, a broker client or the Azure SDK take those packages. Every project's assembly name equals its root namespace, which matches its folder (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite keeps its own `Pages/` because the top-level `Pages` project is built on Playwright; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
+Dependencies: `Tests` → `Pages` → `Core` and `Tests` → `Domain` → `Core`; `Tests/UI/Mobile` → `Pages`, `Core.Mobile` → `Core.Ui.Selenium` → `Core`. `Tests.csproj` excludes the `Tests/UI/Mobile`, `Tests/Unit` and `Tests/Contract` folders, which are separate projects; in the same way `Core.csproj` excludes its add-on projects (`Core/Mobile`, `Core/Messaging/Kafka`, `Core/Messaging/RabbitMq`, `Core/Security/AzureKeyVault`), which live inside `Core/` but are built separately so only the suites that need Appium, a broker client or the Azure SDK take those packages. Every project's assembly name equals its root namespace, which matches its folder (`Core`, `Core.Messaging.Kafka`, `Core.Messaging.RabbitMq`, `Core.Mobile`, `Core.Security.AzureKeyVault`, `Domain`, `Pages`, `Tests`, `Tests.Unit`, `Tests.UI.Mobile`). The mobile suite uses the shared driver-neutral `Pages` project; its reusable bootstrapping is in `Core.Mobile`, so `Core` has no Appium dependency.
 
 NuGet versions are managed centrally in `Directory.Packages.props`. Projects reference packages without a `Version`, so to upgrade a package, change it there. Selenium packages are only there because Appium's .NET client (`Tests/UI/Mobile`) is built on Selenium WebDriver.
 
@@ -462,7 +462,7 @@ var created = await events.WaitForAsync(m => m.Key == "booking.created", TimeSpa
 Assert.Equal(booking.LastName, created.BodyAs<Booking>()!.LastName);
 ```
 
-The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener reads from the end offsets with no consumer-group commits. Either way, nothing is left on the broker after the test. The broker tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (see GETTING_STARTED).
+The RabbitMQ listener binds an exclusive, auto-delete queue; the Kafka listener reads from the end offsets with no consumer-group commits. Startup and disposal failures still release acquired broker resources. Kafka repeated header names use the last value, null header values become empty strings, and a fatal worker error is exposed through `Completion` and pending `WaitForAsync` calls. Either way, nothing is left on the broker after the test. The broker tests in `Tests/Unit` run only when `RABBITMQ_URI` / `KAFKA_BOOTSTRAP` are set (see GETTING_STARTED).
 
 ### Mobile
 
